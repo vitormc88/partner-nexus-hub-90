@@ -39,6 +39,12 @@ const mainNav = [
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 
+const salesNav = [
+  { title: "Pipeline", url: "/pipeline", icon: Kanban },
+  { title: "Deal Registrations", url: "/deal-registrations", icon: ShieldCheck },
+  { title: "Commissions", url: "/commissions", icon: DollarSign },
+];
+
 const resourcesNav = [
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Training", url: "/training", icon: GraduationCap },

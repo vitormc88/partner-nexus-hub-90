@@ -9,6 +9,7 @@ import {
   Megaphone,
   Bell,
   Settings,
+  RefreshCcw,
   ChevronLeft,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";

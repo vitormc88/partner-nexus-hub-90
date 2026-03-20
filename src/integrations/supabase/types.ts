@@ -858,6 +858,248 @@ export type Database = {
           },
         ]
       }
+      onboarding_checklist: {
+        Row: {
+          category: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          onboarding_id: string
+          sort_order: number
+          task_name: string
+        }
+        Insert: {
+          category?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          onboarding_id: string
+          sort_order?: number
+          task_name: string
+        }
+        Update: {
+          category?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          onboarding_id?: string
+          sort_order?: number
+          task_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_checklist_onboarding_id_fkey"
+            columns: ["onboarding_id"]
+            isOneToOne: false
+            referencedRelation: "partner_onboarding"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_badges: {
+        Row: {
+          awarded_at: string
+          badge_description: string | null
+          badge_icon: string | null
+          badge_name: string
+          id: string
+          partner_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          badge_description?: string | null
+          badge_icon?: string | null
+          badge_name: string
+          id?: string
+          partner_id: string
+        }
+        Update: {
+          awarded_at?: string
+          badge_description?: string | null
+          badge_icon?: string | null
+          badge_name?: string
+          id?: string
+          partner_id?: string
+        }
+        Relationships: []
+      }
+      partner_certifications: {
+        Row: {
+          awarded_at: string | null
+          certification_level: number
+          certification_name: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          partner_id: string
+          score: number | null
+          status: string
+          user_email: string | null
+          user_name: string
+        }
+        Insert: {
+          awarded_at?: string | null
+          certification_level?: number
+          certification_name: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          partner_id: string
+          score?: number | null
+          status?: string
+          user_email?: string | null
+          user_name: string
+        }
+        Update: {
+          awarded_at?: string | null
+          certification_level?: number
+          certification_name?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          partner_id?: string
+          score?: number | null
+          status?: string
+          user_email?: string | null
+          user_name?: string
+        }
+        Relationships: []
+      }
+      partner_health_scores: {
+        Row: {
+          activity_score: number | null
+          calculated_at: string
+          certification_score: number | null
+          conversion_score: number | null
+          id: string
+          overall_score: number
+          partner_id: string
+          pipeline_score: number | null
+          renewal_score: number | null
+          revenue_score: number | null
+          risk_level: string | null
+          trend: string | null
+        }
+        Insert: {
+          activity_score?: number | null
+          calculated_at?: string
+          certification_score?: number | null
+          conversion_score?: number | null
+          id?: string
+          overall_score?: number
+          partner_id: string
+          pipeline_score?: number | null
+          renewal_score?: number | null
+          revenue_score?: number | null
+          risk_level?: string | null
+          trend?: string | null
+        }
+        Update: {
+          activity_score?: number | null
+          calculated_at?: string
+          certification_score?: number | null
+          conversion_score?: number | null
+          id?: string
+          overall_score?: number
+          partner_id?: string
+          pipeline_score?: number | null
+          renewal_score?: number | null
+          revenue_score?: number | null
+          risk_level?: string | null
+          trend?: string | null
+        }
+        Relationships: []
+      }
+      partner_missions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_value: number
+          ends_at: string | null
+          id: string
+          mission_description: string | null
+          mission_name: string
+          mission_type: string | null
+          partner_id: string
+          starts_at: string | null
+          status: string
+          target_value: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          ends_at?: string | null
+          id?: string
+          mission_description?: string | null
+          mission_name: string
+          mission_type?: string | null
+          partner_id: string
+          starts_at?: string | null
+          status?: string
+          target_value?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          ends_at?: string | null
+          id?: string
+          mission_description?: string | null
+          mission_name?: string
+          mission_type?: string | null
+          partner_id?: string
+          starts_at?: string | null
+          status?: string
+          target_value?: number
+        }
+        Relationships: []
+      }
+      partner_onboarding: {
+        Row: {
+          assigned_manager: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          partner_id: string
+          progress_pct: number
+          stage: string
+          started_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_manager?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          progress_pct?: number
+          stage?: string
+          started_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_manager?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          progress_pct?: number
+          stage?: string
+          started_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partner_renewal_settings: {
         Row: {
           created_at: string
@@ -885,6 +1127,60 @@ export type Database = {
           partner_id?: string
           updated_at?: string
           yellow_days?: number
+        }
+        Relationships: []
+      }
+      partner_tiers: {
+        Row: {
+          annual_revenue: number | null
+          auto_suggested_tier: number | null
+          certified_users: number | null
+          created_at: string
+          current_tier: number
+          downgraded_at: string | null
+          hq_validated: boolean | null
+          id: string
+          partner_id: string
+          previous_tier: number | null
+          tier_name: string
+          total_deals: number | null
+          updated_at: string
+          upgraded_at: string | null
+          win_rate: number | null
+        }
+        Insert: {
+          annual_revenue?: number | null
+          auto_suggested_tier?: number | null
+          certified_users?: number | null
+          created_at?: string
+          current_tier?: number
+          downgraded_at?: string | null
+          hq_validated?: boolean | null
+          id?: string
+          partner_id: string
+          previous_tier?: number | null
+          tier_name?: string
+          total_deals?: number | null
+          updated_at?: string
+          upgraded_at?: string | null
+          win_rate?: number | null
+        }
+        Update: {
+          annual_revenue?: number | null
+          auto_suggested_tier?: number | null
+          certified_users?: number | null
+          created_at?: string
+          current_tier?: number
+          downgraded_at?: string | null
+          hq_validated?: boolean | null
+          id?: string
+          partner_id?: string
+          previous_tier?: number | null
+          tier_name?: string
+          total_deals?: number | null
+          updated_at?: string
+          upgraded_at?: string | null
+          win_rate?: number | null
         }
         Relationships: []
       }

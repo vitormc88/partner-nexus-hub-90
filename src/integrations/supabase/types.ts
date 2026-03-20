@@ -14,7 +14,575 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      client_audit_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          client_id: string
+          created_at: string
+          field_name: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          client_id: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          client_id?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_audit_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_contacts: {
+        Row: {
+          client_id: string
+          contact_name: string
+          created_at: string
+          email: string | null
+          id: string
+          mobile: string | null
+          notes: string | null
+          phone: string | null
+          role_function: string | null
+        }
+        Insert: {
+          client_id: string
+          contact_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile?: string | null
+          notes?: string | null
+          phone?: string | null
+          role_function?: string | null
+        }
+        Update: {
+          client_id?: string
+          contact_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile?: string | null
+          notes?: string | null
+          phone?: string | null
+          role_function?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_credentials: {
+        Row: {
+          admin_notes: string | null
+          client_id: string
+          created_at: string
+          environment_type: string | null
+          id: string
+          login: string | null
+          password_secret: string | null
+          system_url: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_id: string
+          created_at?: string
+          environment_type?: string | null
+          id?: string
+          login?: string | null
+          password_secret?: string | null
+          system_url?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          client_id?: string
+          created_at?: string
+          environment_type?: string | null
+          id?: string
+          login?: string | null
+          password_secret?: string | null
+          system_url?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_credentials_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notes: {
+        Row: {
+          client_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note_type: string | null
+        }
+        Insert: {
+          client_id: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note_type?: string | null
+        }
+        Update: {
+          client_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          account_manager: string | null
+          address: string | null
+          auto_update: boolean
+          award_reference: string | null
+          city: string | null
+          client_code: string
+          cloud_onpremise: string | null
+          commercial_name: string
+          country: string | null
+          created_at: string
+          current_version: string | null
+          email: string | null
+          fax: string | null
+          first_installation_date: string | null
+          first_installed_version: string | null
+          has_custom_reports: boolean
+          has_custom_routine: boolean
+          id: string
+          installation_location: string | null
+          is_inactive: boolean
+          is_premium: boolean
+          license_type: string | null
+          manager_owner: string | null
+          observations: string | null
+          partner_id: string | null
+          phone: string | null
+          postal_code: string | null
+          product_type: string | null
+          sector: string | null
+          short_name: string | null
+          state_region: string | null
+          status: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          account_manager?: string | null
+          address?: string | null
+          auto_update?: boolean
+          award_reference?: string | null
+          city?: string | null
+          client_code: string
+          cloud_onpremise?: string | null
+          commercial_name: string
+          country?: string | null
+          created_at?: string
+          current_version?: string | null
+          email?: string | null
+          fax?: string | null
+          first_installation_date?: string | null
+          first_installed_version?: string | null
+          has_custom_reports?: boolean
+          has_custom_routine?: boolean
+          id?: string
+          installation_location?: string | null
+          is_inactive?: boolean
+          is_premium?: boolean
+          license_type?: string | null
+          manager_owner?: string | null
+          observations?: string | null
+          partner_id?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          product_type?: string | null
+          sector?: string | null
+          short_name?: string | null
+          state_region?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          account_manager?: string | null
+          address?: string | null
+          auto_update?: boolean
+          award_reference?: string | null
+          city?: string | null
+          client_code?: string
+          cloud_onpremise?: string | null
+          commercial_name?: string
+          country?: string | null
+          created_at?: string
+          current_version?: string | null
+          email?: string | null
+          fax?: string | null
+          first_installation_date?: string | null
+          first_installed_version?: string | null
+          has_custom_reports?: boolean
+          has_custom_routine?: boolean
+          id?: string
+          installation_location?: string | null
+          is_inactive?: boolean
+          is_premium?: boolean
+          license_type?: string | null
+          manager_owner?: string | null
+          observations?: string | null
+          partner_id?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          product_type?: string | null
+          sector?: string | null
+          short_name?: string | null
+          state_region?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          billing_notes: string | null
+          client_id: string
+          contract_end_date: string | null
+          contract_start_date: string | null
+          contract_value: number | null
+          created_at: string
+          currency: string | null
+          hosting_value: number | null
+          id: string
+          invoiced_value: number | null
+          mww_web_value: number | null
+          notice_period_days: number | null
+          num_installments: number | null
+          observations: string | null
+          partner_revenue_split: number | null
+          price_table_reference: string | null
+          renewal_freeze_notes: string | null
+          renewal_increase_pct: number | null
+          sat_value: number | null
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          billing_notes?: string | null
+          client_id: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          contract_value?: number | null
+          created_at?: string
+          currency?: string | null
+          hosting_value?: number | null
+          id?: string
+          invoiced_value?: number | null
+          mww_web_value?: number | null
+          notice_period_days?: number | null
+          num_installments?: number | null
+          observations?: string | null
+          partner_revenue_split?: number | null
+          price_table_reference?: string | null
+          renewal_freeze_notes?: string | null
+          renewal_increase_pct?: number | null
+          sat_value?: number | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          billing_notes?: string | null
+          client_id?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          contract_value?: number | null
+          created_at?: string
+          currency?: string | null
+          hosting_value?: number | null
+          id?: string
+          invoiced_value?: number | null
+          mww_web_value?: number | null
+          notice_period_days?: number | null
+          num_installments?: number | null
+          observations?: string | null
+          partner_revenue_split?: number | null
+          price_table_reference?: string | null
+          renewal_freeze_notes?: string | null
+          renewal_increase_pct?: number | null
+          sat_value?: number | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      licensed_modules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          end_date: string | null
+          id: string
+          license_id: string
+          license_type: string | null
+          module_name: string
+          notes: string | null
+          periodicity: string | null
+          start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          end_date?: string | null
+          id?: string
+          license_id: string
+          license_type?: string | null
+          module_name: string
+          notes?: string | null
+          periodicity?: string | null
+          start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          end_date?: string | null
+          id?: string
+          license_id?: string
+          license_type?: string | null
+          module_name?: string
+          notes?: string | null
+          periodicity?: string | null
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licensed_modules_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      licenses: {
+        Row: {
+          api_access: boolean
+          backoffice_employee_users: number | null
+          backoffice_users: number | null
+          client_id: string
+          created_at: string
+          database_type: string | null
+          id: string
+          license_end_date: string | null
+          license_model: string | null
+          license_start_date: string | null
+          mobile_users: number | null
+          periodicity: string | null
+          product: string | null
+          sat_active: boolean
+          sat_end_date: string | null
+          updated_at: string
+          version: string | null
+          web_accesses: number | null
+        }
+        Insert: {
+          api_access?: boolean
+          backoffice_employee_users?: number | null
+          backoffice_users?: number | null
+          client_id: string
+          created_at?: string
+          database_type?: string | null
+          id?: string
+          license_end_date?: string | null
+          license_model?: string | null
+          license_start_date?: string | null
+          mobile_users?: number | null
+          periodicity?: string | null
+          product?: string | null
+          sat_active?: boolean
+          sat_end_date?: string | null
+          updated_at?: string
+          version?: string | null
+          web_accesses?: number | null
+        }
+        Update: {
+          api_access?: boolean
+          backoffice_employee_users?: number | null
+          backoffice_users?: number | null
+          client_id?: string
+          created_at?: string
+          database_type?: string | null
+          id?: string
+          license_end_date?: string | null
+          license_model?: string | null
+          license_start_date?: string | null
+          mobile_users?: number | null
+          periodicity?: string | null
+          product?: string | null
+          sat_active?: boolean
+          sat_end_date?: string | null
+          updated_at?: string
+          version?: string | null
+          web_accesses?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licenses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_renewal_settings: {
+        Row: {
+          created_at: string
+          green_days: number
+          id: string
+          orange_days: number
+          partner_id: string
+          updated_at: string
+          yellow_days: number
+        }
+        Insert: {
+          created_at?: string
+          green_days?: number
+          id?: string
+          orange_days?: number
+          partner_id: string
+          updated_at?: string
+          yellow_days?: number
+        }
+        Update: {
+          created_at?: string
+          green_days?: number
+          id?: string
+          orange_days?: number
+          partner_id?: string
+          updated_at?: string
+          yellow_days?: number
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number | null
+          billing_notes: string | null
+          client_id: string
+          contract_id: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          last_payment_date: string | null
+          outstanding_balance: number | null
+          payment_status: string
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          billing_notes?: string | null
+          client_id: string
+          contract_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          last_payment_date?: string | null
+          outstanding_balance?: number | null
+          payment_status?: string
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          billing_notes?: string | null
+          client_id?: string
+          contract_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          last_payment_date?: string | null
+          outstanding_balance?: number | null
+          payment_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

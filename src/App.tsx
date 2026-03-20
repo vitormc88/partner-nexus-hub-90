@@ -7,6 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
+import ClientsLicenses from "@/pages/ClientsLicenses";
+import ClientDetail from "@/pages/ClientDetail";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 

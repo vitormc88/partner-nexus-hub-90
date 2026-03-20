@@ -490,6 +490,69 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          category: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          partner_id: string | null
+          renewal_id: string | null
+          target_role: string | null
+          target_user_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          partner_id?: string | null
+          renewal_id?: string | null
+          target_role?: string | null
+          target_user_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          action_url?: string | null
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          partner_id?: string | null
+          renewal_id?: string | null
+          target_role?: string | null
+          target_user_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_renewal_id_fkey"
+            columns: ["renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_renewal_settings: {
         Row: {
           created_at: string
@@ -579,6 +642,129 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      renewal_activities: {
+        Row: {
+          action: string
+          created_at: string
+          from_status: string | null
+          id: string
+          notes: string | null
+          performed_by: string | null
+          renewal_id: string
+          to_status: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          renewal_id: string
+          to_status?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          renewal_id?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewal_activities_renewal_id_fkey"
+            columns: ["renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      renewals: {
+        Row: {
+          alert_window_days: number | null
+          assigned_owner: string | null
+          client_id: string
+          contract_id: string | null
+          created_at: string
+          estimated_value: number | null
+          final_value: number | null
+          id: string
+          last_interaction: string | null
+          license_id: string | null
+          notes: string | null
+          partner_id: string | null
+          priority: string | null
+          renewal_date: string | null
+          renewal_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alert_window_days?: number | null
+          assigned_owner?: string | null
+          client_id: string
+          contract_id?: string | null
+          created_at?: string
+          estimated_value?: number | null
+          final_value?: number | null
+          id?: string
+          last_interaction?: string | null
+          license_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          priority?: string | null
+          renewal_date?: string | null
+          renewal_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_window_days?: number | null
+          assigned_owner?: string | null
+          client_id?: string
+          contract_id?: string | null
+          created_at?: string
+          estimated_value?: number | null
+          final_value?: number | null
+          id?: string
+          last_interaction?: string | null
+          license_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          priority?: string | null
+          renewal_date?: string | null
+          renewal_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
             referencedColumns: ["id"]
           },
         ]

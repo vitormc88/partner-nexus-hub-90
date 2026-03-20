@@ -11,6 +11,9 @@ import {
   Settings,
   RefreshCcw,
   ChevronLeft,
+  Kanban,
+  ShieldCheck,
+  DollarSign,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -34,6 +37,12 @@ const mainNav = [
   { title: "Clients & Licenses", url: "/clients", icon: Building2 },
   { title: "Renewals", url: "/renewals", icon: RefreshCcw },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+];
+
+const salesNav = [
+  { title: "Pipeline", url: "/pipeline", icon: Kanban },
+  { title: "Deal Registrations", url: "/deal-registrations", icon: ShieldCheck },
+  { title: "Commissions", url: "/commissions", icon: DollarSign },
 ];
 
 const resourcesNav = [
@@ -115,6 +124,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-1.5">
         {renderGroup("Main", mainNav)}
+        {renderGroup("Sales CRM", salesNav)}
         {renderGroup("Resources", resourcesNav)}
         {renderGroup("Engage", communityNav)}
       </SidebarContent>

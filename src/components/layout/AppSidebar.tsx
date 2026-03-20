@@ -32,6 +32,7 @@ const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Partners", url: "/partners", icon: Users },
   { title: "Clients & Licenses", url: "/clients", icon: Building2 },
+  { title: "Renewals", url: "/renewals", icon: RefreshCcw },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 

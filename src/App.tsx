@@ -9,6 +9,9 @@ import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";
 import ClientDetail from "@/pages/ClientDetail";
+import Renewals from "@/pages/Renewals";
+import Analytics from "@/pages/Analytics";
+import Notifications from "@/pages/Notifications";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 
@@ -27,12 +30,13 @@ const App = () => (
             <Route path="/partners/:id" element={<PartnerDetail />} />
             <Route path="/clients" element={<ClientsLicenses />} />
             <Route path="/clients/:id" element={<ClientDetail />} />
-            <Route path="/analytics" element={<ComingSoon />} />
+            <Route path="/renewals" element={<Renewals />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/knowledge" element={<ComingSoon />} />
             <Route path="/training" element={<ComingSoon />} />
             <Route path="/community" element={<ComingSoon />} />
             <Route path="/announcements" element={<ComingSoon />} />
-            <Route path="/notifications" element={<ComingSoon />} />
             <Route path="/settings" element={<ComingSoon />} />
           </Route>
           <Route path="*" element={<NotFound />} />

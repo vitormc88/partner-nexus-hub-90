@@ -162,16 +162,19 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-md bg-sidebar-accent">
             <div className="h-7 w-7 rounded-full bg-sidebar-primary flex items-center justify-center text-[11px] font-semibold text-sidebar-primary-foreground shrink-0">
-              CM
+              {(profile?.full_name || "U").slice(0, 2).toUpperCase()}
             </div>
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0 flex-1">
               <span className="text-xs font-medium text-sidebar-accent-foreground truncate">
-                Carlos Mendes
+                {profile?.full_name || "User"}
               </span>
               <span className="text-[11px] text-sidebar-muted truncate">
-                Admin · HQ
+                {roles[0]?.replace("_", " ") || "No role"}
               </span>
             </div>
+            <button onClick={signOut} className="text-sidebar-muted hover:text-sidebar-foreground transition-colors shrink-0" title="Sign out">
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
       </SidebarFooter>

@@ -1,3 +1,5 @@
+import { useAuth } from "@/contexts/AuthContext";
+import { LogOut } from "lucide-react";
 import {
   LayoutDashboard,
   Users,

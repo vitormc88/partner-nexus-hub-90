@@ -4,6 +4,19 @@ import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 export type Partner = Tables<"partners">;
 
+const mapPartnerMutationError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : "";
+
+  if (
+    message.toLowerCase().includes("row-level security") ||
+    message.toLowerCase().includes("permission denied")
+  ) {
+    return new Error("You do not have permission to create a partner. This action is restricted to HQ administrators.");
+  }
+
+  return error instanceof Error ? error : new Error("Failed to save partner");
+};
+
 export function usePartners(filters?: { status?: string; country?: string }) {
   return useQuery({
     queryKey: ["partners", filters],
@@ -39,8 +52,18 @@ export function useCreatePartner() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (partner: TablesInsert<"partners">) => {
-      const { data, error } = await supabase.from("partners").insert(partner).select().single();
-      if (error) throw error;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const payload: TablesInsert<"partners"> = {
+        ...partner,
+        created_by: user?.id,
+        updated_by: user?.id,
+      };
+
+      const { data, error } = await supabase.from("partners").insert(payload).select().single();
+      if (error) throw mapPartnerMutationError(error);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["partners"] }),

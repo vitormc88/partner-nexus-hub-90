@@ -56,7 +56,7 @@ const App = () => (
               <Route path="/performance" element={<PartnerPerformance />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/knowledge" element={<ComingSoon />} />
+              <Route path="/knowledge" element={<KnowledgeBase />} />
               <Route path="/training" element={<ComingSoon />} />
               <Route path="/community" element={<ComingSoon />} />
               <Route path="/announcements" element={<ComingSoon />} />

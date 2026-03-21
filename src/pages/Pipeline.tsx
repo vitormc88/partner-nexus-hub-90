@@ -1,32 +1,53 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { mockDeals, pipelineStages, getPipelineStats, DealStage } from "@/data/deals-mock-data";
+import { useDeals } from "@/hooks/useDeals";
+import { usePartners } from "@/hooks/usePartners";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, Calendar, GripVertical, Search, Filter, TrendingUp, Target, AlertTriangle, Trophy } from "lucide-react";
+import { Phone, Mail, Calendar, GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
-const stageOrder: DealStage[] = ["Lead", "Meeting", "Demo", "Follow-up", "Negotiation", "Won", "Lost"];
+type DealStage = "Lead" | "Meeting" | "Demo" | "Follow-up" | "Negotiation" | "Won" | "Lost";
+
+const pipelineStages: { key: DealStage; label: string; color: string }[] = [
+  { key: "Lead", label: "Lead / Qualified", color: "bg-slate-100 dark:bg-slate-800" },
+  { key: "Meeting", label: "Meeting", color: "bg-blue-50 dark:bg-blue-950" },
+  { key: "Demo", label: "Demo / Presentation", color: "bg-indigo-50 dark:bg-indigo-950" },
+  { key: "Follow-up", label: "Follow-up", color: "bg-amber-50 dark:bg-amber-950" },
+  { key: "Negotiation", label: "Negotiation", color: "bg-orange-50 dark:bg-orange-950" },
+  { key: "Won", label: "Won", color: "bg-emerald-50 dark:bg-emerald-950" },
+  { key: "Lost", label: "Lost", color: "bg-red-50 dark:bg-red-950" },
+];
 
 export default function Pipeline() {
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
-  const [deals, setDeals] = useState(mockDeals);
-  const [draggedDeal, setDraggedDeal] = useState<string | null>(null);
+  const { data: deals = [], isLoading } = useDeals();
+  const { data: partners = [] } = usePartners();
+  const queryClient = useQueryClient();
 
-  const partners = [...new Set(mockDeals.map(d => d.partnerName))];
+  const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
+  const partnerNames = [...new Set(deals.map(d => partnerMap.get(d.partner_id || "") || "Unknown"))].filter(Boolean);
+
   const filtered = deals.filter(d => {
-    const matchSearch = d.companyName.toLowerCase().includes(search.toLowerCase()) || d.assignedSalesperson.toLowerCase().includes(search.toLowerCase());
-    const matchPartner = partnerFilter === "all" || d.partnerName === partnerFilter;
+    const pName = partnerMap.get(d.partner_id || "") || "";
+    const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
+    const matchPartner = partnerFilter === "all" || pName === partnerFilter;
     return matchSearch && matchPartner;
   });
 
-  const stats = getPipelineStats(filtered);
+  const open = filtered.filter(d => d.status === "Open");
+  const won = filtered.filter(d => d.status === "Won");
+  const lost = filtered.filter(d => d.status === "Lost");
+  const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const weightedPipeline = open.reduce((s, d) => s + (d.expected_value || 0) * ((d.probability || 0) / 100), 0);
+  const winRate = won.length + lost.length > 0 ? Math.round((won.length / (won.length + lost.length)) * 100) : 0;
+  const stuckDeals = open.filter(d => (d.aging_days || 0) > 45).length;
 
-  const handleDragStart = (dealId: string) => setDraggedDeal(dealId);
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-  const handleDrop = (stage: DealStage) => {
-    if (!draggedDeal) return;
-    setDeals(prev => prev.map(d => d.id === draggedDeal ? { ...d, stage, status: stage === "Won" ? "Won" as const : stage === "Lost" ? "Lost" as const : "Open" as const, stageEnteredAt: new Date().toISOString() } : d));
-    setDraggedDeal(null);
+  const handleDrop = async (stage: DealStage, dealId: string) => {
+    const newStatus = stage === "Won" ? "Won" : stage === "Lost" ? "Lost" : "Open";
+    await supabase.from("deals").update({ stage, status: newStatus, stage_entered_at: new Date().toISOString() }).eq("id", dealId);
+    queryClient.invalidateQueries({ queryKey: ["deals"] });
   };
 
   const activityIcon = (type: string) => {
@@ -35,25 +56,23 @@ export default function Pipeline() {
     return <Calendar className="h-3 w-3" />;
   };
 
+  if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-5">
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Sales Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">{stats.open} open deals · €{(stats.totalPipeline / 1000).toFixed(0)}k pipeline</p>
+          <p className="text-sm text-muted-foreground mt-1">{open.length} open deals · €{(totalPipeline / 1000).toFixed(0)}k pipeline</p>
         </div>
-        <Link to="/deals/new" className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors active:scale-[0.97] inline-flex items-center">
-          + New Deal
-        </Link>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "60ms" }}>
         {[
-          { label: "Pipeline Value", value: `€${(stats.totalPipeline / 1000).toFixed(0)}k`, icon: TrendingUp, accent: "text-primary" },
-          { label: "Weighted Pipeline", value: `€${(stats.weightedPipeline / 1000).toFixed(0)}k`, icon: Target, accent: "text-foreground" },
-          { label: "Win Rate", value: `${stats.winRate}%`, icon: Trophy, accent: "text-emerald-600" },
-          { label: "Stuck Deals", value: String(stats.stuckDeals), icon: AlertTriangle, accent: stats.stuckDeals > 0 ? "text-amber-600" : "text-foreground" },
+          { label: "Pipeline Value", value: `€${(totalPipeline / 1000).toFixed(0)}k`, icon: TrendingUp, accent: "text-primary" },
+          { label: "Weighted Pipeline", value: `€${(weightedPipeline / 1000).toFixed(0)}k`, icon: Target, accent: "text-foreground" },
+          { label: "Win Rate", value: `${winRate}%`, icon: Trophy, accent: "text-emerald-600" },
+          { label: "Stuck Deals", value: String(stuckDeals), icon: AlertTriangle, accent: stuckDeals > 0 ? "text-amber-600" : "text-foreground" },
         ].map(kpi => (
           <div key={kpi.label} className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -67,7 +86,6 @@ export default function Pipeline() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-3 animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2 flex-1 max-w-sm">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -75,17 +93,18 @@ export default function Pipeline() {
         </div>
         <select value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
           <option value="all">All Partners</option>
-          {partners.map(p => <option key={p} value={p}>{p}</option>)}
+          {partnerNames.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
-      {/* Kanban Board */}
       <div className="flex gap-3 overflow-x-auto pb-4 animate-reveal-up" style={{ animationDelay: "180ms" }}>
         {pipelineStages.filter(s => s.key !== "Won" && s.key !== "Lost").map(stage => {
           const stageDeals = filtered.filter(d => d.stage === stage.key);
-          const stageValue = stageDeals.reduce((s, d) => s + d.expectedValue, 0);
+          const stageValue = stageDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
           return (
-            <div key={stage.key} className="min-w-[280px] w-[280px] shrink-0" onDragOver={handleDragOver} onDrop={() => handleDrop(stage.key)}>
+            <div key={stage.key} className="min-w-[280px] w-[280px] shrink-0"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { const id = e.dataTransfer.getData("dealId"); if (id) handleDrop(stage.key, id); }}>
               <div className={`rounded-xl ${stage.color} border p-3 min-h-[400px]`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -96,34 +115,25 @@ export default function Pipeline() {
                 </div>
                 <div className="space-y-2">
                   {stageDeals.map(deal => (
-                    <Link key={deal.id} to={`/deals/${deal.id}`} draggable onDragStart={() => handleDragStart(deal.id)}
-                      className={`block bg-card rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${draggedDeal === deal.id ? "opacity-50" : ""}`}>
+                    <Link key={deal.id} to={`/deals/${deal.id}`} draggable
+                      onDragStart={e => e.dataTransfer.setData("dealId", deal.id)}
+                      className="block bg-card rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="text-sm font-medium text-foreground leading-tight">{deal.companyName}</p>
+                        <p className="text-sm font-medium text-foreground leading-tight">{deal.company_name}</p>
                         <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
                       </div>
-                      <p className="text-[11px] text-muted-foreground mb-2">{deal.partnerName}</p>
+                      <p className="text-[11px] text-muted-foreground mb-2">{partnerMap.get(deal.partner_id || "") || "—"}</p>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-foreground tabular-nums">€{deal.expectedValue.toLocaleString()}</span>
+                        <span className="text-sm font-semibold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
                         <Badge variant="outline" className="text-[10px]">{deal.probability}%</Badge>
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          {activityIcon(deal.lastActivityType)}
-                          <span>{deal.assignedSalesperson.split(" ")[0]}</span>
-                        </div>
+                        <span>{(deal.assigned_salesperson || "").split(" ")[0]}</span>
                         <div className="flex items-center gap-2">
-                          {deal.agingDays > 45 && <span className="text-amber-600 font-medium">{deal.agingDays}d</span>}
+                          {(deal.aging_days || 0) > 45 && <span className="text-amber-600 font-medium">{deal.aging_days}d</span>}
                           <span>{deal.country}</span>
                         </div>
                       </div>
-                      {deal.registrationStatus && (
-                        <div className="mt-2 pt-2 border-t">
-                          <Badge variant={deal.registrationStatus === "Approved" ? "success" : deal.registrationStatus === "Pending" ? "warning" : "destructive"} className="text-[10px]">
-                            Reg: {deal.registrationStatus}
-                          </Badge>
-                        </div>
-                      )}
                     </Link>
                   ))}
                 </div>
@@ -133,7 +143,6 @@ export default function Pipeline() {
         })}
       </div>
 
-      {/* Won / Lost summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-reveal-up" style={{ animationDelay: "240ms" }}>
         {(["Won", "Lost"] as DealStage[]).map(stage => {
           const stageInfo = pipelineStages.find(s => s.key === stage)!;
@@ -145,10 +154,10 @@ export default function Pipeline() {
                 {stageDeals.map(deal => (
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
                     <div>
-                      <p className="text-sm font-medium text-foreground">{deal.companyName}</p>
-                      <p className="text-[11px] text-muted-foreground">{deal.partnerName} · {deal.assignedSalesperson}</p>
+                      <p className="text-sm font-medium text-foreground">{deal.company_name}</p>
+                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {deal.assigned_salesperson}</p>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">€{(deal.totalValue || deal.expectedValue).toLocaleString()}</span>
+                    <span className="text-sm font-semibold tabular-nums text-foreground">€{(deal.total_value || deal.expected_value || 0).toLocaleString()}</span>
                   </Link>
                 ))}
                 {stageDeals.length === 0 && <p className="text-xs text-muted-foreground">No {stage.toLowerCase()} deals</p>}

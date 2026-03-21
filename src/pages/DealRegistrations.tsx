@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { mockDeals } from "@/data/deals-mock-data";
+import { useDealRegistrations } from "@/hooks/useCommissions";
+import { usePartners } from "@/hooks/usePartners";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Clock, XCircle, Search, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Clock, XCircle, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const statusConfig = {
   Pending: { variant: "warning" as const, icon: Clock },
@@ -12,25 +16,41 @@ const statusConfig = {
 
 export default function DealRegistrations() {
   const [filter, setFilter] = useState<"all" | "Pending" | "Approved" | "Rejected">("all");
-  const registeredDeals = mockDeals.filter(d => d.registrationStatus);
+  const { data: registrations = [], isLoading } = useDealRegistrations();
+  const { data: partners = [] } = usePartners();
+  const queryClient = useQueryClient();
 
-  const filtered = filter === "all" ? registeredDeals : registeredDeals.filter(d => d.registrationStatus === filter);
-  const pending = registeredDeals.filter(d => d.registrationStatus === "Pending").length;
+  const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
+  const filtered = filter === "all" ? registrations : registrations.filter(r => r.registration_status === filter);
+  const pending = registrations.filter(r => r.registration_status === "Pending").length;
 
-  // Simple duplicate detection
-  const duplicateGroups = new Map<string, typeof registeredDeals>();
-  registeredDeals.forEach(d => {
-    const key = d.companyName.toLowerCase().replace(/\s+/g, "");
-    if (!duplicateGroups.has(key)) duplicateGroups.set(key, []);
-    duplicateGroups.get(key)!.push(d);
+  // Duplicate detection
+  const nameGroups = new Map<string, typeof registrations>();
+  registrations.forEach(r => {
+    const key = ((r.deals as any)?.company_name || "").toLowerCase().replace(/\s+/g, "");
+    if (!key) return;
+    if (!nameGroups.has(key)) nameGroups.set(key, []);
+    nameGroups.get(key)!.push(r);
   });
-  const conflicts = [...duplicateGroups.values()].filter(g => g.length > 1);
+  const conflicts = [...nameGroups.values()].filter(g => g.length > 1);
+
+  const handleAction = async (id: string, status: "Approved" | "Rejected") => {
+    const { error } = await supabase.from("deal_registrations").update({
+      registration_status: status,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (error) { toast.error("Failed to update"); return; }
+    toast.success(`Registration ${status.toLowerCase()}`);
+    queryClient.invalidateQueries({ queryKey: ["deal_registrations"] });
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="animate-reveal-up">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Deal Registrations</h1>
-        <p className="text-sm text-muted-foreground mt-1">{registeredDeals.length} registrations · {pending} pending approval</p>
+        <p className="text-sm text-muted-foreground mt-1">{registrations.length} registrations · {pending} pending approval</p>
       </div>
 
       {conflicts.length > 0 && (
@@ -66,35 +86,39 @@ export default function DealRegistrations() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filtered.map(deal => {
-              const cfg = statusConfig[deal.registrationStatus!];
+            {filtered.map(reg => {
+              const deal = reg.deals as any;
+              const cfg = statusConfig[reg.registration_status as keyof typeof statusConfig] || statusConfig.Pending;
               const StatusIcon = cfg.icon;
               return (
-                <tr key={deal.id} className="hover:bg-secondary/30 transition-colors">
+                <tr key={reg.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-5 py-3">
-                    <Link to={`/deals/${deal.id}`} className="font-medium text-foreground hover:text-primary transition-colors">{deal.companyName}</Link>
+                    <Link to={`/deals/${reg.deal_id}`} className="font-medium text-foreground hover:text-primary transition-colors">{deal?.company_name || "—"}</Link>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground">{deal.partnerName}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{deal.country}</td>
-                  <td className="px-5 py-3 text-right tabular-nums font-medium">€{deal.expectedValue.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{partnerMap.get(reg.partner_id) || reg.partner_id}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{deal?.country || "—"}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-medium">€{(deal?.expected_value || 0).toLocaleString()}</td>
                   <td className="px-5 py-3">
                     <Badge variant={cfg.variant} className="gap-1">
                       <StatusIcon className="h-3 w-3" />
-                      {deal.registrationStatus}
+                      {reg.registration_status}
                     </Badge>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground text-xs">{new Date(deal.createdAt).toLocaleDateString("en-GB")}</td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">{new Date(reg.submitted_at).toLocaleDateString("en-GB")}</td>
                   <td className="px-5 py-3 text-right">
-                    {deal.registrationStatus === "Pending" && (
+                    {reg.registration_status === "Pending" && (
                       <div className="flex items-center justify-end gap-1">
-                        <button className="h-7 px-2.5 rounded-md bg-emerald-600 text-white text-[11px] font-medium hover:bg-emerald-700 transition-colors active:scale-95">Approve</button>
-                        <button className="h-7 px-2.5 rounded-md border text-[11px] font-medium text-muted-foreground hover:bg-secondary transition-colors active:scale-95">Reject</button>
+                        <button onClick={() => handleAction(reg.id, "Approved")} className="h-7 px-2.5 rounded-md bg-emerald-600 text-white text-[11px] font-medium hover:bg-emerald-700 transition-colors active:scale-95">Approve</button>
+                        <button onClick={() => handleAction(reg.id, "Rejected")} className="h-7 px-2.5 rounded-md border text-[11px] font-medium text-muted-foreground hover:bg-secondary transition-colors active:scale-95">Reject</button>
                       </div>
                     )}
                   </td>
                 </tr>
               );
             })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">No registrations found</td></tr>
+            )}
           </tbody>
         </table>
       </div>

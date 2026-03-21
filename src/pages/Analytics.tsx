@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { partners, revenueByCountry } from "@/data/mock-data";
-import { mockClients } from "@/data/clients-mock-data";
-import { monthlyRevenue, partnerPerformance, revenueByProduct, renewalAnalytics, salesPerformance } from "@/data/renewals-mock-data";
-import { TrendingUp, TrendingDown, Target, DollarSign, Users, RefreshCcw, BarChart3, PieChart as PieChartIcon, Activity } from "lucide-react";
+import { usePartners } from "@/hooks/usePartners";
+import { useClients } from "@/hooks/useClients";
+import { useDeals } from "@/hooks/useDeals";
+import { useRenewals } from "@/hooks/useDeals";
+import { TrendingUp, TrendingDown, Target, DollarSign, Users, RefreshCcw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,11 +29,57 @@ function KPI({ label, value, sub, trend }: { label: string; value: string; sub?:
 
 export default function Analytics() {
   const [tab, setTab] = useState("overview");
+  const { data: partners = [] } = usePartners();
+  const { data: clients = [] } = useClients();
+  const { data: deals = [] } = useDeals();
+  const { data: renewals = [] } = useRenewals();
 
-  const totalRevenue = partners.reduce((s, p) => s + p.revenue, 0);
-  const totalPipeline = partners.reduce((s, p) => s + p.pipeline, 0);
+  const totalRevenue = partners.reduce((s, p) => s + (p.total_revenue || 0), 0);
+  const totalPipeline = partners.reduce((s, p) => s + (p.pipeline_value || 0), 0);
   const activePartners = partners.filter(p => p.status === "Active").length;
-  const activeClients = mockClients.filter(c => c.status === "Active").length;
+  const activeClients = clients.filter(c => c.status === "Active").length;
+
+  // Revenue by country
+  const countryRevenue = new Map<string, number>();
+  partners.forEach(p => { if (p.country) countryRevenue.set(p.country, (countryRevenue.get(p.country) || 0) + (p.total_revenue || 0)); });
+  const revenueByCountryData = [...countryRevenue.entries()].map(([country, revenue]) => ({ country, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+
+  // Partner performance
+  const partnerPerf = partners.filter(p => (p.total_revenue || 0) > 0).map(p => ({
+    partner: p.company_name.length > 18 ? p.company_name.slice(0, 18) + "…" : p.company_name,
+    revenue: p.total_revenue || 0,
+    clients: p.number_of_clients || 0,
+    pipeline: p.pipeline_value || 0,
+  })).sort((a, b) => b.revenue - a.revenue);
+
+  // Deals by stage
+  const stageMap = new Map<string, { count: number; value: number }>();
+  deals.forEach(d => {
+    const e = stageMap.get(d.stage) || { count: 0, value: 0 };
+    e.count++;
+    e.value += d.expected_value || 0;
+    stageMap.set(d.stage, e);
+  });
+  const stageData = [...stageMap.entries()].map(([stage, v]) => ({ stage, ...v }));
+
+  // Renewals stats
+  const wonRenewals = renewals.filter(r => r.status === "Won").length;
+  const lostRenewals = renewals.filter(r => r.status === "Lost").length;
+  const totalRenewals = renewals.length;
+  const successRate = totalRenewals > 0 ? Math.round((wonRenewals / Math.max(wonRenewals + lostRenewals, 1)) * 100) : 0;
+  const renewalValue = renewals.filter(r => r.status === "Won").reduce((s, r) => s + (r.final_value || r.estimated_value || 0), 0);
+
+  // Salesperson performance
+  const salesMap = new Map<string, { revenue: number; deals: number; won: number; total: number }>();
+  deals.forEach(d => {
+    const name = d.assigned_salesperson || "Unassigned";
+    const e = salesMap.get(name) || { revenue: 0, deals: 0, won: 0, total: 0 };
+    e.deals++;
+    e.total++;
+    if (d.status === "Won") { e.won++; e.revenue += d.total_value || 0; }
+    salesMap.set(name, e);
+  });
+  const salesData = [...salesMap.entries()].map(([name, v]) => ({ name, ...v, conversion: v.total > 0 ? Math.round((v.won / v.total) * 100) : 0 })).sort((a, b) => b.revenue - a.revenue);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -50,103 +96,61 @@ export default function Analytics() {
           <TabsTrigger value="partners">Partners</TabsTrigger>
           <TabsTrigger value="renewals">Renewals</TabsTrigger>
           <TabsTrigger value="sales">Sales</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
         </TabsList>
 
-        {/* OVERVIEW TAB */}
         <TabsContent value="overview" className="space-y-6 mt-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Total Revenue" value={`€${(totalRevenue / 1000).toFixed(0)}k`} sub="+12.3% vs last year" trend="up" />
-            <KPI label="Pipeline Value" value={`€${(totalPipeline / 1000).toFixed(0)}k`} sub="+8.7% this quarter" trend="up" />
+            <KPI label="Total Revenue" value={`€${(totalRevenue / 1000).toFixed(0)}k`} sub={`${partners.length} partners`} />
+            <KPI label="Pipeline Value" value={`€${(totalPipeline / 1000).toFixed(0)}k`} sub={`${deals.filter(d => d.status === "Open").length} open deals`} />
             <KPI label="Active Partners" value={String(activePartners)} sub={`of ${partners.length} total`} />
-            <KPI label="Active Clients" value={String(activeClients)} sub={`${mockClients.length} total`} />
+            <KPI label="Active Clients" value={String(activeClients)} sub={`${clients.length} total`} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Revenue Over Time */}
-            <div className="bg-card rounded-xl border shadow-sm">
-              <div className="p-5 border-b">
-                <h3 className="font-semibold text-foreground">Revenue Over Time</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Monthly revenue & pipeline trend</p>
-              </div>
-              <div className="p-5">
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={monthlyRevenue}>
-                    <defs>
-                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(174, 62%, 34%)" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="hsl(174, 62%, 34%)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
-                    <Area type="monotone" dataKey="revenue" stroke="hsl(174, 62%, 34%)" fill="url(#revGrad)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="pipeline" stroke="hsl(210, 80%, 52%)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Revenue by Country */}
             <div className="bg-card rounded-xl border shadow-sm">
               <div className="p-5 border-b">
                 <h3 className="font-semibold text-foreground">Revenue by Country</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Geographic distribution</p>
               </div>
               <div className="p-5">
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={revenueByCountry} layout="vertical" barSize={16}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                    <YAxis type="category" dataKey="country" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={80} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, "Revenue"]} />
-                    <Bar dataKey="revenue" fill="hsl(174, 62%, 34%)" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {revenueByCountryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={revenueByCountryData} layout="vertical" barSize={16}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
+                      <YAxis type="category" dataKey="country" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={80} />
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, "Revenue"]} />
+                      <Bar dataKey="revenue" fill="hsl(174, 62%, 34%)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-sm text-muted-foreground text-center py-12">No revenue data yet</p>}
               </div>
             </div>
-          </div>
 
-          {/* Product Distribution */}
-          <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Revenue by Product</h3>
-            </div>
-            <div className="p-5 flex flex-col md:flex-row items-center gap-6">
-              <ResponsiveContainer width={220} height={220}>
-                <PieChart>
-                  <Pie data={revenueByProduct} dataKey="revenue" nameKey="product" cx="50%" cy="50%" outerRadius={90} innerRadius={55} strokeWidth={2} stroke="hsl(var(--card))">
-                    {revenueByProduct.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => [`€${v.toLocaleString()}`, "Revenue"]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 space-y-2">
-                {revenueByProduct.map((p, i) => (
-                  <div key={p.product} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: COLORS[i] }} />
-                      <span className="font-medium">{p.product}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="tabular-nums text-muted-foreground">{p.clients} clients</span>
-                      <span className="tabular-nums font-medium w-20 text-right">€{p.revenue.toLocaleString()}</span>
-                    </div>
-                  </div>
-                ))}
+            <div className="bg-card rounded-xl border shadow-sm">
+              <div className="p-5 border-b">
+                <h3 className="font-semibold text-foreground">Pipeline by Stage</h3>
+              </div>
+              <div className="p-5">
+                {stageData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={stageData} barSize={24}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="stage" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
+                      <Bar dataKey="value" name="Value" fill="hsl(210, 80%, 52%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-sm text-muted-foreground text-center py-12">No deals yet</p>}
               </div>
             </div>
           </div>
         </TabsContent>
 
-        {/* PARTNERS TAB */}
         <TabsContent value="partners" className="space-y-6 mt-4">
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Partner Performance Ranking</h3>
-            </div>
+            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Partner Performance Ranking</h3></div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -154,222 +158,133 @@ export default function Analytics() {
                     <th className="text-left px-5 py-3 font-medium text-muted-foreground">#</th>
                     <th className="text-left px-5 py-3 font-medium text-muted-foreground">Partner</th>
                     <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Target</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Growth</th>
                     <th className="text-right px-5 py-3 font-medium text-muted-foreground">Clients</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Avg Deal</th>
-                    <th className="text-center px-5 py-3 font-medium text-muted-foreground">vs Target</th>
+                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {partnerPerformance.map((p, i) => {
-                    const pct = Math.round((p.revenue / p.target) * 100);
-                    return (
-                      <tr key={p.partner} className="hover:bg-secondary/30 transition-colors">
-                        <td className="px-5 py-3 font-medium text-muted-foreground">{i + 1}</td>
-                        <td className="px-5 py-3 font-medium text-foreground">{p.partner}</td>
-                        <td className="px-5 py-3 text-right tabular-nums font-medium">€{p.revenue.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{p.target.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right">
-                          <span className={`tabular-nums font-medium ${p.growth >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-                            {p.growth >= 0 ? "+" : ""}{p.growth}%
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-right tabular-nums">{p.clients}</td>
-                        <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{p.avgDeal.toLocaleString()}</td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct >= 100 ? "hsl(152, 60%, 40%)" : pct >= 80 ? "hsl(38, 92%, 50%)" : "hsl(0, 72%, 51%)" }} />
-                            </div>
-                            <span className="text-xs tabular-nums text-muted-foreground w-8">{pct}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {partnerPerf.map((p, i) => (
+                    <tr key={p.partner} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-5 py-3 font-medium text-muted-foreground">{i + 1}</td>
+                      <td className="px-5 py-3 font-medium text-foreground">{p.partner}</td>
+                      <td className="px-5 py-3 text-right tabular-nums font-medium">€{p.revenue.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{p.clients}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{p.pipeline.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {partnerPerf.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">No partner data</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Partner Revenue Chart */}
           <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Revenue by Partner</h3>
-            </div>
+            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Revenue by Partner</h3></div>
             <div className="p-5">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={partnerPerformance} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="partner" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
-                  <Bar dataKey="revenue" name="Revenue" fill="hsl(174, 62%, 34%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="target" name="Target" fill="hsl(var(--border))" radius={[4, 4, 0, 0]} opacity={0.5} />
-                </BarChart>
-              </ResponsiveContainer>
+              {partnerPerf.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={partnerPerf}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="partner" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
+                    <Bar dataKey="revenue" name="Revenue" fill="hsl(174, 62%, 34%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-muted-foreground text-center py-12">No data</p>}
             </div>
           </div>
         </TabsContent>
 
-        {/* RENEWALS TAB */}
         <TabsContent value="renewals" className="space-y-6 mt-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Success Rate" value={`${renewalAnalytics.successRate}%`} sub={`${renewalAnalytics.wonRenewals} of ${renewalAnalytics.totalRenewals} renewed`} trend="up" />
-            <KPI label="Avg Time to Close" value={`${renewalAnalytics.avgTimeToClose}d`} sub={`${renewalAnalytics.avgDelay}d avg delay`} />
-            <KPI label="Renewal Revenue" value={`€${(renewalAnalytics.renewalRevenue / 1000).toFixed(0)}k`} sub="vs €160k new business" />
-            <KPI label="Lost Renewals" value={String(renewalAnalytics.lostRenewals)} sub="worth €37.4k" trend="down" />
+            <KPI label="Success Rate" value={`${successRate}%`} sub={`${wonRenewals} of ${totalRenewals} renewed`} trend={successRate > 70 ? "up" : "down"} />
+            <KPI label="Total Renewals" value={String(totalRenewals)} sub={`${renewals.filter(r => r.status === "Upcoming" || r.status === "Due Soon").length} upcoming`} />
+            <KPI label="Renewal Revenue" value={`€${(renewalValue / 1000).toFixed(0)}k`} />
+            <KPI label="Lost Renewals" value={String(lostRenewals)} trend={lostRenewals > 0 ? "down" : undefined} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Renewal vs New Business */}
-            <div className="bg-card rounded-xl border shadow-sm">
-              <div className="p-5 border-b">
-                <h3 className="font-semibold text-foreground">Renewal vs New Business</h3>
-              </div>
-              <div className="p-5">
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={monthlyRevenue} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
-                    <Legend wrapperStyle={{ fontSize: "11px" }} />
-                    <Bar dataKey="revenue" name="Renewal Rev." fill="hsl(174, 62%, 34%)" radius={[3, 3, 0, 0]} stackId="a" />
-                    <Bar dataKey="newBusiness" name="New Business" fill="hsl(210, 80%, 52%)" radius={[3, 3, 0, 0]} stackId="a" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Renewal count by month */}
-            <div className="bg-card rounded-xl border shadow-sm">
-              <div className="p-5 border-b">
-                <h3 className="font-semibold text-foreground">Renewals Processed</h3>
-              </div>
-              <div className="p-5">
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={monthlyRevenue}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-                    <Bar dataKey="renewals" name="Renewals" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="bg-card rounded-xl border shadow-sm">
+            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Renewals by Status</h3></div>
+            <div className="p-5">
+              {(() => {
+                const statusMap = new Map<string, number>();
+                renewals.forEach(r => statusMap.set(r.status, (statusMap.get(r.status) || 0) + 1));
+                const data = [...statusMap.entries()].map(([status, count]) => ({ status, count }));
+                return data.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={data} barSize={28}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="status" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+                      <Bar dataKey="count" name="Count" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <p className="text-sm text-muted-foreground text-center py-12">No renewal data</p>;
+              })()}
             </div>
           </div>
         </TabsContent>
 
-        {/* SALES TAB */}
         <TabsContent value="sales" className="space-y-6 mt-4">
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Sales Performance</h3>
-            </div>
+            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Sales Performance</h3></div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-secondary/50">
                     <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
                     <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Target</th>
                     <th className="text-right px-5 py-3 font-medium text-muted-foreground">Deals</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Clients</th>
+                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Won</th>
                     <th className="text-right px-5 py-3 font-medium text-muted-foreground">Conversion</th>
-                    <th className="text-center px-5 py-3 font-medium text-muted-foreground">Achievement</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {salesPerformance.map(s => {
-                    const pct = Math.round((s.revenue / s.target) * 100);
-                    return (
-                      <tr key={s.salesperson} className="hover:bg-secondary/30 transition-colors">
-                        <td className="px-5 py-3 font-medium text-foreground">{s.salesperson}</td>
-                        <td className="px-5 py-3 text-right tabular-nums font-medium">€{s.revenue.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{s.target.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{s.deals}</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{s.clients}</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{s.conversion}%</td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct >= 100 ? "hsl(152, 60%, 40%)" : pct >= 80 ? "hsl(38, 92%, 50%)" : "hsl(0, 72%, 51%)" }} />
-                            </div>
-                            <span className="text-xs tabular-nums text-muted-foreground w-8">{pct}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {salesData.map(s => (
+                    <tr key={s.name} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-5 py-3 font-medium text-foreground">{s.name}</td>
+                      <td className="px-5 py-3 text-right tabular-nums font-medium">€{s.revenue.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{s.deals}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{s.won}</td>
+                      <td className="px-5 py-3 text-right">
+                        <span className={`tabular-nums font-medium ${s.conversion >= 50 ? "text-emerald-600" : "text-foreground"}`}>{s.conversion}%</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {salesData.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">No sales data</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Sales chart */}
-          <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Revenue by Salesperson</h3>
-            </div>
-            <div className="p-5">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={salesPerformance} layout="vertical" barSize={18}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                  <YAxis type="category" dataKey="salesperson" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={110} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [`€${v.toLocaleString()}`, undefined]} />
-                  <Bar dataKey="revenue" name="Revenue" fill="hsl(174, 62%, 34%)" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="target" name="Target" fill="hsl(var(--border))" radius={[0, 4, 4, 0]} opacity={0.4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
         </TabsContent>
 
-        {/* PRODUCTS TAB */}
-        <TabsContent value="products" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {revenueByProduct.map((p, i) => (
-              <div key={p.product} className="bg-card rounded-xl border shadow-sm p-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: COLORS[i] }} />
-                  <p className="text-xs text-muted-foreground font-medium">{p.product}</p>
-                </div>
-                <p className="text-lg font-bold tabular-nums mt-1">€{(p.revenue / 1000).toFixed(0)}k</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{p.clients} clients · {p.pct}%</p>
-              </div>
-            ))}
+        <TabsContent value="pipeline" className="space-y-6 mt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <KPI label="Open Deals" value={String(deals.filter(d => d.status === "Open").length)} />
+            <KPI label="Pipeline Value" value={`€${(deals.filter(d => d.status === "Open").reduce((s, d) => s + (d.expected_value || 0), 0) / 1000).toFixed(0)}k`} />
+            <KPI label="Won Deals" value={String(deals.filter(d => d.status === "Won").length)} trend="up" />
+            <KPI label="Lost Deals" value={String(deals.filter(d => d.status === "Lost").length)} trend="down" />
           </div>
 
           <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">License Distribution</h3>
-            </div>
-            <div className="p-5 flex flex-col md:flex-row items-center gap-8">
-              <ResponsiveContainer width={240} height={240}>
-                <PieChart>
-                  <Pie data={revenueByProduct} dataKey="clients" nameKey="product" cx="50%" cy="50%" outerRadius={100} innerRadius={60} strokeWidth={2} stroke="hsl(var(--card))" label={({ product, pct }) => `${product} (${pct}%)`}>
-                    {revenueByProduct.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 space-y-3">
-                {revenueByProduct.map((p, i) => (
-                  <div key={p.product}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{p.product}</span>
-                      <span className="tabular-nums text-muted-foreground">€{p.revenue.toLocaleString()}</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${p.pct}%`, backgroundColor: COLORS[i] }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Pipeline by Stage</h3></div>
+            <div className="p-5">
+              {stageData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stageData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="stage" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="value" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
+                    <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    <Bar yAxisId="value" dataKey="value" name="Value (€)" fill="hsl(174, 62%, 34%)" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="count" dataKey="count" name="Deals" fill="hsl(210, 80%, 52%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-muted-foreground text-center py-12">No pipeline data</p>}
             </div>
           </div>
         </TabsContent>

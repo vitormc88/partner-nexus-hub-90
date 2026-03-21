@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { mockCommissions } from "@/data/deals-mock-data";
+import { useCommissions } from "@/hooks/useCommissions";
+import { usePartners } from "@/hooks/usePartners";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, CheckCircle2, Clock } from "lucide-react";
 
@@ -7,28 +8,34 @@ const statusVariant = { Pending: "warning" as const, Approved: "info" as const, 
 
 export default function Commissions() {
   const [filter, setFilter] = useState<"all" | "Pending" | "Approved" | "Paid">("all");
-  const filtered = filter === "all" ? mockCommissions : mockCommissions.filter(c => c.paymentStatus === filter);
+  const { data: commissions = [], isLoading } = useCommissions();
+  const { data: partners = [] } = usePartners();
 
-  const totalCommissions = mockCommissions.reduce((s, c) => s + c.commissionValue, 0);
-  const totalRevenue = mockCommissions.reduce((s, c) => s + c.softwareRevenue, 0);
-  const pending = mockCommissions.filter(c => c.paymentStatus === "Pending").reduce((s, c) => s + c.commissionValue, 0);
-  const paid = mockCommissions.filter(c => c.paymentStatus === "Paid").reduce((s, c) => s + c.commissionValue, 0);
+  const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
+  const filtered = filter === "all" ? commissions : commissions.filter(c => c.payment_status === filter);
 
-  // Group by partner
+  const totalCommissions = commissions.reduce((s, c) => s + (c.commission_value || 0), 0);
+  const totalRevenue = commissions.reduce((s, c) => s + (c.software_revenue || 0), 0);
+  const pending = commissions.filter(c => c.payment_status === "Pending").reduce((s, c) => s + (c.commission_value || 0), 0);
+  const paid = commissions.filter(c => c.payment_status === "Paid").reduce((s, c) => s + (c.commission_value || 0), 0);
+
   const byPartner = new Map<string, { name: string; revenue: number; commission: number; count: number }>();
-  mockCommissions.forEach(c => {
-    const existing = byPartner.get(c.partnerId) || { name: c.partnerName, revenue: 0, commission: 0, count: 0 };
-    existing.revenue += c.softwareRevenue;
-    existing.commission += c.commissionValue;
+  commissions.forEach(c => {
+    const key = c.partner_id;
+    const existing = byPartner.get(key) || { name: partnerMap.get(key) || key, revenue: 0, commission: 0, count: 0 };
+    existing.revenue += c.software_revenue || 0;
+    existing.commission += c.commission_value || 0;
     existing.count++;
-    byPartner.set(c.partnerId, existing);
+    byPartner.set(key, existing);
   });
+
+  if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="animate-reveal-up">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Commissions</h1>
-        <p className="text-sm text-muted-foreground mt-1">{mockCommissions.length} commission records</p>
+        <p className="text-sm text-muted-foreground mt-1">{commissions.length} commission records</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "60ms" }}>
@@ -50,7 +57,6 @@ export default function Commissions() {
         ))}
       </div>
 
-      {/* By Partner */}
       <div className="bg-card rounded-xl border shadow-sm p-5 animate-reveal-up" style={{ animationDelay: "90ms" }}>
         <h3 className="text-sm font-semibold text-foreground mb-3">By Partner</h3>
         <div className="space-y-2">
@@ -63,10 +69,10 @@ export default function Commissions() {
               <span className="text-sm font-semibold text-foreground tabular-nums">€{p.commission.toLocaleString()}</span>
             </div>
           ))}
+          {byPartner.size === 0 && <p className="text-sm text-muted-foreground text-center py-4">No commission data yet</p>}
         </div>
       </div>
 
-      {/* Filter */}
       <div className="flex items-center gap-2 animate-reveal-up" style={{ animationDelay: "120ms" }}>
         {(["all", "Pending", "Approved", "Paid"] as const).map(s => (
           <button key={s} onClick={() => setFilter(s)}
@@ -76,7 +82,6 @@ export default function Commissions() {
         ))}
       </div>
 
-      {/* Table */}
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden animate-reveal-up" style={{ animationDelay: "150ms" }}>
         <table className="w-full text-sm">
           <thead>
@@ -93,15 +98,18 @@ export default function Commissions() {
           <tbody className="divide-y">
             {filtered.map(c => (
               <tr key={c.id} className="hover:bg-secondary/30 transition-colors">
-                <td className="px-5 py-3 font-medium text-foreground">{c.companyName}</td>
-                <td className="px-5 py-3 text-muted-foreground">{c.partnerName}</td>
-                <td className="px-5 py-3"><Badge variant="outline" className="text-xs">{c.commissionType}</Badge></td>
-                <td className="px-5 py-3 text-right tabular-nums">€{c.softwareRevenue.toLocaleString()}</td>
-                <td className="px-5 py-3 text-right tabular-nums">{c.partnerMarginPct}%</td>
-                <td className="px-5 py-3 text-right tabular-nums font-semibold text-foreground">€{c.commissionValue.toLocaleString()}</td>
-                <td className="px-5 py-3"><Badge variant={statusVariant[c.paymentStatus]}>{c.paymentStatus}</Badge></td>
+                <td className="px-5 py-3 font-medium text-foreground">{(c.deals as any)?.company_name || "—"}</td>
+                <td className="px-5 py-3 text-muted-foreground">{partnerMap.get(c.partner_id) || c.partner_id}</td>
+                <td className="px-5 py-3"><Badge variant="outline" className="text-xs">{c.commission_type}</Badge></td>
+                <td className="px-5 py-3 text-right tabular-nums">€{(c.software_revenue || 0).toLocaleString()}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{c.partner_margin_pct}%</td>
+                <td className="px-5 py-3 text-right tabular-nums font-semibold text-foreground">€{(c.commission_value || 0).toLocaleString()}</td>
+                <td className="px-5 py-3"><Badge variant={statusVariant[c.payment_status as keyof typeof statusVariant] || "outline"}>{c.payment_status}</Badge></td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">No commissions found</td></tr>
+            )}
           </tbody>
         </table>
       </div>

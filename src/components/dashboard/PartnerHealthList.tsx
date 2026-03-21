@@ -1,16 +1,27 @@
-import { partners } from "@/data/mock-data";
+import { usePartners } from "@/hooks/usePartners";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 
-const healthVariant = {
-  Excellent: "success" as const,
-  Good: "info" as const,
-  "At Risk": "warning" as const,
-  Critical: "destructive" as const,
-};
-
 export function PartnerHealthList() {
-  const sorted = [...partners].sort((a, b) => a.engagementScore - b.engagementScore).slice(0, 5);
+  const { data: partners = [], isLoading } = usePartners();
+
+  const sorted = [...partners]
+    .sort((a, b) => (a.health_score ?? 50) - (b.health_score ?? 50))
+    .slice(0, 5);
+
+  const getVariant = (score: number) => {
+    if (score >= 80) return "success" as const;
+    if (score >= 60) return "info" as const;
+    if (score >= 40) return "warning" as const;
+    return "destructive" as const;
+  };
+
+  const getLabel = (score: number) => {
+    if (score >= 80) return "Excellent";
+    if (score >= 60) return "Good";
+    if (score >= 40) return "At Risk";
+    return "Critical";
+  };
 
   return (
     <div className="bg-card rounded-xl border shadow-sm animate-reveal-up stagger-3">
@@ -19,19 +30,23 @@ export function PartnerHealthList() {
         <p className="text-xs text-muted-foreground mt-0.5">Lowest engagement scores</p>
       </div>
       <div className="divide-y">
-        {sorted.map((p) => (
+        {isLoading ? (
+          <div className="p-5 text-center text-sm text-muted-foreground">Loading...</div>
+        ) : sorted.length === 0 ? (
+          <div className="p-5 text-center text-sm text-muted-foreground">No partners found</div>
+        ) : sorted.map((p) => (
           <Link
             key={p.id}
             to={`/partners/${p.id}`}
             className="flex items-center justify-between px-5 py-3 hover:bg-secondary/50 transition-colors"
           >
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{p.company}</p>
-              <p className="text-xs text-muted-foreground">{p.country} · {p.level}</p>
+              <p className="text-sm font-medium text-foreground truncate">{p.company_name}</p>
+              <p className="text-xs text-muted-foreground">{p.country} · {p.partnership_level}</p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-sm font-semibold tabular-nums text-foreground">{p.engagementScore}</span>
-              <Badge variant={healthVariant[p.healthScore]}>{p.healthScore}</Badge>
+              <span className="text-sm font-semibold tabular-nums text-foreground">{p.health_score ?? 50}</span>
+              <Badge variant={getVariant(p.health_score ?? 50)}>{getLabel(p.health_score ?? 50)}</Badge>
             </div>
           </Link>
         ))}

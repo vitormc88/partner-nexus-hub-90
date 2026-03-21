@@ -6,12 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { RenewalBadge } from "@/components/clients/RenewalBadge";
-import {
-  mockClients, mockContacts, mockLicenses, mockLicensedModules,
-  mockContracts, mockPayments, mockNotes, mockCredentials,
-  getRenewalStatus, partnerRenewalSettings, defaultRenewalSettings,
-} from "@/data/clients-mock-data";
+import { useClient, useClientContacts, useClientLicenses, useClientContracts } from "@/hooks/useClients";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 function FieldRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
@@ -25,7 +22,43 @@ function FieldRow({ label, value, mono }: { label: string; value: React.ReactNod
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const client = mockClients.find(c => c.id === id);
+  const { data: client, isLoading } = useClient(id);
+  const { data: contacts = [] } = useClientContacts(id);
+  const { data: licenses = [] } = useClientLicenses(id);
+  const { data: contracts = [] } = useClientContracts(id);
+  const { data: notes = [] } = useQuery({
+    queryKey: ["client_notes", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase.from("client_notes").select("*").eq("client_id", id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+  const { data: credentials = [] } = useQuery({
+    queryKey: ["client_credentials", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase.from("client_credentials").select("*").eq("client_id", id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+  const { data: modules = [] } = useQuery({
+    queryKey: ["licensed_modules", id, licenses],
+    queryFn: async () => {
+      if (!licenses.length) return [];
+      const ids = licenses.map(l => l.id);
+      const { data, error } = await supabase.from("licensed_modules").select("*").in("license_id", ids);
+      if (error) throw error;
+      return data;
+    },
+    enabled: licenses.length > 0,
+  });
+
+  if (isLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
 
   if (!client) {
     return (
@@ -36,56 +69,26 @@ export default function ClientDetail() {
     );
   }
 
-  const contacts = mockContacts.filter(c => c.clientId === id);
-  const licenses = mockLicenses.filter(l => l.clientId === id);
-  const contracts = mockContracts.filter(c => c.clientId === id);
-  const payments = mockPayments.filter(p => p.clientId === id);
-  const notes = mockNotes.filter(n => n.clientId === id);
-  const credentials = mockCredentials.filter(c => c.clientId === id);
-  const modules = licenses.length > 0 ? mockLicensedModules.filter(m => licenses.some(l => l.id === m.licenseId)) : [];
-
-  const settings = partnerRenewalSettings.find(s => s.partnerId === client.partnerId) || defaultRenewalSettings;
-  const renewalStatus = getRenewalStatus(client.renewalDate || null, client.isInactive, settings);
-
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      {/* Header */}
       <div className="animate-reveal-up flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-0.5">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-0.5"><ArrowLeft className="h-4 w-4" /></Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-foreground tracking-tight">{client.commercialName}</h1>
-              {client.isPremium && (
-                <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1">
-                  <Star className="h-3 w-3" /> Premium
-                </Badge>
-              )}
-              <RenewalBadge status={renewalStatus} />
+              <h1 className="text-xl font-bold text-foreground tracking-tight">{client.commercial_name}</h1>
+              {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
             </div>
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-              <span className="font-mono text-xs">{client.clientCode}</span>
-              <span>•</span>
-              {client.partnerId ? (
-                <Link to={`/partners/${client.partnerId}`} className="hover:text-primary transition-colors underline underline-offset-2">
-                  {client.partnerName}
-                </Link>
-              ) : (
-                <span>{client.partnerName}</span>
-              )}
+              <span className="font-mono text-xs">{client.client_code}</span>
               <span>•</span>
               <span>{client.country}</span>
             </div>
           </div>
         </div>
-        <Badge variant={client.status === "Active" ? "default" : "secondary"}>
-          {client.status}
-        </Badge>
+        <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="client" className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
         <TabsList className="grid w-full grid-cols-6 h-10">
           <TabsTrigger value="client" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Client</TabsTrigger>
@@ -96,36 +99,26 @@ export default function ClientDetail() {
           <TabsTrigger value="credentials" className="gap-1.5 text-xs"><KeyRound className="h-3.5 w-3.5" /> Credentials</TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: Client */}
+        {/* Client Tab */}
         <TabsContent value="client" className="space-y-5 mt-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Company Information</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Company Information</CardTitle></CardHeader>
               <CardContent className="space-y-0">
-                <FieldRow label="Client Code" value={client.clientCode} mono />
-                <FieldRow label="Short Name" value={client.shortName} />
-                <FieldRow label="Commercial Name" value={client.commercialName} />
+                <FieldRow label="Client Code" value={client.client_code} mono />
+                <FieldRow label="Short Name" value={client.short_name} />
+                <FieldRow label="Commercial Name" value={client.commercial_name} />
                 <FieldRow label="Phone" value={client.phone} />
-                <FieldRow label="Fax" value={client.fax} />
                 <FieldRow label="Email" value={client.email} />
                 <FieldRow label="Website" value={client.website} />
                 <FieldRow label="Address" value={client.address} />
                 <FieldRow label="City" value={client.city} />
-                <FieldRow label="Postal Code" value={client.postalCode} />
-                <FieldRow label="State / Region" value={client.stateRegion} />
                 <FieldRow label="Country" value={client.country} />
                 <FieldRow label="Sector" value={client.sector} />
               </CardContent>
             </Card>
-
             <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Contacts ({contacts.length})
-                </CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts ({contacts.length})</CardTitle></CardHeader>
               <CardContent>
                 {contacts.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">No contacts registered</p>
@@ -134,15 +127,14 @@ export default function ClientDetail() {
                     {contacts.map(ct => (
                       <div key={ct.id} className="rounded-lg border border-border/60 p-3 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{ct.contactName}</span>
-                          <span className="text-xs text-muted-foreground">{ct.roleFunction}</span>
+                          <span className="font-medium text-sm">{ct.contact_name}</span>
+                          <span className="text-xs text-muted-foreground">{ct.role_function}</span>
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                           {ct.phone && <span>📞 {ct.phone}</span>}
                           {ct.mobile && <span>📱 {ct.mobile}</span>}
                           {ct.email && <span>✉️ {ct.email}</span>}
                         </div>
-                        {ct.notes && <p className="text-xs text-muted-foreground italic">{ct.notes}</p>}
                       </div>
                     ))}
                   </div>
@@ -152,37 +144,30 @@ export default function ClientDetail() {
           </div>
         </TabsContent>
 
-        {/* TAB 2: Identification */}
+        {/* Identification Tab */}
         <TabsContent value="identification" className="mt-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Management</CardTitle></CardHeader>
               <CardContent className="space-y-0">
-                <FieldRow label="Manager / Owner" value={client.managerOwner} />
-                <FieldRow label="Account Manager" value={client.accountManager} />
-                <FieldRow label="Linked Partner" value={
-                  client.partnerId ? (
-                    <Link to={`/partners/${client.partnerId}`} className="text-primary hover:underline">{client.partnerName}</Link>
-                  ) : client.partnerName
-                } />
-                <FieldRow label="Installation Location" value={client.installationLocation} />
-                <FieldRow label="First Installation" value={client.firstInstallationDate} />
-                <FieldRow label="First Version" value={client.firstInstalledVersion} />
-                <FieldRow label="Current Version" value={client.currentVersion} />
-                <FieldRow label="Renewal Date" value={client.renewalDate} />
-                <FieldRow label="Award / PO Reference" value={client.awardReference} mono />
+                <FieldRow label="Manager / Owner" value={client.manager_owner} />
+                <FieldRow label="Account Manager" value={client.account_manager} />
+                <FieldRow label="Installation Location" value={client.installation_location} />
+                <FieldRow label="First Installation" value={client.first_installation_date} />
+                <FieldRow label="First Version" value={client.first_installed_version} />
+                <FieldRow label="Current Version" value={client.current_version} />
+                <FieldRow label="Award / PO Reference" value={client.award_reference} mono />
               </CardContent>
             </Card>
-
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Flags & Settings</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { label: "Premium Client", checked: client.isPremium },
-                  { label: "Custom Reports", checked: client.hasCustomReports },
-                  { label: "Custom Routine", checked: client.hasCustomRoutine },
-                  { label: "Inactive", checked: client.isInactive },
-                  { label: "Auto Update", checked: client.autoUpdate },
+                  { label: "Premium Client", checked: client.is_premium },
+                  { label: "Custom Reports", checked: client.has_custom_reports },
+                  { label: "Custom Routine", checked: client.has_custom_routine },
+                  { label: "Inactive", checked: client.is_inactive },
+                  { label: "Auto Update", checked: client.auto_update },
                 ].map(flag => (
                   <div key={flag.label} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
                     <span className="text-sm text-foreground">{flag.label}</span>
@@ -191,77 +176,61 @@ export default function ClientDetail() {
                 ))}
                 <div className="pt-3">
                   <span className="text-xs text-muted-foreground block mb-1">Deployment</span>
-                  <Badge variant="secondary">{client.cloudOnpremise}</Badge>
+                  <Badge variant="secondary">{client.cloud_onpremise}</Badge>
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* TAB 3: Licensing */}
+        {/* Licensing Tab */}
         <TabsContent value="licensing" className="space-y-5 mt-5">
           {licenses.length === 0 ? (
-            <Card className="border-border/60 shadow-sm">
-              <CardContent className="py-12 text-center text-muted-foreground">
-                No license records found for this client.
-              </CardContent>
-            </Card>
+            <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No license records found.</CardContent></Card>
           ) : licenses.map(lic => (
             <Card key={lic.id} className="border-border/60 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  {lic.product} — {lic.licenseModel}
+                  {lic.product} — {lic.license_model}
                   <Badge variant="secondary" className="text-xs">{lic.version}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                   <div className="space-y-0">
-                    <FieldRow label="Database Type" value={lic.databaseType} />
-                    <FieldRow label="License Start" value={lic.licenseStartDate} />
-                    <FieldRow label="License End" value={lic.licenseEndDate} />
-                    <FieldRow label="Model" value={lic.licenseModel} />
+                    <FieldRow label="Database Type" value={lic.database_type} />
+                    <FieldRow label="License Start" value={lic.license_start_date} />
+                    <FieldRow label="License End" value={lic.license_end_date} />
+                    <FieldRow label="Model" value={lic.license_model} />
                     <FieldRow label="Periodicity" value={lic.periodicity} />
                   </div>
                   <div className="space-y-0">
-                    <FieldRow label="SAT Active" value={lic.satActive ? "Yes" : "No"} />
-                    <FieldRow label="SAT End Date" value={lic.satEndDate} />
-                    <FieldRow label="BackOffice Users" value={lic.backofficeUsers} />
-                    <FieldRow label="Employee Users" value={lic.backofficeEmployeeUsers} />
-                    <FieldRow label="Mobile Users" value={lic.mobileUsers} />
-                    <FieldRow label="Web Accesses" value={lic.webAccesses} />
-                    <FieldRow label="API Access" value={lic.apiAccess ? "Yes" : "No"} />
+                    <FieldRow label="SAT Active" value={lic.sat_active ? "Yes" : "No"} />
+                    <FieldRow label="SAT End Date" value={lic.sat_end_date} />
+                    <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
+                    <FieldRow label="Employee Users" value={lic.backoffice_employee_users} />
+                    <FieldRow label="Mobile Users" value={lic.mobile_users} />
+                    <FieldRow label="Web Accesses" value={lic.web_accesses} />
+                    <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />
                   </div>
                 </div>
-
-                {/* Licensed Modules */}
-                {modules.filter(m => m.licenseId === lic.id).length > 0 && (
+                {modules.filter(m => m.license_id === lic.id).length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Licensed Modules</h4>
                     <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="text-xs">Module</TableHead>
-                          <TableHead className="text-xs">Enabled</TableHead>
-                          <TableHead className="text-xs">Type</TableHead>
-                          <TableHead className="text-xs">Period</TableHead>
-                          <TableHead className="text-xs">Start</TableHead>
-                          <TableHead className="text-xs">End</TableHead>
-                          <TableHead className="text-xs">Notes</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                      <TableHeader><TableRow className="bg-muted/30">
+                        <TableHead className="text-xs">Module</TableHead>
+                        <TableHead className="text-xs">Enabled</TableHead>
+                        <TableHead className="text-xs">Type</TableHead>
+                        <TableHead className="text-xs">Period</TableHead>
+                      </TableRow></TableHeader>
                       <TableBody>
-                        {modules.filter(m => m.licenseId === lic.id).map(mod => (
+                        {modules.filter(m => m.license_id === lic.id).map(mod => (
                           <TableRow key={mod.id}>
-                            <TableCell className="text-sm font-medium">{mod.moduleName}</TableCell>
-                            <TableCell>
-                              <Switch checked={mod.enabled} disabled className="scale-75" />
-                            </TableCell>
-                            <TableCell className="text-xs">{mod.licenseType || "—"}</TableCell>
+                            <TableCell className="text-sm font-medium">{mod.module_name}</TableCell>
+                            <TableCell><Switch checked={mod.enabled} disabled className="scale-75" /></TableCell>
+                            <TableCell className="text-xs">{mod.license_type || "—"}</TableCell>
                             <TableCell className="text-xs">{mod.periodicity || "—"}</TableCell>
-                            <TableCell className="text-xs tabular-nums">{mod.startDate || "—"}</TableCell>
-                            <TableCell className="text-xs tabular-nums">{mod.endDate || "—"}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{mod.notes || "—"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -273,178 +242,87 @@ export default function ClientDetail() {
           ))}
         </TabsContent>
 
-        {/* TAB 4: Contract */}
+        {/* Contract Tab */}
         <TabsContent value="contract" className="space-y-5 mt-5">
           {contracts.length === 0 ? (
-            <Card className="border-border/60 shadow-sm">
-              <CardContent className="py-12 text-center text-muted-foreground">No contract records found.</CardContent>
-            </Card>
+            <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No contract records found.</CardContent></Card>
           ) : contracts.map(co => (
             <Card key={co.id} className="border-border/60 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold">
-                  Contract — {co.contractStartDate} to {co.contractEndDate}
+                  Contract — {co.contract_start_date} to {co.contract_end_date}
                   <Badge variant="secondary" className="ml-2 text-xs">{co.currency}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                   <div className="space-y-0">
-                    <FieldRow label="Price Table" value={co.priceTableReference} mono />
-                    <FieldRow label="Start Date" value={co.contractStartDate} />
-                    <FieldRow label="End Date" value={co.contractEndDate} />
-                    <FieldRow label="Notice Period" value={`${co.noticePeriodDays} days`} />
-                    <FieldRow label="Installments" value={co.numInstallments} />
-                    <FieldRow label="Renewal Increase" value={co.renewalIncreasePct ? `${co.renewalIncreasePct}%` : "—"} />
-                    <FieldRow label="Partner Split" value={co.partnerRevenueSplit ? `${co.partnerRevenueSplit}%` : "—"} />
+                    <FieldRow label="Price Table" value={co.price_table_reference} mono />
+                    <FieldRow label="Start Date" value={co.contract_start_date} />
+                    <FieldRow label="End Date" value={co.contract_end_date} />
+                    <FieldRow label="Notice Period" value={co.notice_period_days ? `${co.notice_period_days} days` : "—"} />
+                    <FieldRow label="Installments" value={co.num_installments} />
+                    <FieldRow label="Renewal Increase" value={co.renewal_increase_pct ? `${co.renewal_increase_pct}%` : "—"} />
                   </div>
                   <div className="space-y-0">
-                    <FieldRow label="Contract Value" value={`${co.currency} ${co.contractValue?.toLocaleString()}`} />
-                    <FieldRow label="Invoiced Value" value={`${co.currency} ${co.invoicedValue?.toLocaleString()}`} />
-                    <FieldRow label="Hosting Value" value={co.hostingValue ? `${co.currency} ${co.hostingValue.toLocaleString()}` : "—"} />
-                    <FieldRow label="MWW Web Value" value={co.mwwWebValue ? `${co.currency} ${co.mwwWebValue.toLocaleString()}` : "—"} />
-                    <FieldRow label="SAT Value" value={co.satValue ? `${co.currency} ${co.satValue.toLocaleString()}` : "—"} />
-                    <FieldRow label="Total Value" value={<span className="font-semibold">{co.currency} {co.totalValue?.toLocaleString()}</span>} />
+                    <FieldRow label="Contract Value" value={`€${Number(co.contract_value || 0).toLocaleString()}`} />
+                    <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />
+                    <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
+                    <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
+                    <FieldRow label="Total Value" value={<span className="font-semibold">€{Number(co.total_value || 0).toLocaleString()}</span>} />
                   </div>
                 </div>
-
-                {co.renewalFreezeNotes && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-xs font-medium text-amber-700 mb-1">Renewal Freeze Note</p>
-                    <p className="text-sm text-amber-900">{co.renewalFreezeNotes}</p>
-                  </div>
-                )}
-
-                {co.billingNotes && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Billing Notes</p>
-                    <p className="text-sm text-foreground">{co.billingNotes}</p>
-                  </div>
-                )}
-
                 {co.observations && (
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Contract Notes & History</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{co.observations}</p>
-                  </div>
-                )}
-
-                {/* Payments */}
-                {payments.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment History</h4>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="text-xs">Invoice #</TableHead>
-                          <TableHead className="text-xs">Date</TableHead>
-                          <TableHead className="text-xs">Due</TableHead>
-                          <TableHead className="text-xs">Amount</TableHead>
-                          <TableHead className="text-xs">Paid</TableHead>
-                          <TableHead className="text-xs">Balance</TableHead>
-                          <TableHead className="text-xs">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {payments.map(pay => (
-                          <TableRow key={pay.id}>
-                            <TableCell className="font-mono text-xs">{pay.invoiceNumber}</TableCell>
-                            <TableCell className="text-xs tabular-nums">{pay.invoiceDate}</TableCell>
-                            <TableCell className="text-xs tabular-nums">{pay.dueDate}</TableCell>
-                            <TableCell className="text-xs tabular-nums">€{pay.amountDue?.toLocaleString()}</TableCell>
-                            <TableCell className="text-xs tabular-nums">€{pay.amountPaid?.toLocaleString()}</TableCell>
-                            <TableCell className="text-xs tabular-nums">€{pay.outstandingBalance?.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Badge variant={pay.paymentStatus === "Paid" ? "default" : pay.paymentStatus === "Overdue" ? "destructive" : "secondary"} className="text-xs">
-                                {pay.paymentStatus}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <div className="mt-4"><p className="text-xs font-medium text-muted-foreground mb-1">Observations</p><p className="text-sm text-foreground">{co.observations}</p></div>
                 )}
               </CardContent>
             </Card>
           ))}
         </TabsContent>
 
-        {/* TAB 5: Observations */}
+        {/* Observations Tab */}
         <TabsContent value="observations" className="mt-5">
           <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Notes & Observations ({notes.length})</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Notes & Observations</CardTitle></CardHeader>
             <CardContent>
+              {client.observations && (
+                <div className="rounded-lg bg-secondary/50 p-4 mb-4"><p className="text-sm text-foreground">{client.observations}</p></div>
+              )}
               {notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">No notes recorded.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No additional notes</p>
               ) : (
                 <div className="space-y-3">
-                  {notes.map(note => {
-                    const typeColors: Record<string, string> = {
-                      operational: "bg-blue-50 text-blue-700 border-blue-200",
-                      support: "bg-purple-50 text-purple-700 border-purple-200",
-                      warning: "bg-red-50 text-red-700 border-red-200",
-                      implementation: "bg-emerald-50 text-emerald-700 border-emerald-200",
-                      general: "bg-muted text-muted-foreground border-border",
-                    };
-                    return (
-                      <div key={note.id} className="rounded-lg border border-border/60 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline" className={`text-[10px] ${typeColors[note.noteType] || typeColors.general}`}>
-                            {note.noteType}
-                          </Badge>
-                          <span className="text-[11px] text-muted-foreground">
-                            {new Date(note.createdAt).toLocaleDateString()} — {note.createdBy}
-                          </span>
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
+                  {notes.map((n: any) => (
+                    <div key={n.id} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge variant="outline" className="text-[10px]">{n.note_type}</Badge>
+                        <span className="text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
                       </div>
-                    );
-                  })}
+                      <p className="text-sm text-foreground">{n.content}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {client.observations && (
-            <Card className="border-border/60 shadow-sm mt-5">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">General Observations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{client.observations}</p>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
-        {/* TAB 6: Credentials */}
+        {/* Credentials Tab */}
         <TabsContent value="credentials" className="mt-5">
           <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-destructive" />
-                <CardTitle className="text-sm font-semibold">System Credentials</CardTitle>
-                <Badge variant="destructive" className="text-[10px]">Restricted Access</Badge>
-              </div>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">System Credentials</CardTitle></CardHeader>
             <CardContent>
               {credentials.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">No credentials stored.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No credentials stored</p>
               ) : (
                 <div className="space-y-4">
-                  {credentials.map(cred => (
-                    <div key={cred.id} className="rounded-lg border border-border/60 p-4 space-y-0">
-                      <FieldRow label="System URL" value={cred.systemUrl} mono />
-                      <FieldRow label="Login" value={cred.login} mono />
-                      <FieldRow label="Username" value={cred.username} mono />
-                      <FieldRow label="Password" value={cred.passwordSecret} />
-                      <FieldRow label="Environment" value={
-                        <Badge variant="secondary" className="text-xs">{cred.environmentType}</Badge>
-                      } />
-                      {cred.adminNotes && <FieldRow label="Admin Notes" value={cred.adminNotes} />}
+                  {credentials.map((cr: any) => (
+                    <div key={cr.id} className="border rounded-lg p-4 space-y-2">
+                      <FieldRow label="System URL" value={cr.system_url} />
+                      <FieldRow label="Username" value={cr.username} />
+                      <FieldRow label="Login" value={cr.login} />
+                      <FieldRow label="Environment" value={cr.environment_type} />
+                      {cr.admin_notes && <FieldRow label="Admin Notes" value={cr.admin_notes} />}
                     </div>
                   ))}
                 </div>

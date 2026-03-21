@@ -70,6 +70,7 @@ const communityNav = [
 ];
 
 export function AppSidebar() {
+  const { profile, roles, signOut } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();

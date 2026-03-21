@@ -23,6 +23,7 @@ import Onboarding from "@/pages/Onboarding";
 import Certifications from "@/pages/Certifications";
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
+import KnowledgeBase from "@/pages/KnowledgeBase";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 
@@ -55,7 +56,7 @@ const App = () => (
               <Route path="/performance" element={<PartnerPerformance />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/knowledge" element={<ComingSoon />} />
+              <Route path="/knowledge" element={<KnowledgeBase />} />
               <Route path="/training" element={<ComingSoon />} />
               <Route path="/community" element={<ComingSoon />} />
               <Route path="/announcements" element={<ComingSoon />} />

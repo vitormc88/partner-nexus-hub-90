@@ -49,13 +49,19 @@ export default function Partners() {
       toast.error("Company name and partner code are required");
       return;
     }
+
+    if (form.primary_contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.primary_contact_email)) {
+      toast.error("Please enter a valid primary contact email");
+      return;
+    }
+
     try {
       await createPartner.mutateAsync(form);
       toast.success("Partner created successfully");
       setShowCreate(false);
       setForm({ company_name: "", partner_code: "", country: "", partnership_level: "Reseller", status: "Active", primary_contact_name: "", primary_contact_email: "", notes: "" });
     } catch (e: any) {
-      toast.error(e.message || "Failed to create partner");
+      toast.error(e?.message || "Failed to create partner");
     }
   };
 

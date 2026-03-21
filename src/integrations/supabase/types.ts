@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          audience_scope: string | null
+          body: string | null
+          category: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          partner_id: string | null
+          published_at: string | null
+          published_by: string | null
+          title: string
+        }
+        Insert: {
+          audience_scope?: string | null
+          body?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          partner_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          title: string
+        }
+        Update: {
+          audience_scope?: string | null
+          body?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          partner_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action_type: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          performed_at: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          action_type: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          action_type?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
       client_audit_logs: {
         Row: {
           action: string
@@ -677,6 +763,116 @@ export type Database = {
         }
         Relationships: []
       }
+      document_categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          parent_category_id: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          parent_category_id?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          parent_category_id?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_categories_parent_category_id_fkey"
+            columns: ["parent_category_id"]
+            isOneToOne: false
+            referencedRelation: "document_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          file_name: string | null
+          file_size_bytes: number | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_active: boolean | null
+          partner_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          uploaded_by: string | null
+          version_number: number | null
+          visibility_scope: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          partner_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          version_number?: number | null
+          visibility_scope?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          partner_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          version_number?: number | null
+          visibility_scope?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "document_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       licensed_modules: {
         Row: {
           created_at: string
@@ -1184,6 +1380,102 @@ export type Database = {
         }
         Relationships: []
       }
+      partners: {
+        Row: {
+          alert_notice_days: number | null
+          assigned_manager_id: string | null
+          company_name: string
+          country: string | null
+          created_at: string | null
+          created_by: string | null
+          health_score: number | null
+          id: string
+          is_active: boolean | null
+          legal_name: string | null
+          notes: string | null
+          number_of_clients: number | null
+          onboarding_status: string | null
+          partner_code: string
+          partner_type: string | null
+          partnership_level: string | null
+          phone: string | null
+          pipeline_value: number | null
+          primary_contact_email: string | null
+          primary_contact_name: string | null
+          region: string | null
+          revenue_ytd: number | null
+          start_date: string | null
+          status: string | null
+          tier_id: number | null
+          total_revenue: number | null
+          updated_at: string | null
+          updated_by: string | null
+          website: string | null
+        }
+        Insert: {
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name: string
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string
+          is_active?: boolean | null
+          legal_name?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code: string
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          website?: string | null
+        }
+        Update: {
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name?: string
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string
+          is_active?: boolean | null
+          legal_name?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code?: string
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount_due: number | null
@@ -1243,6 +1535,65 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          certification_level: number | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          invitation_status: string | null
+          is_active: boolean | null
+          is_hq: boolean | null
+          last_login_at: string | null
+          onboarding_completion_pct: number | null
+          partner_id: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          certification_level?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          invitation_status?: string | null
+          is_active?: boolean | null
+          is_hq?: boolean | null
+          last_login_at?: string | null
+          onboarding_completion_pct?: number | null
+          partner_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          certification_level?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          invitation_status?: string | null
+          is_active?: boolean | null
+          is_hq?: boolean | null
+          last_login_at?: string | null
+          onboarding_completion_pct?: number | null
+          partner_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
@@ -1370,15 +1721,193 @@ export type Database = {
           },
         ]
       }
+      training_courses: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          estimated_duration_minutes: number | null
+          id: string
+          is_active: boolean | null
+          required_for_tier: number | null
+          sort_order: number | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          visibility_scope: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          required_for_tier?: number | null
+          sort_order?: number | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          visibility_scope?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          required_for_tier?: number | null
+          sort_order?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          visibility_scope?: string | null
+        }
+        Relationships: []
+      }
+      training_modules: {
+        Row: {
+          content_type: string | null
+          content_url: string | null
+          course_id: string
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          order_index: number | null
+          quiz_required: boolean | null
+          title: string
+        }
+        Insert: {
+          content_type?: string | null
+          content_url?: string | null
+          course_id: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          order_index?: number | null
+          quiz_required?: boolean | null
+          title: string
+        }
+        Update: {
+          content_type?: string | null
+          content_url?: string | null
+          course_id?: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          order_index?: number | null
+          quiz_required?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_modules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "training_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_progress: {
+        Row: {
+          completed_at: string | null
+          course_id: string
+          created_at: string | null
+          id: string
+          is_completed: boolean | null
+          module_id: string | null
+          progress_pct: number | null
+          score: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          course_id: string
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          module_id?: string | null
+          progress_pct?: number | null
+          score?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          course_id?: string
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          module_id?: string | null
+          progress_pct?: number | null
+          score?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_progress_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "training_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "training_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_partner_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_hq_user: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "hq_admin"
+        | "partner_manager"
+        | "hq_standard"
+        | "partner_admin"
+        | "partner_sales"
+        | "partner_restricted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1505,6 +2034,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "hq_admin",
+        "partner_manager",
+        "hq_standard",
+        "partner_admin",
+        "partner_sales",
+        "partner_restricted",
+      ],
+    },
   },
 } as const

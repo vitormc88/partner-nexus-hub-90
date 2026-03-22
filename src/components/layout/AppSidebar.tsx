@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut } from "lucide-react";
+import { useMyPermissions } from "@/hooks/useUsers";
+import { LogOut, UserCog } from "lucide-react";
 import {
   LayoutDashboard,
   Users,
@@ -37,6 +38,27 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+// Map URLs to module keys for permission filtering
+const urlToModule: Record<string, string> = {
+  "/": "dashboard",
+  "/partners": "dashboard", // always visible if dashboard access
+  "/clients": "clients",
+  "/renewals": "renewals",
+  "/analytics": "dashboard",
+  "/pipeline": "pipeline",
+  "/deal-registrations": "deal_registrations",
+  "/commissions": "commissions",
+  "/onboarding": "onboarding",
+  "/certifications": "certifications",
+  "/tiers": "dashboard",
+  "/performance": "dashboard",
+  "/knowledge": "knowledge_base",
+  "/training": "training",
+  "/community": "community",
+  "/announcements": "announcements",
+  "/notifications": "dashboard",
+};
+
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Partners", url: "/partners", icon: Users },
@@ -71,40 +93,57 @@ const communityNav = [
 
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
+  const { data: myPerms } = useMyPermissions();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const isHqUser = roles.some(r => ["hq_admin", "partner_manager", "hq_standard"].includes(r));
+  const isAdmin = roles.includes("hq_admin");
+
+  // HQ users see everything; partner users filtered by permissions
+  const canSee = (url: string) => {
+    if (isHqUser) return true;
+    const moduleKey = urlToModule[url];
+    if (!moduleKey) return true;
+    if (!myPerms || myPerms.length === 0) return true; // no perms set = show all (fallback)
+    return myPerms.some(p => p.module_key === moduleKey && p.access_level !== "no_access");
+  };
+
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  const renderGroup = (label: string, items: typeof mainNav) => (
-    <SidebarGroup>
-      {!collapsed && (
-        <SidebarGroupLabel className="text-sidebar-muted uppercase text-[11px] tracking-wider font-medium px-3">
-          {label}
-        </SidebarGroupLabel>
-      )}
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                <NavLink
-                  to={item.url}
-                  end={item.url === "/"}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
+  const renderGroup = (label: string, items: typeof mainNav) => {
+    const visible = items.filter(item => canSee(item.url));
+    if (visible.length === 0) return null;
+    return (
+      <SidebarGroup>
+        {!collapsed && (
+          <SidebarGroupLabel className="text-sidebar-muted uppercase text-[11px] tracking-wider font-medium px-3">
+            {label}
+          </SidebarGroupLabel>
+        )}
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {visible.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                  <NavLink
+                    to={item.url}
+                    end={item.url === "/"}
+                    className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    {!collapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -146,6 +185,20 @@ export function AppSidebar() {
 
       <SidebarFooter className="px-3 py-3">
         <SidebarMenu>
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/users")}>
+                <NavLink
+                  to="/users"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <UserCog className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>User Management</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink

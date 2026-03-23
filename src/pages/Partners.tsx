@@ -1,4 +1,5 @@
 import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, type Partner } from "@/hooks/usePartners";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";

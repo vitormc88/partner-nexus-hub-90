@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const { data: partners = [] } = usePartners();

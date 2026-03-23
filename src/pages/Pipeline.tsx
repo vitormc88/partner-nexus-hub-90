@@ -231,6 +231,7 @@ export default function Pipeline() {
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Company Name *</Label><Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} /></div>
+              {isHQ ? (
               <div>
                 <Label>Partner</Label>
                 <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v }))}>
@@ -241,6 +242,12 @@ export default function Pipeline() {
                   </SelectContent>
                 </Select>
               </div>
+              ) : (
+              <div>
+                <Label>Partner</Label>
+                <Input value={partners.find(p => p.id === userPartnerId)?.company_name || "Your Partner"} disabled />
+              </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} /></div>

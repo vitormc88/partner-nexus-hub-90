@@ -16,6 +16,8 @@ import { toast } from "sonner";
 
 export default function ClientsLicenses() {
   const navigate = useNavigate();
+  const { isHQ, isAdmin, profile } = useAuth();
+  const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
   const createClient = useCreateClient();

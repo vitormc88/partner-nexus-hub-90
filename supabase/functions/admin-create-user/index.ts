@@ -43,7 +43,7 @@ const MODULE_DEFAULTS: Record<string, Array<{ module_key: string; access_level: 
     { module_key: "knowledge_base", access_level: "view" },
     { module_key: "training", access_level: "view" },
   ],
-  partner_readonly: [
+  partner_restricted: [
     { module_key: "dashboard", access_level: "view" },
     { module_key: "clients", access_level: "view" },
     { module_key: "renewals", access_level: "view" },

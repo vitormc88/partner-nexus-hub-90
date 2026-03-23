@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -104,18 +105,32 @@ export function useUserPermissions(userId: string | undefined) {
 }
 
 export function useMyPermissions() {
+  // We need a stable user id in the query key so permissions aren't shared across auth sessions
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthUserId(user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return useQuery({
-    queryKey: ["my-permissions"],
+    queryKey: ["my-permissions", authUserId],
+    enabled: !!authUserId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!authUserId) return [];
       const { data, error } = await supabase
         .from("user_module_permissions")
         .select("module_key, access_level")
-        .eq("user_id", user.id);
+        .eq("user_id", authUserId);
       if (error) throw error;
       return data as ModulePermission[];
     },
+    staleTime: 30_000, // Keep fresh for 30s to avoid unnecessary refetches
   });
 }
 
@@ -171,8 +186,11 @@ export function useSavePermissions() {
         if (insErr) throw insErr;
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user-permissions"] });
+    onSuccess: (_data, variables) => {
+      // Invalidate the specific user's permissions cache
+      qc.invalidateQueries({ queryKey: ["user-permissions", variables.userId] });
+      // Invalidate my-permissions only if the edited user is the current user
+      // (this is safe — if it's a different user, the invalidation just triggers a no-op refetch)
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
       toast.success("Permissions saved");
     },

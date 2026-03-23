@@ -26,6 +26,7 @@ import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import ComingSoon from "@/pages/ComingSoon";
 import UserManagement from "@/pages/UserManagement";
+import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/partners" element={<Partners />} />

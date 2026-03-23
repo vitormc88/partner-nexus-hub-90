@@ -83,6 +83,24 @@ Deno.serve(async (req) => {
     if (roleError || !roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
 
     const body = await req.json();
+
+    // --- SET PASSWORD FOR EXISTING USER ---
+    if (body.action === "set_password") {
+      const email = String(body.email || "").trim().toLowerCase();
+      const password = String(body.password || "");
+      if (!email || !password) return Response.json({ error: "Email and password are required" }, { status: 400, headers: corsHeaders });
+      
+      const { data: users } = await adminClient.auth.admin.listUsers();
+      const existingUser = users?.users?.find((u: any) => u.email === email);
+      if (!existingUser) return Response.json({ error: "User not found" }, { status: 404, headers: corsHeaders });
+      
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(existingUser.id, { password });
+      if (updateError) return Response.json({ error: updateError.message }, { status: 400, headers: corsHeaders });
+      
+      return Response.json({ success: true, userId: existingUser.id }, { headers: corsHeaders });
+    }
+
+    // --- CREATE NEW USER ---
     const email = String(body.email || "").trim().toLowerCase();
     const fullName = String(body.full_name || "").trim();
     const role = String(body.role || "").trim();

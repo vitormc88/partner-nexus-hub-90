@@ -1,0 +1,1 @@
+UPDATE public.profiles SET is_hq = true, is_active = true WHERE id = '9b9e3032-b61b-4cae-82dd-eebfc13da292';

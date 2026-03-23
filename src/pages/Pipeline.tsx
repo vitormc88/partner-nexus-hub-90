@@ -101,7 +101,7 @@ export default function Pipeline() {
       toast.success("Deal created successfully");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
       setShowCreate(false);
-      setForm({ ...defaultDealForm });
+      setForm({ ...defaultDealForm, partner_id: userPartnerId || "" });
     } catch (e: any) {
       const msg = e?.message || "";
       if (msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("permission denied")) {

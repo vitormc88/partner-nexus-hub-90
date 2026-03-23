@@ -87,12 +87,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const hasModuleAccess = (moduleKey: string) =>
     myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
 
+  const firstAvailable = fallbackModuleOrder.find((m) => hasModuleAccess(m.moduleKey));
+
   // Dashboard / root "/" — if user has NO dashboard access, redirect to first available module
   if (!matchedRoute || location.pathname === "/") {
     if (hasModuleAccess("dashboard")) return <>{children}</>;
 
-    // Find first available module to redirect to
-    const firstAvailable = fallbackModuleOrder.find((m) => hasModuleAccess(m.moduleKey));
     if (firstAvailable) return <Navigate to={firstAvailable.path} replace />;
 
     // User has no permissions at all
@@ -101,6 +101,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check access for the specific module ONLY
   if (!hasModuleAccess(matchedRoute.moduleKey)) {
+    if (firstAvailable && firstAvailable.path !== location.pathname) {
+      return <Navigate to={firstAvailable.path} replace />;
+    }
+
     return <AccessDenied message="You do not have permission to access this module." />;
   }
 

@@ -20,6 +20,7 @@ describe("ProtectedRoute", () => {
       session: { user: { id: "user-1" } },
       isLoading: false,
       isAdmin: false,
+      profile: { is_hq: false },
     });
 
     mockUseMyPermissions.mockReturnValue({
@@ -83,5 +84,26 @@ describe("ProtectedRoute", () => {
     );
 
     expect(screen.queryByText("Access restricted")).not.toBeInTheDocument();
+  });
+
+  it("redirects dashboard-only users away from unrelated modules instead of inheriting dashboard access", async () => {
+    mockUseMyPermissions.mockReturnValue({
+      data: [{ module_key: "dashboard", access_level: "view" }],
+      isLoading: false,
+      isResolved: true,
+      isError: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/analytics"]}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute><div>Dashboard content</div></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><div>Analytics content</div></ProtectedRoute>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Dashboard content")).toBeInTheDocument();
+    expect(screen.queryByText("Analytics content")).not.toBeInTheDocument();
   });
 });

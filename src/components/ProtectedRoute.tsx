@@ -1,42 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
-
-const routeModules: Array<{ prefix: string; moduleKey: string }> = [
-  { prefix: "/clients", moduleKey: "clients" },
-  { prefix: "/renewals", moduleKey: "renewals" },
-  { prefix: "/pipeline", moduleKey: "pipeline" },
-  { prefix: "/deals", moduleKey: "pipeline" },
-  { prefix: "/deal-registrations", moduleKey: "deal_registrations" },
-  { prefix: "/commissions", moduleKey: "commissions" },
-  { prefix: "/onboarding", moduleKey: "onboarding" },
-  { prefix: "/certifications", moduleKey: "certifications" },
-  { prefix: "/knowledge", moduleKey: "knowledge_base" },
-  { prefix: "/training", moduleKey: "training" },
-  { prefix: "/announcements", moduleKey: "announcements" },
-  { prefix: "/community", moduleKey: "community" },
-  { prefix: "/settings", moduleKey: "_admin_only" },
-  { prefix: "/analytics", moduleKey: "_admin_only" },
-  { prefix: "/partners", moduleKey: "_admin_only" },
-  { prefix: "/notifications", moduleKey: "_admin_only" },
-  { prefix: "/tiers", moduleKey: "_admin_only" },
-  { prefix: "/performance", moduleKey: "_admin_only" },
-  { prefix: "/users", moduleKey: "_admin_only" },
-];
-
-const fallbackModuleOrder = [
-  { path: "/clients", moduleKey: "clients" },
-  { path: "/pipeline", moduleKey: "pipeline" },
-  { path: "/renewals", moduleKey: "renewals" },
-  { path: "/deal-registrations", moduleKey: "deal_registrations" },
-  { path: "/commissions", moduleKey: "commissions" },
-  { path: "/knowledge", moduleKey: "knowledge_base" },
-  { path: "/onboarding", moduleKey: "onboarding" },
-  { path: "/certifications", moduleKey: "certifications" },
-  { path: "/training", moduleKey: "training" },
-  { path: "/announcements", moduleKey: "announcements" },
-  { path: "/community", moduleKey: "community" },
-];
+import { getFirstAllowedModule, getRouteModule, hasModuleAccess } from "@/lib/module-access";
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -54,7 +19,7 @@ const AccessDenied = ({ message }: { message: string }) => (
 );
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, isLoading, isAdmin } = useAuth();
+  const { session, isLoading, isAdmin, profile } = useAuth();
   const location = useLocation();
   const {
     data: myPerms,
@@ -62,18 +27,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isError: permsError,
     isResolved: permsResolved,
   } = useMyPermissions();
+  const isPartnerUser = profile?.is_hq === false;
 
   if (isLoading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/auth" replace />;
   if (isAdmin) return <>{children}</>;
-
-  const matchedRoute = routeModules.find((route) =>
-    location.pathname === route.prefix || location.pathname.startsWith(`${route.prefix}/`)
-  );
-
-  if (matchedRoute?.moduleKey === "_admin_only") {
-    return <AccessDenied message="This section is restricted to administrators." />;
-  }
 
   if (permsLoading || !permsResolved) return <LoadingSpinner />;
 
@@ -81,23 +39,22 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <AccessDenied message="Unable to load permissions. Please refresh the page or contact your administrator." />;
   }
 
-  const hasModuleAccess = (moduleKey: string) =>
-    myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
-
-  const firstAvailable = fallbackModuleOrder.find((module) => hasModuleAccess(module.moduleKey));
+  const firstAvailable = getFirstAllowedModule(myPerms, { isPartnerUser });
 
   if (location.pathname === "/") {
-    if (hasModuleAccess("dashboard")) return <>{children}</>;
+    if (hasModuleAccess(myPerms, "dashboard", { isPartnerUser })) return <>{children}</>;
     if (firstAvailable) return <Navigate to={firstAvailable.path} replace />;
 
     return <AccessDenied message="You do not have permission to access any module. Contact your administrator." />;
   }
 
+  const matchedRoute = getRouteModule(location.pathname);
+
   if (!matchedRoute) {
     return <>{children}</>;
   }
 
-  if (!hasModuleAccess(matchedRoute.moduleKey)) {
+  if (!hasModuleAccess(myPerms, matchedRoute.moduleKey, { isPartnerUser })) {
     if (firstAvailable && firstAvailable.path !== location.pathname) {
       return <Navigate to={firstAvailable.path} replace />;
     }

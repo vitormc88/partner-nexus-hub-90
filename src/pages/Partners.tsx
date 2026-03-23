@@ -21,6 +21,7 @@ export default function Partners() {
   const createPartner = useCreatePartner();
   const archivePartner = useArchivePartner();
   const restorePartner = useRestorePartner();
+  const { isAdmin, isHQ, profile } = useAuth();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);

@@ -84,7 +84,7 @@ export default function Pipeline() {
     try {
       const { error } = await supabase.from("deals").insert({
         company_name: form.company_name,
-        partner_id: form.partner_id || null,
+        partner_id: userPartnerId || form.partner_id || null,
         country: form.country || null,
         industry: form.industry || null,
         stage: form.stage,

@@ -98,10 +98,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isAdmin = roles.includes("hq_admin");
+  const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
     if (isAdmin) return true;
     const moduleKey = urlToModule[url];
+    // HQ-only modules: always hidden for partner users
     if (!moduleKey || moduleKey === "_admin_only") return false;
     if (!myPerms || myPerms.length === 0) return false;
     return myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");

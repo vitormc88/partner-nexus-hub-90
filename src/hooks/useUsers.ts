@@ -186,8 +186,11 @@ export function useSavePermissions() {
         if (insErr) throw insErr;
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user-permissions"] });
+    onSuccess: (_data, variables) => {
+      // Invalidate the specific user's permissions cache
+      qc.invalidateQueries({ queryKey: ["user-permissions", variables.userId] });
+      // Invalidate my-permissions only if the edited user is the current user
+      // (this is safe — if it's a different user, the invalidation just triggers a no-op refetch)
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
       toast.success("Permissions saved");
     },

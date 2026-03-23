@@ -125,11 +125,11 @@ export default function Partners() {
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild><Link to={`/partners/${p.id}`}>View Details</Link></DropdownMenuItem>
-                        {p.status === "Archived" ? (
+                        {isAdmin && (p.status === "Archived" ? (
                           <DropdownMenuItem onClick={() => handleRestore(p.id, p.company_name)}><RotateCcw className="h-4 w-4 mr-2" /> Restore</DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem onClick={() => handleArchive(p.id, p.company_name)} className="text-destructive"><Archive className="h-4 w-4 mr-2" /> Archive</DropdownMenuItem>
-                        )}
+                        ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>

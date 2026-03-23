@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { MODULE_KEYS_LIST, MODULE_LABELS } from "@/lib/module-access";
 
 const mapUserError = (error: any, fallback: string) => {
   const message = error?.message || fallback;
@@ -31,29 +32,7 @@ export interface ModulePermission {
   access_level: string;
 }
 
-const MODULE_KEYS = [
-  "dashboard", "clients", "renewals", "pipeline", "deal_registrations",
-  "commissions", "onboarding", "certifications", "knowledge_base",
-  "training", "announcements", "community", "settings",
-];
-
-export const MODULE_KEYS_LIST = MODULE_KEYS;
-
-export const MODULE_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  clients: "Clients & Licenses",
-  renewals: "Renewals",
-  pipeline: "Pipeline",
-  deal_registrations: "Deal Registrations",
-  commissions: "Commissions",
-  onboarding: "Onboarding",
-  certifications: "Certifications",
-  knowledge_base: "Knowledge Base",
-  training: "Training",
-  announcements: "Announcements",
-  community: "Community",
-  settings: "Settings",
-};
+export { MODULE_KEYS_LIST, MODULE_LABELS };
 
 export function useUsers() {
   return useQuery({

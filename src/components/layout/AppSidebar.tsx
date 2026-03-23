@@ -37,27 +37,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-
-// Map URLs to module keys for permission filtering
-const urlToModule: Record<string, string> = {
-  "/": "dashboard",
-  "/partners": "_admin_only",
-  "/clients": "clients",
-  "/renewals": "renewals",
-  "/analytics": "_admin_only",
-  "/pipeline": "pipeline",
-  "/deal-registrations": "deal_registrations",
-  "/commissions": "commissions",
-  "/onboarding": "onboarding",
-  "/certifications": "certifications",
-  "/tiers": "_admin_only",
-  "/performance": "_admin_only",
-  "/knowledge": "knowledge_base",
-  "/training": "training",
-  "/community": "community",
-  "/announcements": "announcements",
-  "/notifications": "_admin_only",
-};
+import { getRouteModule, hasModuleAccess } from "@/lib/module-access";
 
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -102,11 +82,9 @@ export function AppSidebar() {
 
   const canSee = (url: string) => {
     if (isAdmin) return true;
-    const moduleKey = urlToModule[url];
-    // HQ-only modules: always hidden for partner users
-    if (!moduleKey || moduleKey === "_admin_only") return false;
-    if (!myPerms || myPerms.length === 0) return false;
-    return myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
+    const moduleKey = getRouteModule(url)?.moduleKey;
+    if (!moduleKey || !myPerms || myPerms.length === 0) return false;
+    return hasModuleAccess(myPerms, moduleKey, { isPartnerUser });
   };
 
   const isActive = (path: string) =>
@@ -199,7 +177,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isPartnerUser && (
+          {canSee("/settings") && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive("/settings")}>
                 <NavLink

@@ -43,10 +43,12 @@ const defaultDealForm = {
 };
 
 export default function Pipeline() {
+  const { isHQ, profile } = useAuth();
+  const userPartnerId = !isHQ ? profile?.partner_id : null;
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ ...defaultDealForm });
+  const [form, setForm] = useState({ ...defaultDealForm, partner_id: userPartnerId || "" });
   const [creating, setCreating] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();

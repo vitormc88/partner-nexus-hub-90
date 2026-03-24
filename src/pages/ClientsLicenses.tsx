@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { usePartners } from "@/hooks/usePartners";
+import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 

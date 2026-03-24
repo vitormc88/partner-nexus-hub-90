@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { usePartners } from "@/hooks/usePartners";
+import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ export default function ClientsLicenses() {
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
+  const { data: aggregates } = useClientAggregates();
   const createClient = useCreateClient();
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
@@ -124,7 +126,7 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up" style={{ animationDelay: "60ms" }}>
-        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={0} renewals30={0} overdue={0} />
+        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={aggregates?.renewals30 ?? 0} overdue={aggregates?.overdue ?? 0} />
       </div>
 
       <div className="animate-reveal-up flex flex-wrap items-center gap-3" style={{ animationDelay: "120ms" }}>

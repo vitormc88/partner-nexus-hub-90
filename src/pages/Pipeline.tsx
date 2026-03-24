@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
+import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,18 +19,30 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 
+const JOB_ROLE_OPTIONS = [
+  "Maintenance Manager",
+  "Plant Manager",
+  "General Manager",
+  "IT Manager",
+  "Unknown",
+];
+
+const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
+const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
+
 const defaultLeadForm = {
+  contact_person_name: "",
   company_name: "",
   partner_id: "",
-  assigned_salesperson: "",
+  assigned_to: "",
   country: "",
   lead_source: "Partner (Outbound)",
   contact_email: "",
   contact_phone: "",
   job_role: "",
   sector: "",
-  num_assets: "",
-  num_maintenance_team: "",
+  asset_range: "",
+  maintenance_team_size: "",
   notes: "",
 };
 
@@ -43,6 +56,7 @@ export default function Pipeline() {
   const [creating, setCreating] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
+  const { data: partnerUsers = [] } = usePartnerUsers(form.partner_id || null);
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
@@ -59,14 +73,11 @@ export default function Pipeline() {
   const won = filtered.filter(d => d.status === "Won");
   const lost = filtered.filter(d => d.status === "Lost");
   const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
-  // Weighted pipeline: only count deals that have an expected_value > 0
   const weightedPipeline = open
     .filter(d => (d.expected_value || 0) > 0)
     .reduce((s, d) => s + (d.expected_value || 0) * (getStageProbability(d.stage) / 100), 0);
-  // Win rate = Won / (Won + Lost)
   const closedCount = won.length + lost.length;
   const winRate = closedCount > 0 ? Math.round((won.length / closedCount) * 100) : 0;
-  // Stuck = no stage movement for STUCK_THRESHOLD_DAYS
   const stuckDeals = open.filter(d => {
     const entered = d.stage_entered_at ? new Date(d.stage_entered_at) : new Date(d.created_at);
     const daysSince = Math.floor((Date.now() - entered.getTime()) / 86400000);
@@ -86,18 +97,21 @@ export default function Pipeline() {
   };
 
   const handleCreate = async () => {
-    if (!form.company_name) { toast.error("Name is required"); return; }
+    if (!form.company_name) { toast.error("Company Name is required"); return; }
     setCreating(true);
     try {
+      // Find the selected user's full_name for assigned_salesperson
+      const assignedUser = partnerUsers.find(u => u.id === form.assigned_to);
       const { error } = await supabase.from("deals").insert({
         company_name: form.company_name,
+        contact_person_name: form.contact_person_name || null,
         partner_id: userPartnerId || form.partner_id || null,
         country: form.country || null,
         industry: form.sector || null,
         stage: "Open Lead",
         expected_value: 0,
         probability: getStageProbability("Open Lead"),
-        assigned_salesperson: form.assigned_salesperson || null,
+        assigned_salesperson: assignedUser?.full_name || null,
         lead_source: form.lead_source || "Partner (Outbound)",
         notes: form.notes || null,
         status: "Open",
@@ -105,8 +119,8 @@ export default function Pipeline() {
         contact_phone: form.contact_phone || null,
         job_role: form.job_role || null,
         sector: form.sector || null,
-        num_assets: form.num_assets ? parseInt(form.num_assets) : null,
-        num_maintenance_team: form.num_maintenance_team ? parseInt(form.num_maintenance_team) : null,
+        asset_range: form.asset_range || null,
+        maintenance_team_size: form.maintenance_team_size || null,
         register_date: new Date().toISOString().split("T")[0],
       } as any);
       if (error) throw error;
@@ -255,7 +269,7 @@ export default function Pipeline() {
               {isHQ ? (
                 <div>
                   <Label>Linked Partner</Label>
-                  <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v }))}>
+                  <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v, assigned_to: "" }))}>
                     <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
@@ -271,16 +285,32 @@ export default function Pipeline() {
               )}
               <div>
                 <Label>Assigned To</Label>
-                <Input value={form.assigned_salesperson} onChange={e => setForm(f => ({ ...f, assigned_salesperson: e.target.value }))} placeholder="Salesperson name" />
+                <Select
+                  value={form.assigned_to || "none"}
+                  onValueChange={v => setForm(f => ({ ...f, assigned_to: v === "none" ? "" : v }))}
+                  disabled={!form.partner_id && !userPartnerId}
+                >
+                  <SelectTrigger><SelectValue placeholder={!form.partner_id && !userPartnerId ? "Select a partner first" : "Select user"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {partnerUsers.length === 0 && (form.partner_id || userPartnerId) && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No users available for this partner</div>
+                    )}
+                    {partnerUsers.map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             {/* Lead details */}
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Name *</Label><Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder="Lead / company name" /></div>
-              <div><Label>Country</Label><CountryCombobox value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} /></div>
+              <div><Label>Name</Label><Input value={form.contact_person_name} onChange={e => setForm(f => ({ ...f, contact_person_name: e.target.value }))} placeholder="Contact person name" /></div>
+              <div><Label>Company Name *</Label><Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} placeholder="Company name" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
+              <div><Label>Country</Label><CountryCombobox value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} /></div>
               <div>
                 <Label>Lead Source</Label>
                 <Select value={form.lead_source} onValueChange={v => setForm(f => ({ ...f, lead_source: v }))}>
@@ -291,19 +321,48 @@ export default function Pipeline() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Email</Label><Input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} /></div>
+              <div><Label>Phone</Label><Input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Job Role</Label>
+                <Select value={form.job_role || "none"} onValueChange={v => setForm(f => ({ ...f, job_role: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Select —</SelectItem>
+                    {JOB_ROLE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label>Sector</Label>
                 <SectorSelect value={form.sector} onChange={v => setForm(f => ({ ...f, sector: v }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Email</Label><Input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} /></div>
-              <div><Label>Phone</Label><Input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} /></div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><Label>Job Role</Label><Input value={form.job_role} onChange={e => setForm(f => ({ ...f, job_role: e.target.value }))} /></div>
-              <div><Label>No. of Assets</Label><Input type="number" value={form.num_assets} onChange={e => setForm(f => ({ ...f, num_assets: e.target.value }))} /></div>
-              <div><Label>Maintenance Team</Label><Input type="number" value={form.num_maintenance_team} onChange={e => setForm(f => ({ ...f, num_maintenance_team: e.target.value }))} /></div>
+              <div>
+                <Label>No. of Assets</Label>
+                <Select value={form.asset_range || "none"} onValueChange={v => setForm(f => ({ ...f, asset_range: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Select —</SelectItem>
+                    {ASSET_RANGE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Maintenance Team</Label>
+                <Select value={form.maintenance_team_size || "none"} onValueChange={v => setForm(f => ({ ...f, maintenance_team_size: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Select —</SelectItem>
+                    {TEAM_SIZE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
             <div className="flex justify-end gap-2">

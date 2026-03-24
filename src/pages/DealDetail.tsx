@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
+import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useDealContacts, useDealTasks, useDealActivities } from "@/hooks/useCommissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,16 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
 
+const JOB_ROLE_OPTIONS = [
+  "Maintenance Manager",
+  "Plant Manager",
+  "General Manager",
+  "IT Manager",
+  "Unknown",
+];
+const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
+const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
+
 export default function DealDetail() {
   const { id } = useParams();
   const { data: deal, isLoading } = useDeal(id);
@@ -31,6 +42,9 @@ export default function DealDetail() {
   // Editing state
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+
+  // Fetch partner users for the selected partner in edit mode
+  const { data: partnerUsers = [] } = usePartnerUsers(editForm.partner_id || deal?.partner_id || null);
 
   // Task add
   const [showAddTask, setShowAddTask] = useState(false);
@@ -48,6 +62,7 @@ export default function DealDetail() {
   const startEdit = () => {
     setEditForm({
       company_name: deal.company_name,
+      contact_person_name: (deal as any).contact_person_name || "",
       country: deal.country || "",
       industry: deal.industry || "",
       lead_source: deal.lead_source || "",
@@ -63,8 +78,8 @@ export default function DealDetail() {
       contact_phone: (deal as any).contact_phone || "",
       job_role: (deal as any).job_role || "",
       sector: (deal as any).sector || "",
-      num_assets: (deal as any).num_assets || "",
-      num_maintenance_team: (deal as any).num_maintenance_team || "",
+      asset_range: (deal as any).asset_range || "",
+      maintenance_team_size: (deal as any).maintenance_team_size || "",
     });
     setEditing(true);
   };
@@ -73,6 +88,7 @@ export default function DealDetail() {
     const stageChanged = editForm.stage !== deal.stage;
     const updates: any = {
       company_name: editForm.company_name,
+      contact_person_name: editForm.contact_person_name || null,
       country: editForm.country || null,
       industry: editForm.industry || editForm.sector || null,
       lead_source: editForm.lead_source || null,
@@ -89,8 +105,8 @@ export default function DealDetail() {
       contact_phone: editForm.contact_phone || null,
       job_role: editForm.job_role || null,
       sector: editForm.sector || null,
-      num_assets: editForm.num_assets ? parseInt(editForm.num_assets) : null,
-      num_maintenance_team: editForm.num_maintenance_team ? parseInt(editForm.num_maintenance_team) : null,
+      asset_range: editForm.asset_range || null,
+      maintenance_team_size: editForm.maintenance_team_size || null,
     };
     if (stageChanged) updates.stage_entered_at = new Date().toISOString();
 
@@ -195,7 +211,10 @@ export default function DealDetail() {
             <h1 className="text-xl font-bold text-foreground tracking-tight truncate">{deal.company_name}</h1>
             <Badge variant={deal.status === "Won" ? "success" : deal.status === "Lost" ? "destructive" : "outline"}>{deal.stage}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{deal.assigned_salesperson || "Unassigned"}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {(deal as any).contact_person_name ? `${(deal as any).contact_person_name} · ` : ""}
+            {deal.assigned_salesperson || "Unassigned"}
+          </p>
         </div>
         {!editing && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</Button>}
       </div>
@@ -236,10 +255,11 @@ export default function DealDetail() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Name</Label><Input value={editForm.company_name} onChange={e => setEditForm((f: any) => ({ ...f, company_name: e.target.value }))} /></div>
-                <div><Label>Country</Label><CountryCombobox value={editForm.country} onChange={v => setEditForm((f: any) => ({ ...f, country: v }))} /></div>
+                <div><Label>Name</Label><Input value={editForm.contact_person_name} onChange={e => setEditForm((f: any) => ({ ...f, contact_person_name: e.target.value }))} placeholder="Contact person name" /></div>
+                <div><Label>Company Name</Label><Input value={editForm.company_name} onChange={e => setEditForm((f: any) => ({ ...f, company_name: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div><Label>Country</Label><CountryCombobox value={editForm.country} onChange={v => setEditForm((f: any) => ({ ...f, country: v }))} /></div>
                 <div>
                   <Label>Linked Partner</Label>
                   <Select value={editForm.partner_id || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, partner_id: v === "none" ? "" : v }))}>
@@ -250,9 +270,30 @@ export default function DealDetail() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Assigned To</Label><Input value={editForm.assigned_salesperson} onChange={e => setEditForm((f: any) => ({ ...f, assigned_salesperson: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Assigned To</Label>
+                  <Select
+                    value={partnerUsers.find(u => u.full_name === editForm.assigned_salesperson)?.id || "none"}
+                    onValueChange={v => {
+                      const user = partnerUsers.find(u => u.id === v);
+                      setEditForm((f: any) => ({ ...f, assigned_salesperson: user?.full_name || "" }));
+                    }}
+                    disabled={!editForm.partner_id}
+                  >
+                    <SelectTrigger><SelectValue placeholder={editForm.assigned_salesperson || "Select user"} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {partnerUsers.length === 0 && editForm.partner_id && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No users available for this partner</div>
+                      )}
+                      {partnerUsers.map(u => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Lead Source</Label>
                   <Select value={editForm.lead_source || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, lead_source: v === "none" ? "" : v }))}>
@@ -264,16 +305,45 @@ export default function DealDetail() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Job Role</Label>
+                  <Select value={editForm.job_role || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, job_role: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Select —</SelectItem>
+                      {JOB_ROLE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label>Sector</Label><SectorSelect value={editForm.sector} onChange={v => setEditForm((f: any) => ({ ...f, sector: v }))} /></div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><Label>Job Role</Label><Input value={editForm.job_role} onChange={e => setEditForm((f: any) => ({ ...f, job_role: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-4">
                 <div><Label>Email</Label><Input value={editForm.contact_email} onChange={e => setEditForm((f: any) => ({ ...f, contact_email: e.target.value }))} /></div>
                 <div><Label>Phone</Label><Input value={editForm.contact_phone} onChange={e => setEditForm((f: any) => ({ ...f, contact_phone: e.target.value }))} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>No. of Assets</Label><Input type="number" value={editForm.num_assets} onChange={e => setEditForm((f: any) => ({ ...f, num_assets: e.target.value }))} /></div>
-                <div><Label>Maintenance Team</Label><Input type="number" value={editForm.num_maintenance_team} onChange={e => setEditForm((f: any) => ({ ...f, num_maintenance_team: e.target.value }))} /></div>
+                <div>
+                  <Label>No. of Assets</Label>
+                  <Select value={editForm.asset_range || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, asset_range: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Select —</SelectItem>
+                      {ASSET_RANGE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Maintenance Team</Label>
+                  <Select value={editForm.maintenance_team_size || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, maintenance_team_size: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Select —</SelectItem>
+                      {TEAM_SIZE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="border-t pt-4 mt-4">
@@ -303,6 +373,7 @@ export default function DealDetail() {
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Lead Information</h3>
                 {[
+                  { icon: User, label: "Contact Person", value: (deal as any).contact_person_name || "—" },
                   { icon: Building2, label: "Company", value: deal.company_name },
                   { icon: MapPin, label: "Country", value: deal.country || "—" },
                   { icon: User, label: "Assigned To", value: deal.assigned_salesperson || "—" },
@@ -311,6 +382,8 @@ export default function DealDetail() {
                   { icon: Mail, label: "Email", value: (deal as any).contact_email || "—" },
                   { icon: Phone, label: "Phone", value: (deal as any).contact_phone || "—" },
                   { icon: User, label: "Job Role", value: (deal as any).job_role || "—" },
+                  { icon: Building2, label: "No. of Assets", value: (deal as any).asset_range || "—" },
+                  { icon: User, label: "Maintenance Team", value: (deal as any).maintenance_team_size || "—" },
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -329,8 +402,6 @@ export default function DealDetail() {
                     { label: "Expected Value", value: (deal.expected_value || 0) > 0 ? `€${(deal.expected_value || 0).toLocaleString()}` : "—", color: "text-foreground" },
                     { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
                     { label: "Weighted Value", value: (deal.expected_value || 0) > 0 ? `€${Math.round((deal.expected_value || 0) * getStageProbability(deal.stage) / 100).toLocaleString()}` : "—", color: "text-foreground" },
-                    { label: "No. Assets", value: (deal as any).num_assets ? String((deal as any).num_assets) : "—", color: "text-foreground" },
-                    { label: "Maintenance Team", value: (deal as any).num_maintenance_team ? String((deal as any).num_maintenance_team) : "—", color: "text-foreground" },
                   ].map(m => (
                     <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
                       <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>

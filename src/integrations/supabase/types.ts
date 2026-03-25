@@ -903,6 +903,66 @@ export type Database = {
           },
         ]
       }
+      incoming_leads: {
+        Row: {
+          asset_range: string | null
+          company_name: string | null
+          contact_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          job_role: string | null
+          lead_owner_type: string | null
+          lead_source: string | null
+          linked_partner_name: string | null
+          maintenance_team_size: string | null
+          notes: string | null
+          phone: string | null
+          routing_reason: string | null
+          sector: string | null
+          sharpspring_id: string | null
+        }
+        Insert: {
+          asset_range?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          job_role?: string | null
+          lead_owner_type?: string | null
+          lead_source?: string | null
+          linked_partner_name?: string | null
+          maintenance_team_size?: string | null
+          notes?: string | null
+          phone?: string | null
+          routing_reason?: string | null
+          sector?: string | null
+          sharpspring_id?: string | null
+        }
+        Update: {
+          asset_range?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          job_role?: string | null
+          lead_owner_type?: string | null
+          lead_source?: string | null
+          linked_partner_name?: string | null
+          maintenance_team_size?: string | null
+          notes?: string | null
+          phone?: string | null
+          routing_reason?: string | null
+          sector?: string | null
+          sharpspring_id?: string | null
+        }
+        Relationships: []
+      }
       licensed_modules: {
         Row: {
           created_at: string

@@ -100,6 +100,9 @@ export default function KnowledgeBase() {
   const [showDocDialog, setShowDocDialog] = useState(false);
   const [editingDoc, setEditingDoc] = useState<any>(null);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<any>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();

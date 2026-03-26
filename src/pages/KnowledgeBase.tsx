@@ -400,9 +400,19 @@ export default function KnowledgeBase() {
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)} title={isLink ? "Open link" : "Download"}>
-                              {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                            </Button>
+                            {doc.file_url ? (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}
+                                title={isLink ? "Open link" : "Download file"}
+                              >
+                                {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-40 cursor-not-allowed" title="File reference missing" disabled>
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                             {isAdmin && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -452,9 +462,15 @@ export default function KnowledgeBase() {
                           {doc.updated_at ? format(new Date(doc.updated_at), "dd MMM yyyy") : ""}
                         </span>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)}>
-                            {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                          </Button>
+                          {doc.file_url ? (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}>
+                              {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-40" disabled title="File missing">
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -527,10 +543,34 @@ export default function KnowledgeBase() {
 
   function handleOpenDoc(doc: any) {
     if (!doc.file_url) {
-      toast({ title: "No file or link available", variant: "destructive" });
+      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      toast({ title: "File unavailable", description: "This document has no file or link reference.", variant: "destructive" });
       return;
     }
-    window.open(doc.file_url, "_blank", "noopener,noreferrer");
+    // Use anchor click to avoid popup blockers
+    const a = document.createElement("a");
+    a.href = doc.file_url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function handleDownloadDoc(doc: any) {
+    if (!doc.file_url) {
+      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      toast({ title: "File unavailable", description: "This document has no file reference.", variant: "destructive" });
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = doc.file_url;
+    a.download = doc.file_name || doc.title || "download";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function handleArchiveDoc(id: string) {

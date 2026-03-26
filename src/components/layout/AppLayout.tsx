@@ -1,7 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Outlet } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout() {
   return (
@@ -22,10 +23,7 @@ export function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
-              </button>
+              <NotificationBell />
             </div>
           </header>
           <main className="flex-1 overflow-auto p-6">

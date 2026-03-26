@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLES = [
@@ -21,7 +21,6 @@ const ROLES = [
 export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [role, setRole] = useState("partner_sales");
   const [partnerId, setPartnerId] = useState("none");
   const [saving, setSaving] = useState(false);
@@ -40,7 +39,6 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
   const resetForm = () => {
     setFullName("");
     setEmail("");
-    setPhone("");
     setRole("partner_sales");
     setPartnerId("none");
   };
@@ -56,22 +54,20 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
         body: {
           email: email.trim().toLowerCase(),
           full_name: fullName.trim(),
-          phone: phone || null,
           role,
           partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
           is_hq: !isPartnerRole,
-          is_active: true,
+          redirectTo: `${window.location.origin}/reset-password`,
         },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success(
-        data?.temporaryPassword
-          ? `User created. Temporary password: ${data.temporaryPassword}`
-          : `User "${fullName}" created successfully`
-      );
+      toast.success(`Invitation sent to ${email}. The user will receive an email to set their password.`, {
+        duration: 6000,
+        icon: <Mail className="h-4 w-4" />,
+      });
       qc.invalidateQueries({ queryKey: ["users-management"] });
       resetForm();
       onClose();
@@ -95,7 +91,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            Create New User
+            Invite New User
           </DialogTitle>
         </DialogHeader>
 
@@ -109,10 +105,9 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
               <Label>Email *</Label>
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@company.com" />
             </div>
-            <div>
-              <Label>Phone</Label>
-              <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+351 ..." />
-            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Role *</Label>
               <Select value={role} onValueChange={setRole}>
@@ -124,31 +119,37 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
                 </SelectContent>
               </Select>
             </div>
+            {isPartnerRole && (
+              <div>
+                <Label>Linked Partner *</Label>
+                <Select value={partnerId} onValueChange={setPartnerId}>
+                  <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Partner</SelectItem>
+                    {partners?.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
-          {isPartnerRole && (
-            <div>
-              <Label>Linked Partner *</Label>
-              <Select value={partnerId} onValueChange={setPartnerId}>
-                <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Partner</SelectItem>
-                  {partners?.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 p-3">
+            <div className="flex items-start gap-2">
+              <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                An invitation email will be sent to the user with a secure link to set their password. 
+                The user's status will be <strong>Pending</strong> until they complete the setup.
+              </p>
             </div>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            The user will be created with a real login identity and temporary password.
-          </p>
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancel</Button>
             <Button onClick={handleCreate} disabled={saving}>
-              {saving ? "Creating..." : "Create User"}
+              <Mail className="h-4 w-4 mr-2" />
+              {saving ? "Sending Invite..." : "Send Invitation"}
             </Button>
           </div>
         </div>

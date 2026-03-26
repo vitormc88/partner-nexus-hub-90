@@ -5,11 +5,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, UserPlus, Edit, ShieldCheck, ShieldX } from "lucide-react";
+import { Search, UserPlus, Edit, ShieldCheck, ShieldX, Mail, RotateCw } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { RoleBadge } from "@/components/users/RoleBadge";
 import { UserEditDialog } from "@/components/users/UserEditDialog";
 import { UserCreateDialog } from "@/components/users/UserCreateDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+function StatusBadge({ status }: { status: string | null }) {
+  if (status === "active") {
+    return (
+      <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
+        Active
+      </Badge>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+        Pending
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary">
+      {status || "Unknown"}
+    </Badge>
+  );
+}
 
 export default function UserManagement() {
   const { isAdmin } = useAuth();
@@ -17,6 +41,7 @@ export default function UserManagement() {
   const [search, setSearch] = useState("");
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
   const updateUser = useUpdateUser();
 
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -35,6 +60,27 @@ export default function UserManagement() {
     });
   };
 
+  const resendInvite = async (user: UserProfile) => {
+    if (!user.email) return;
+    setResending(user.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          action: "resend_invite",
+          email: user.email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Invitation resent to ${user.email}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to resend invitation");
+    } finally {
+      setResending(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -44,7 +90,7 @@ export default function UserManagement() {
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
-          Create User
+          Invite User
         </Button>
       </div>
 
@@ -88,12 +134,25 @@ export default function UserManagement() {
                 </TableCell>
                 <TableCell className="text-sm">{user.partner_name || "—"}</TableCell>
                 <TableCell>
-                  <Badge variant={user.is_active ? "default" : "secondary"} className={user.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}>
-                    {user.is_active ? "Active" : "Inactive"}
-                  </Badge>
+                  <StatusBadge status={user.invitation_status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
+                    {user.invitation_status === "pending" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => resendInvite(user)}
+                        disabled={resending === user.id}
+                        title="Resend invitation"
+                      >
+                        {resending === user.id ? (
+                          <RotateCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4 text-blue-600" />
+                        )}
+                      </Button>
+                    )}
                     <Button size="icon" variant="ghost" onClick={() => setEditUser(user)} title="Edit user">
                       <Edit className="h-4 w-4" />
                     </Button>

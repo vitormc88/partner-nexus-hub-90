@@ -2,7 +2,7 @@ import { useLeadTasks, useUpdateLeadTask, useDeleteLeadTask } from "@/hooks/useL
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Pencil } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";

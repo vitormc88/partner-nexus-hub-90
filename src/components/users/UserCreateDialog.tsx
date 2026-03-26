@@ -135,10 +135,10 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
             )}
           </div>
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 p-3">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
             <div className="flex items-start gap-2">
-              <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700 dark:text-blue-300">
+              <Mail className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground">
                 An invitation email will be sent to the user with a secure link to set their password. 
                 The user's status will be <strong>Pending</strong> until they complete the setup.
               </p>

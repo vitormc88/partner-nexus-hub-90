@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
+import { LeadTaskList } from "@/components/leads/LeadTaskList";
 
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -265,7 +266,21 @@ export default function LeadDetail() {
         </CardContent>
       </Card>
 
-      {/* Conversion Status */}
+      {/* Section 5: Tasks */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LeadTaskList
+            leadId={lead.id}
+            leadCompanyName={lead.company_name || "Unnamed Lead"}
+            linkedPartnerId={lead.linked_partner_id}
+          />
+        </CardContent>
+      </Card>
+
+
       {isConverted && (
         <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20">
           <CardContent className="flex items-center justify-between py-4">

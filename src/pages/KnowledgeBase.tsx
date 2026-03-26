@@ -462,9 +462,15 @@ export default function KnowledgeBase() {
                           {doc.updated_at ? format(new Date(doc.updated_at), "dd MMM yyyy") : ""}
                         </span>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)}>
-                            {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                          </Button>
+                          {doc.file_url ? (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}>
+                              {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-40" disabled title="File missing">
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

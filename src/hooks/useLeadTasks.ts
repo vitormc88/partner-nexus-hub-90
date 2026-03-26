@@ -26,11 +26,26 @@ export function useLeadTasks(leadId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lead_tasks")
-        .select("*, assigned_user:assigned_user_id(full_name, email)")
+        .select("*")
         .eq("lead_id", leadId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as LeadTask[];
+
+      // Fetch assigned user names separately
+      const userIds = [...new Set((data || []).map(t => t.assigned_user_id).filter(Boolean))] as string[];
+      let userMap = new Map<string, { full_name: string | null; email: string | null }>();
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds);
+        users?.forEach(u => userMap.set(u.id, { full_name: u.full_name, email: u.email }));
+      }
+
+      return (data || []).map(t => ({
+        ...t,
+        assigned_user: t.assigned_user_id ? userMap.get(t.assigned_user_id) || null : null,
+      })) as LeadTask[];
     },
   });
 }

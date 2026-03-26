@@ -56,6 +56,7 @@ export const INTERNAL_ONLY_MODULES = new Set<string>([
   "tiers",
   "performance",
   "settings",
+  "user_management",
 ]);
 
 type RouteModule = {

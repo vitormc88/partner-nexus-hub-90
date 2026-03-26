@@ -9,10 +9,10 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
+  const [isInvite, setIsInvite] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
@@ -20,13 +20,27 @@ export default function ResetPassword() {
       }
     });
 
-    // Also check hash for type=recovery
+    // Check hash for type=recovery or type=invite
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setIsRecovery(true);
     }
+    if (hash.includes("type=invite")) {
+      setIsInvite(true);
+      setIsRecovery(true); // Treat invite like recovery (same password-set flow)
+    }
+
+    // Also check URL params (Supabase sometimes uses query params)
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get("type");
+    if (type === "invite") {
+      setIsInvite(true);
+      setIsRecovery(true);
+    }
+    if (type === "recovery") {
+      setIsRecovery(true);
+    }
     
-    // Give it a moment to process the token
     const timer = setTimeout(() => setChecking(false), 2000);
 
     return () => {
@@ -50,8 +64,22 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      toast.success("Password updated successfully. You can now sign in.");
-      setTimeout(() => navigate("/auth"), 2000);
+
+      // Update invitation_status to active if this was an invite
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({ invitation_status: "active" })
+          .eq("id", user.id);
+      }
+
+      toast.success(
+        isInvite
+          ? "Password set successfully! Welcome to PartnerOS."
+          : "Password updated successfully. You can now sign in."
+      );
+      setTimeout(() => navigate("/"), 2000);
     } catch (error: any) {
       toast.error(error.message || "Failed to update password");
     } finally {
@@ -76,7 +104,7 @@ export default function ResetPassword() {
           </div>
           <h1 className="text-xl font-bold text-foreground">Invalid or Expired Link</h1>
           <p className="text-sm text-muted-foreground">
-            This password reset link is invalid or has expired. Please request a new one.
+            This link is invalid or has expired. Please request a new one from your administrator.
           </p>
           <button
             onClick={() => navigate("/auth")}
@@ -96,13 +124,21 @@ export default function ResetPassword() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
             <span className="text-primary-foreground font-bold text-lg">M</span>
           </div>
-          <h1 className="text-xl font-bold text-foreground">Set New Password</h1>
-          <p className="text-sm text-muted-foreground mt-1">Enter your new password below</p>
+          <h1 className="text-xl font-bold text-foreground">
+            {isInvite ? "Welcome to PartnerOS" : "Set New Password"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isInvite
+              ? "Set your password to activate your account"
+              : "Enter your new password below"}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground">New Password</label>
+            <label className="text-sm font-medium text-foreground">
+              {isInvite ? "Password" : "New Password"}
+            </label>
             <input
               type="password"
               value={password}
@@ -130,7 +166,7 @@ export default function ResetPassword() {
             disabled={loading}
             className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {loading ? "Updating..." : "Update Password"}
+            {loading ? "Setting up..." : isInvite ? "Set Password & Activate" : "Update Password"}
           </button>
         </form>
       </div>

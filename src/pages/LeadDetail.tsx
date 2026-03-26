@@ -48,19 +48,17 @@ export default function LeadDetail() {
     const resolvedPartnerId = partnerId === "__hq__" ? null : partnerId;
     const ownerType = resolvedPartnerId ? "partner" : "HQ";
 
-    const updates: Record<string, any> = {
+    const base = {
       id: lead.id,
       status,
       notes,
     };
 
-    if (isHQUser) {
-      updates.linked_partner_id = resolvedPartnerId;
-      updates.lead_owner_type = ownerType;
-      updates.routing_reason = routingReason;
-    }
+    const updates = isHQUser
+      ? { ...base, linked_partner_id: resolvedPartnerId, lead_owner_type: ownerType, routing_reason: routingReason }
+      : base;
 
-    updateLead.mutate(updates, {
+    updateLead.mutate(updates as any, {
       onSuccess: () => {
         toast.success("Lead updated");
         setDirty(false);

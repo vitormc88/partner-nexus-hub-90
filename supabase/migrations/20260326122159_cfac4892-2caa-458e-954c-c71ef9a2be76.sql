@@ -1,0 +1,1 @@
+ALTER TABLE public.incoming_leads ADD COLUMN IF NOT EXISTS converted_to_deal_id uuid REFERENCES public.deals(id);

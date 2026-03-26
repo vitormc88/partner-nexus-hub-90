@@ -908,6 +908,7 @@ export type Database = {
           asset_range: string | null
           company_name: string | null
           contact_name: string | null
+          converted_to_deal_id: string | null
           country: string | null
           created_at: string
           email: string | null
@@ -929,6 +930,7 @@ export type Database = {
           asset_range?: string | null
           company_name?: string | null
           contact_name?: string | null
+          converted_to_deal_id?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
@@ -950,6 +952,7 @@ export type Database = {
           asset_range?: string | null
           company_name?: string | null
           contact_name?: string | null
+          converted_to_deal_id?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
@@ -968,6 +971,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "incoming_leads_converted_to_deal_id_fkey"
+            columns: ["converted_to_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "incoming_leads_linked_partner_id_fkey"
             columns: ["linked_partner_id"]

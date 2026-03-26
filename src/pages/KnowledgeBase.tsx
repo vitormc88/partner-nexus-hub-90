@@ -527,10 +527,34 @@ export default function KnowledgeBase() {
 
   function handleOpenDoc(doc: any) {
     if (!doc.file_url) {
-      toast({ title: "No file or link available", variant: "destructive" });
+      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      toast({ title: "File unavailable", description: "This document has no file or link reference.", variant: "destructive" });
       return;
     }
-    window.open(doc.file_url, "_blank", "noopener,noreferrer");
+    // Use anchor click to avoid popup blockers
+    const a = document.createElement("a");
+    a.href = doc.file_url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function handleDownloadDoc(doc: any) {
+    if (!doc.file_url) {
+      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      toast({ title: "File unavailable", description: "This document has no file reference.", variant: "destructive" });
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = doc.file_url;
+    a.download = doc.file_name || doc.title || "download";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function handleArchiveDoc(id: string) {

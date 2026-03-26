@@ -540,14 +540,51 @@ export default function KnowledgeBase() {
     });
   }
 
-  function handleDeleteCategory(cat: any) {
-    if (confirm(`Delete "${cat.name}"? Documents inside will lose their category.`)) {
+  async function handleDeleteCategory(cat: any) {
+    // Check if category has documents before allowing deletion
+    const { count, error: countError } = await supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", cat.id)
+      .eq("is_active", true);
+
+    if (countError) {
+      toast({ title: "Error checking category", description: countError.message, variant: "destructive" });
+      return;
+    }
+
+    if (count && count > 0) {
+      toast({
+        title: "Cannot delete category",
+        description: `This category contains ${count} document${count !== 1 ? "s" : ""}. Move or remove them first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Also check subcategories
+    const subs = categories.filter((c: any) => c.parent_category_id === cat.id);
+    if (subs.length > 0) {
+      toast({
+        title: "Cannot delete category",
+        description: "This category has subcategories. Delete them first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (confirm(`Delete "${cat.name}"?`)) {
       deleteCategory.mutate(cat.id, {
         onSuccess: () => {
           toast({ title: "Category deleted" });
           if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
         },
-        onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+        onError: (e: any) => {
+          const msg = e.message?.includes("foreign key")
+            ? "This category cannot be deleted because it contains documents."
+            : e.message;
+          toast({ title: "Error", description: msg, variant: "destructive" });
+        },
       });
     }
   }

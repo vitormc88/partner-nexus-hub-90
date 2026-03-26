@@ -21,6 +21,7 @@ import {
   Award,
   Shield,
   Zap,
+  Inbox,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -49,6 +50,7 @@ const mainNav = [
 
 const salesNav = [
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
+  { title: "Incoming Leads", url: "/incoming-leads", icon: Inbox },
   { title: "Deal Registrations", url: "/deal-registrations", icon: ShieldCheck },
   { title: "Commissions", url: "/commissions", icon: DollarSign },
 ];

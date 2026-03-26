@@ -915,6 +915,7 @@ export type Database = {
           job_role: string | null
           lead_owner_type: string | null
           lead_source: string | null
+          linked_partner_id: string | null
           linked_partner_name: string | null
           maintenance_team_size: string | null
           notes: string | null
@@ -934,6 +935,7 @@ export type Database = {
           job_role?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
+          linked_partner_id?: string | null
           linked_partner_name?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
@@ -953,6 +955,7 @@ export type Database = {
           job_role?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
+          linked_partner_id?: string | null
           linked_partner_name?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
@@ -961,7 +964,15 @@ export type Database = {
           sector?: string | null
           sharpspring_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "incoming_leads_linked_partner_id_fkey"
+            columns: ["linked_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       licensed_modules: {
         Row: {

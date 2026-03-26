@@ -14,15 +14,19 @@ import { SectorSelect } from "@/components/clients/SectorSelect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   useClient, useUpdateClient, useArchiveClient,
   useClientContacts, useCreateContact, useDeleteContact,
-  useClientLicenses, useCreateLicense, useUpdateLicense,
+  useClientLicenses, useCreateLicense, useUpdateLicense, useDeleteLicense,
   useClientContracts, useCreateContract, useUpdateContract,
   useCreateNote, useCreateCredential,
 } from "@/hooks/useClients";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -90,7 +94,13 @@ function parseLicenseProduct(product: string | null | undefined): { family: Lice
 function getVariantLabel(variant: string): string {
   if (variant === "Business UseIT") return "UseIT";
   if (variant === "Business KeepIT") return "KeepIT";
-  return variant; // Professional 1/2/3 stay as-is
+  return variant;
+}
+
+function isValidLicenseProduct(product: string | null | undefined): boolean {
+  if (!product) return false;
+  const validValues = ["Business UseIT", "Business KeepIT", "Professional 1", "Professional 2", "Professional 3"];
+  return validValues.includes(product);
 }
 
 const PROFESSIONAL_MODULES: Record<string, string[]> = {
@@ -99,17 +109,9 @@ const PROFESSIONAL_MODULES: Record<string, string[]> = {
   "Professional 3": ["Maintenance Module", "Stock Management", "Purchase Orders", "Workflow", "SLA", "Advanced Reports", "Import Tool", "API"],
 };
 
-const ALL_MODULES = [
-  "Maintenance Module",
-  "Maintenance Requests",
-  "Stock Management",
-  "Purchase Orders",
-  "API",
-  "SLA",
-  "Workflow",
-  "Advanced Reports",
-  "Import Tool",
-];
+const CORE_MODULES = ["Maintenance Module", "Maintenance Requests", "Stock Management", "Purchase Orders"];
+const PLUGIN_MODULES = ["SLA", "Workflow", "Advanced Reports", "Import Tool", "API"];
+const ALL_MODULES = [...CORE_MODULES, ...PLUGIN_MODULES];
 
 function getLicenseDefaults(variant: string) {
   const isPro = variant.startsWith("Professional");
@@ -138,6 +140,7 @@ export default function ClientDetail() {
   const deleteContact = useDeleteContact();
   const createLicense = useCreateLicense();
   const updateLicense = useUpdateLicense();
+  const deleteLicense = useDeleteLicense();
   const createContract = useCreateContract();
   const updateContract = useUpdateContract();
   const createNote = useCreateNote();
@@ -153,23 +156,28 @@ export default function ClientDetail() {
     queryFn: async () => { if (!id) return []; const { data, error } = await supabase.from("client_credentials").select("*").eq("client_id", id); if (error) throw error; return data; },
     enabled: !!id,
   });
+
+  // Filter out invalid/broken licenses
+  const validLicenses = useMemo(() => licenses.filter(l => isValidLicenseProduct(l.product)), [licenses]);
+
   const { data: modules = [] } = useQuery({
-    queryKey: ["licensed_modules", id, licenses],
-    queryFn: async () => { if (!licenses.length) return []; const ids = licenses.map(l => l.id); const { data, error } = await supabase.from("licensed_modules").select("*").in("license_id", ids); if (error) throw error; return data; },
-    enabled: licenses.length > 0,
+    queryKey: ["licensed_modules", id, validLicenses],
+    queryFn: async () => { if (!validLicenses.length) return []; const ids = validLicenses.map(l => l.id); const { data, error } = await supabase.from("licensed_modules").select("*").in("license_id", ids); if (error) throw error; return data; },
+    enabled: validLicenses.length > 0,
   });
 
   // Derived data
-  const primaryLicense = licenses[0] || null;
+  const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
   const renewalEndDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
 
   // Parsed license info
-  const licenseProduct = primaryLicense?.product || client?.license_type || "";
+  const licenseProduct = primaryLicense?.product || "";
   const { family: licenseFamily, variant: licenseVariant } = useMemo(() => parseLicenseProduct(licenseProduct), [licenseProduct]);
   const isProfessional = licenseFamily === "Professional";
   const isBusiness = licenseFamily === "Business";
+  const hasValidLicense = !!primaryLicense && isValidLicenseProduct(primaryLicense.product);
 
   // Edit states
   const [editingClient, setEditingClient] = useState(false);
@@ -258,11 +266,14 @@ export default function ClientDetail() {
   };
 
   const handleAddLicense = async () => {
-    if (!licenseForm.product) { toast.error("License variant is required"); return; }
+    if (!licenseForm.product || !isValidLicenseProduct(licenseForm.product)) {
+      toast.error("Please select a valid License Family and Variant");
+      return;
+    }
     try {
       await createLicense.mutateAsync({
         client_id: client.id,
-        product: licenseForm.product || null,
+        product: licenseForm.product,
         version: licenseForm.version || null,
         license_model: licenseForm.license_model || null,
         database_type: licenseForm.database_type || null,
@@ -274,7 +285,6 @@ export default function ClientDetail() {
         sat_active: licenseForm.sat_active ?? false,
         api_access: licenseForm.api_access ?? false,
       });
-      // Sync client-level license_type
       await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
       toast.success("License created");
       setShowAddLicense(false);
@@ -325,6 +335,10 @@ export default function ClientDetail() {
 
   const saveLicense = async () => {
     if (!editingLicenseId) return;
+    if (!licEditForm.product || !isValidLicenseProduct(licEditForm.product)) {
+      toast.error("Please select a valid License Family and Variant");
+      return;
+    }
     try {
       const { _family, sat_end_date, ...rest } = licEditForm;
       await updateLicense.mutateAsync({
@@ -332,13 +346,25 @@ export default function ClientDetail() {
         ...rest,
         sat_end_date: sat_end_date || null,
       });
-      // Sync client license_type and deployment
       if (licEditForm.product) {
         await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
       }
       toast.success("License updated");
       setEditingLicenseId(null);
     } catch (e: any) { toast.error(e?.message || "Failed to update license"); }
+  };
+
+  const handleDeleteLicense = async (licenseId: string) => {
+    try {
+      await deleteLicense.mutateAsync({ id: licenseId, clientId: client.id });
+      // If no more valid licenses, clear client-level license_type
+      const remaining = validLicenses.filter(l => l.id !== licenseId);
+      if (remaining.length === 0) {
+        await updateClient.mutateAsync({ id: client.id, license_type: null, cloud_onpremise: null });
+      }
+      toast.success("License configuration deleted");
+      setEditingLicenseId(null);
+    } catch (e: any) { toast.error(e?.message || "Failed to delete license"); }
   };
 
   // Module save logic
@@ -356,18 +382,13 @@ export default function ClientDetail() {
   const saveModules = async () => {
     if (!primaryLicense) return;
     try {
-      // Upsert each module
       for (const mod of ALL_MODULES) {
         const existing = modules.find(m => m.module_name === mod && m.license_id === primaryLicense.id);
         const enabled = moduleEdits[mod] ?? false;
         if (existing) {
           await supabase.from("licensed_modules").update({ enabled }).eq("id", existing.id);
         } else {
-          await supabase.from("licensed_modules").insert({
-            license_id: primaryLicense.id,
-            module_name: mod,
-            enabled,
-          });
+          await supabase.from("licensed_modules").insert({ license_id: primaryLicense.id, module_name: mod, enabled });
         }
       }
       queryClient.invalidateQueries({ queryKey: ["licensed_modules"] });
@@ -410,7 +431,7 @@ export default function ClientDetail() {
   // Module helpers for licensing tab
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
   const presetModules = isProfessional ? (PROFESSIONAL_MODULES[licenseVariant] || []) : [];
-  const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "On-Premise");
+  const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "—");
 
   // License Family/Variant form rendering helper
   const renderLicenseFamilyVariantFields = (form: Record<string, any>, setter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
@@ -443,6 +464,53 @@ export default function ClientDetail() {
           </Select>
         </div>
       </>
+    );
+  };
+
+  // Module rendering helper with Modules/Plugins separation
+  const renderModuleSection = (title: string, moduleList: string[]) => {
+    return (
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">{title}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {moduleList.map(mod => {
+            const isPreset = isProfessional && presetModules.includes(mod);
+            const isOptionalAddon = mod === "Maintenance Requests";
+
+            if (editingModules) {
+              const checked = moduleEdits[mod] ?? false;
+              const isLocked = isProfessional && isPreset && !isOptionalAddon;
+              return (
+                <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
+                  <Checkbox
+                    checked={isLocked ? true : checked}
+                    disabled={isLocked}
+                    onCheckedChange={(v) => setModuleEdits(prev => ({ ...prev, [mod]: !!v }))}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium">{mod}</span>
+                    {isLocked && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
+                    {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
+                  </div>
+                </div>
+              );
+            }
+
+            const isActive = activeModuleNames.includes(mod) || isPreset;
+            return (
+              <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${isActive ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
+                <Checkbox checked={isActive} disabled className="data-[state=checked]:bg-primary" />
+                <div>
+                  <span className="text-sm font-medium">{mod}</span>
+                  {isPreset && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
+                  {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     );
   };
 
@@ -544,47 +612,66 @@ export default function ClientDetail() {
 
             {/* Right column: License Summary + Renewal + Flags */}
             <div className="space-y-5">
-              {/* License Summary — two-level display */}
+              {/* License Summary */}
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> License Summary</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-muted-foreground">License Family</span>
-                    <Badge variant="outline" className="text-xs">{licenseFamily || "Not set"}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-muted-foreground">Variant</span>
-                    <Badge variant="secondary" className="text-xs">{licenseVariant ? getVariantLabel(licenseVariant) : "Not set"}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-muted-foreground">Deployment</span>
-                    <Badge variant="secondary" className="text-xs">{deploymentDisplay}</Badge>
-                  </div>
-                  <div className="border-t border-border/40 pt-2 mt-2">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Users</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-md bg-muted/50 p-2 text-center">
-                        <p className="text-lg font-bold text-foreground">{primaryLicense?.backoffice_users ?? (isBusiness ? 3 : 1)}</p>
-                        <p className="text-[10px] text-muted-foreground">BackOffice</p>
+                <CardContent>
+                  {hasValidLicense ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-muted-foreground">License Family</span>
+                        <Badge variant="outline" className="text-xs">{licenseFamily}</Badge>
                       </div>
-                      <div className="rounded-md bg-muted/50 p-2 text-center">
-                        <p className="text-lg font-bold text-foreground">{primaryLicense?.web_accesses ?? 1}</p>
-                        <p className="text-[10px] text-muted-foreground">Web</p>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-muted-foreground">Variant</span>
+                        <Badge variant="secondary" className="text-xs">{getVariantLabel(licenseVariant)}</Badge>
                       </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-muted-foreground">Deployment</span>
+                        <Badge variant="secondary" className="text-xs">{deploymentDisplay}</Badge>
+                      </div>
+                      <div className="border-t border-border/40 pt-2 mt-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Users</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-md bg-muted/50 p-2 text-center">
+                            <p className="text-lg font-bold text-foreground">{primaryLicense?.backoffice_users ?? 0}</p>
+                            <p className="text-[10px] text-muted-foreground">BackOffice</p>
+                          </div>
+                          <div className="rounded-md bg-muted/50 p-2 text-center">
+                            <p className="text-lg font-bold text-foreground">{primaryLicense?.web_accesses ?? 0}</p>
+                            <p className="text-[10px] text-muted-foreground">Web</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t border-border/40 pt-2 mt-1 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">S&AT Active</span>
+                          <Badge variant={primaryLicense?.sat_active ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.sat_active ? "Yes" : "No"}</Badge>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">API Access</span>
+                          <Badge variant={primaryLicense?.api_access ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.api_access ? "Yes" : "No"}</Badge>
+                        </div>
+                      </div>
+                      {renewalEndDate && (
+                        <div className="border-t border-border/40 pt-2 mt-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground">Renewal Date</span>
+                            <span className="text-xs font-medium">{renewalEndDate}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="border-t border-border/40 pt-2 mt-1 space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground">S&AT Active</span>
-                      <Badge variant={primaryLicense?.sat_active ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.sat_active ? "Yes" : "No"}</Badge>
+                  ) : (
+                    <div className="py-6 text-center space-y-3">
+                      <p className="text-sm text-muted-foreground">No license configuration yet</p>
+                      <Button size="sm" variant="outline" onClick={openAddLicenseWithDefaults}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Add License Configuration
+                      </Button>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground">API Access</span>
-                      <Badge variant={primaryLicense?.api_access ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.api_access ? "Yes" : "No"}</Badge>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -622,7 +709,7 @@ export default function ClientDetail() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {[
-                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? (licenseVariant === "Business UseIT"), note: licenseVariant === "Business UseIT" ? "Always active for UseIT" : undefined },
+                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? false, note: licenseVariant === "Business UseIT" ? "Always active for UseIT" : undefined },
                     { label: "Custom Reports", value: client.has_custom_reports },
                     { label: "Premium", value: client.is_premium },
                   ].map(flag => (
@@ -678,31 +765,53 @@ export default function ClientDetail() {
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">License Configuration</CardTitle>
-              {licenses.length === 0 && (
-                <Button size="sm" onClick={openAddLicenseWithDefaults}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
-              )}
+              <Button size="sm" onClick={openAddLicenseWithDefaults}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
             </CardHeader>
             <CardContent>
-              {licenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No license records. <button onClick={openAddLicenseWithDefaults} className="text-primary hover:underline">Create first license</button></p>
-              ) : licenses.map(lic => {
+              {validLicenses.length === 0 ? (
+                <div className="py-8 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">No license configuration yet</p>
+                  <Button size="sm" variant="outline" onClick={openAddLicenseWithDefaults}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add License Configuration
+                  </Button>
+                </div>
+              ) : validLicenses.map(lic => {
                 const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
                 return (
-                <div key={lic.id} className="space-y-4">
+                <div key={lic.id} className="space-y-4 border-b border-border/40 last:border-0 pb-4 last:pb-0 mb-4 last:mb-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{licFam || "Unknown"}</Badge>
-                      <Badge variant="secondary">{licVar ? getVariantLabel(licVar) : "—"}</Badge>
+                      <Badge variant="outline">{licFam}</Badge>
+                      <Badge variant="secondary">{getVariantLabel(licVar)}</Badge>
                       <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
                     </div>
-                    {editingLicenseId === lic.id ? (
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
-                        <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
-                      </div>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {editingLicenseId === lic.id ? (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
+                          <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete this license configuration?</AlertDialogTitle>
+                                <AlertDialogDescription>This action cannot be undone. The license configuration and all associated modules will be permanently removed.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteLicense(lic.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {editingLicenseId === lic.id ? (
@@ -766,13 +875,14 @@ export default function ClientDetail() {
             </CardContent>
           </Card>
 
-          {/* Modules Checklist — now editable */}
+          {/* Modules & Plugins — separated into two sections */}
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-semibold">Modules</CardTitle>
+                <CardTitle className="text-sm font-semibold">Modules & Plugins</CardTitle>
                 {isProfessional && <p className="text-xs text-muted-foreground mt-1">Auto-filled based on {licenseVariant}. Maintenance Requests is an optional add-on.</p>}
-                {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module selection.</p>}
+                {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module and plugin selection.</p>}
+                {!hasValidLicense && <p className="text-xs text-muted-foreground mt-1">Add a license configuration to manage modules.</p>}
               </div>
               {primaryLicense && !editingModules && (
                 <Button variant="ghost" size="sm" onClick={startEditModules}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
@@ -785,47 +895,14 @@ export default function ClientDetail() {
               )}
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {ALL_MODULES.map(mod => {
-                  const isPreset = isProfessional && presetModules.includes(mod);
-                  const isOptionalAddon = mod === "Maintenance Requests";
-
-                  if (editingModules) {
-                    // In edit mode
-                    const checked = moduleEdits[mod] ?? false;
-                    // For professional: preset modules are locked (shown checked), only optional addons and non-preset are editable
-                    const isLocked = isProfessional && isPreset && !isOptionalAddon;
-                    return (
-                      <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
-                        <Checkbox
-                          checked={isLocked ? true : checked}
-                          disabled={isLocked}
-                          onCheckedChange={(v) => setModuleEdits(prev => ({ ...prev, [mod]: !!v }))}
-                          className="data-[state=checked]:bg-primary"
-                        />
-                        <div>
-                          <span className="text-sm font-medium">{mod}</span>
-                          {isLocked && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
-                          {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // View mode
-                  const isActive = activeModuleNames.includes(mod) || isPreset;
-                  return (
-                    <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${isActive ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
-                      <Checkbox checked={isActive} disabled className="data-[state=checked]:bg-primary" />
-                      <div>
-                        <span className="text-sm font-medium">{mod}</span>
-                        {isPreset && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
-                        {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {!hasValidLicense ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No license configuration. Add one to manage modules and plugins.</p>
+              ) : (
+                <div className="space-y-6">
+                  {renderModuleSection("Modules", CORE_MODULES)}
+                  {renderModuleSection("Plugins", PLUGIN_MODULES)}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1031,7 +1108,7 @@ export default function ClientDetail() {
                   </SelectContent>
                 </Select>
               </div>
-              <div /> {/* spacer */}
+              <div />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <EditField label="Start Date" value={licenseForm.license_start_date || ""} onChange={v => setLicenseForm(f => ({...f, license_start_date: v}))} type="date" />

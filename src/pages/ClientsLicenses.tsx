@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { LicenseSelect } from "@/components/clients/LicenseSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
@@ -17,6 +16,20 @@ import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+type LicenseFamily = "Business" | "Professional" | "";
+
+const VARIANT_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  Business: [
+    { value: "Business UseIT", label: "UseIT" },
+    { value: "Business KeepIT", label: "KeepIT" },
+  ],
+  Professional: [
+    { value: "Professional 1", label: "Professional 1" },
+    { value: "Professional 2", label: "Professional 2" },
+    { value: "Professional 3", label: "Professional 3" },
+  ],
+};
 
 export default function ClientsLicenses() {
   const navigate = useNavigate();
@@ -33,7 +46,10 @@ export default function ClientsLicenses() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_type: "", status: "Active" });
+  const [form, setForm] = useState({
+    client_code: "", commercial_name: "", short_name: "", country: "", sector: "",
+    partner_id: "", license_family: "" as LicenseFamily, license_variant: "", status: "Active",
+  });
 
   const partnerMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -90,13 +106,25 @@ export default function ClientsLicenses() {
     URL.revokeObjectURL(url);
   };
 
+  const handleFamilyChange = (family: LicenseFamily) => {
+    if (!family) {
+      setForm(f => ({ ...f, license_family: "", license_variant: "" }));
+      return;
+    }
+    const firstVariant = VARIANT_OPTIONS[family]?.[0]?.value || "";
+    setForm(f => ({ ...f, license_family: family, license_variant: firstVariant }));
+  };
+
   const handleCreate = async () => {
     if (!form.client_code.trim()) { toast.error("Client Code is required"); return; }
     if (!form.commercial_name.trim()) { toast.error("Commercial Name is required"); return; }
     if (!form.country) { toast.error("Country is required"); return; }
     if (!form.sector) { toast.error("Sector is required"); return; }
+    // Validate: if family selected, variant must be valid
+    if (form.license_family && !form.license_variant) { toast.error("Please select a License Variant"); return; }
     try {
       const partnerId = userPartnerId || form.partner_id || null;
+      const licenseType = form.license_variant || null;
       await createClient.mutateAsync({
         client_code: form.client_code.trim(),
         commercial_name: form.commercial_name.trim(),
@@ -104,16 +132,28 @@ export default function ClientsLicenses() {
         country: form.country || null,
         sector: form.sector || null,
         partner_id: partnerId,
-        license_type: form.license_type || null,
+        license_type: licenseType,
         status: form.status || "Active",
       });
       toast.success("Client created successfully");
       setShowCreate(false);
-      setForm({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_type: "", status: "Active" });
+      setForm({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_family: "", license_variant: "", status: "Active" });
     } catch (e: any) {
       console.error("Client creation error:", e);
       toast.error(e?.message || "Failed to create client");
     }
+  };
+
+  const getLicenseDisplay = (licenseType: string | null) => {
+    if (!licenseType) return "—";
+    if (licenseType.startsWith("Business")) {
+      const variant = licenseType.replace("Business ", "");
+      return `Business / ${variant}`;
+    }
+    if (licenseType.startsWith("Professional")) {
+      return `Professional / ${licenseType}`;
+    }
+    return licenseType;
   };
 
   return (
@@ -191,7 +231,7 @@ export default function ClientsLicenses() {
                   <TableCell className="text-sm">{c.partner_id ? (partnerMap[c.partner_id] || "Unknown") : "HQ Direct"}</TableCell>
                   <TableCell className="text-sm">{c.country}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
-                  <TableCell><Badge variant="secondary" className="text-xs font-normal">{c.license_type || "—"}</Badge></TableCell>
+                  <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
                   <TableCell className="text-xs tabular-nums">{c.current_version}</TableCell>
                   <TableCell><Badge variant={c.status === "Active" ? "default" : "secondary"}>{c.status}</Badge></TableCell>
                 </TableRow>
@@ -215,10 +255,10 @@ export default function ClientsLicenses() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Short Name</Label><Input value={form.short_name} onChange={e => setForm(f => ({...f, short_name: e.target.value}))} /></div>
-              <div><Label>Country</Label><CountryCombobox value={form.country} onChange={v => setForm(f => ({...f, country: v}))} /></div>
+              <div><Label>Country *</Label><CountryCombobox value={form.country} onChange={v => setForm(f => ({...f, country: v}))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Sector</Label><SectorSelect value={form.sector} onChange={v => setForm(f => ({...f, sector: v}))} /></div>
+              <div><Label>Sector *</Label><SectorSelect value={form.sector} onChange={v => setForm(f => ({...f, sector: v}))} /></div>
               {isHQ ? (
               <div>
                 <Label>Linked Partner</Label>
@@ -238,7 +278,35 @@ export default function ClientsLicenses() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>License</Label><LicenseSelect value={form.license_type} onChange={v => setForm(f => ({...f, license_type: v}))} /></div>
+              <div>
+                <Label>License Family</Label>
+                <Select value={form.license_family || "none"} onValueChange={v => handleFamilyChange(v === "none" ? "" as LicenseFamily : v as LicenseFamily)}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    <SelectItem value="Business">Business</SelectItem>
+                    <SelectItem value="Professional">Professional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>License Variant</Label>
+                <Select
+                  value={form.license_variant || "none"}
+                  onValueChange={v => setForm(f => ({...f, license_variant: v === "none" ? "" : v}))}
+                  disabled={!form.license_family}
+                >
+                  <SelectTrigger><SelectValue placeholder={form.license_family ? "Select variant..." : "Select family first"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {form.license_family && VARIANT_OPTIONS[form.license_family]?.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({...f, status: v}))}>
@@ -249,6 +317,7 @@ export default function ClientsLicenses() {
                   </SelectContent>
                 </Select>
               </div>
+              <div /> {/* spacer */}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>

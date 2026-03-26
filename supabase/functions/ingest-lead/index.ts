@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       sharpspring_id: lead.sharpspring_id ?? null,
       asset_range: lead.asset_range ?? "Unknown",
       maintenance_team_size: lead.maintenance_team_size ?? "Unknown",
+      linked_partner_id: lead.linked_partner_id ?? null,
     }));
 
     // Use service role to bypass RLS

@@ -24,6 +24,7 @@ export const MODULE_KEYS_LIST = [
   "tiers",
   "performance",
   "settings",
+  "user_management",
 ] as const;
 
 export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = {
@@ -45,6 +46,7 @@ export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = 
   tiers: "Tiers",
   performance: "Performance",
   settings: "Settings",
+  user_management: "User Management",
 };
 
 export const INTERNAL_ONLY_MODULES = new Set<string>([
@@ -89,6 +91,7 @@ const ROUTE_MODULES: RouteModule[] = [
   { prefix: "/tiers", path: "/tiers", moduleKey: "tiers" },
   { prefix: "/performance", path: "/performance", moduleKey: "performance" },
   { prefix: "/settings", path: "/settings", moduleKey: "settings" },
+  { prefix: "/users", path: "/users", moduleKey: "user_management" },
 ];
 
 export const FALLBACK_MODULE_ORDER: Array<Pick<RouteModule, "path" | "moduleKey">> = [

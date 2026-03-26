@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     const { data: roleRows, error: roleError } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", callerData.user.id)
+      .eq("user_id", callerId)
       .eq("role", "hq_admin");
 
     if (roleError || !roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });

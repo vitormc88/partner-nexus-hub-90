@@ -33,6 +33,10 @@ export default function LeadDetail() {
   const [partnerId, setPartnerId] = useState<string>("__hq__");
   const [routingReason, setRoutingReason] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [showConvert, setShowConvert] = useState(false);
+
+  const isConverted = !!(lead as any)?.converted_to_deal_id;
+  const canConvert = isHQUser && status === "Qualified" && !isConverted;
 
   useEffect(() => {
     if (lead) {

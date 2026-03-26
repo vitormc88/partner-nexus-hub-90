@@ -194,6 +194,23 @@ export function useUpdateLicense() {
   });
 }
 
+export function useDeleteLicense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, clientId }: { id: string; clientId: string }) => {
+      // Delete associated licensed_modules first
+      await supabase.from("licensed_modules").delete().eq("license_id", id);
+      const { error } = await supabase.from("licenses").delete().eq("id", id);
+      if (error) throw mapError(error, "delete license");
+      return clientId;
+    },
+    onSuccess: (clientId) => {
+      qc.invalidateQueries({ queryKey: ["licenses", clientId] });
+      qc.invalidateQueries({ queryKey: ["licensed_modules"] });
+    },
+  });
+}
+
 // Contracts
 export function useClientContracts(clientId: string | undefined) {
   return useQuery({

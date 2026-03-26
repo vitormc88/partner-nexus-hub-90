@@ -122,6 +122,9 @@ export function LeadTaskList({ leadId, leadCompanyName, linkedPartnerId }: Props
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
                 )}
               </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditTask(task)}>
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleDelete(task)}>
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
               </Button>
@@ -147,3 +150,6 @@ export function LeadTaskList({ leadId, leadCompanyName, linkedPartnerId }: Props
           linkedPartnerId={linkedPartnerId}
         />
       )}
+    </div>
+  );
+}

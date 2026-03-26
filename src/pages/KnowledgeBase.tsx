@@ -541,6 +541,42 @@ export default function KnowledgeBase() {
         categories={categories}
         onComplete={() => { setShowBulkDialog(false); }}
       />
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) closePreview(); }}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="truncate pr-8">{previewDoc?.title || "Document Preview"}</DialogTitle>
+            <DialogDescription className="sr-only">Preview of the selected document</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 relative">
+            {previewLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-sm text-muted-foreground">Loading preview…</div>
+              </div>
+            ) : previewBlobUrl ? (
+              <iframe
+                src={previewBlobUrl}
+                className="w-full h-full border-0"
+                title={previewDoc?.title || "Document Preview"}
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <p className="text-sm text-muted-foreground">Preview could not be loaded.</p>
+                <Button size="sm" variant="outline" onClick={() => previewDoc && handleDownloadDoc(previewDoc)}>
+                  <Download className="h-4 w-4 mr-2" /> Download instead
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="px-6 py-3 border-t shrink-0 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => previewDoc && handleDownloadDoc(previewDoc)}>
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+            <Button variant="ghost" size="sm" onClick={closePreview}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 

@@ -105,14 +105,13 @@ Deno.serve(async (req) => {
       const existingUser = users?.users?.find((u: any) => u.email === email);
       if (!existingUser) return Response.json({ error: "User not found" }, { status: 404, headers: corsHeaders });
 
-      // Generate a new invite link and send it
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "invite",
-        email,
-        options: { redirectTo: `${supabaseUrl.replace('.supabase.co', '.supabase.co')}/auth/v1/verify?redirect_to=${encodeURIComponent(body.redirectTo || supabaseUrl)}` },
+      // Re-invite the user with correct redirect
+      const redirectTo = body.redirectTo || `${supabaseUrl}`;
+      const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        redirectTo,
       });
 
-      if (linkError) return Response.json({ error: linkError.message }, { status: 400, headers: corsHeaders });
+      if (inviteError) return Response.json({ error: inviteError.message }, { status: 400, headers: corsHeaders });
 
       return Response.json({ success: true, message: "Invitation resent" }, { headers: corsHeaders });
     }

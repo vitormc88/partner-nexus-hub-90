@@ -30,7 +30,6 @@ const ACCESS_LEVELS = [
 
 export function UserEditDialog({ user, open, onClose }: { user: UserProfile | null; open: boolean; onClose: () => void }) {
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
   const [partnerId, setPartnerId] = useState("none");
   const [isActive, setIsActive] = useState(true);
   const [role, setRole] = useState("partner_sales");
@@ -54,7 +53,6 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
   useEffect(() => {
     if (user && open) {
       setFullName(user.full_name || "");
-      setPhone(user.phone || "");
       setPartnerId(user.partner_id || "none");
       setIsActive(user.is_active ?? true);
       setRole(user.roles[0] || "partner_sales");
@@ -91,7 +89,6 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
         userId: user.id,
         updates: {
           full_name: fullName.trim(),
-          phone: phone || null,
           partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
           is_hq: !isPartnerRole,
           is_active: isActive,
@@ -146,10 +143,6 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
               <div>
                 <Label>Email</Label>
                 <Input value={user.email || ""} disabled className="opacity-60" />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} />
               </div>
               <div>
                 <Label>Role *</Label>

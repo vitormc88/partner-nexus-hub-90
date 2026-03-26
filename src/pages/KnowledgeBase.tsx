@@ -19,22 +19,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   BookOpen, FileText, Code, Shield, Image, Rocket, Monitor, HelpCircle, Briefcase, FolderOpen,
   Plus, Search, Pencil, Trash2, ExternalLink, Download, Upload, Link, File, Globe, Lock, Users,
-  MoreVertical, Files,
+  MoreVertical, Files, LayoutList, LayoutGrid, ChevronRight,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, FileText, Code, Shield, Image, Rocket, Monitor, HelpCircle, Briefcase, FolderOpen,
@@ -51,7 +53,15 @@ const VISIBILITY_OPTIONS = [
   { value: "partner_specific", label: "Specific Partner", icon: Users },
 ];
 
-/** Build hierarchical category options with indentation */
+const TYPE_FILTERS = [
+  { value: "all", label: "All Types" },
+  { value: "pdf", label: "PDF" },
+  { value: "link", label: "Link" },
+  { value: "doc", label: "Document" },
+  { value: "video", label: "Video" },
+  { value: "other", label: "Other" },
+];
+
 function buildCategoryOptions(categories: any[]) {
   const topCats = categories.filter((c) => !c.parent_category_id);
   const result: { id: string; label: string; depth: number }[] = [];
@@ -65,12 +75,26 @@ function buildCategoryOptions(categories: any[]) {
   return result;
 }
 
+function getFileTypeLabel(fileType: string | null) {
+  if (!fileType) return "File";
+  if (fileType === "link") return "Link";
+  return fileType.toUpperCase();
+}
+
+function getFileTypeVariant(fileType: string | null): "default" | "secondary" | "outline" | "info" {
+  if (fileType === "link") return "info";
+  if (fileType === "pdf") return "destructive" as any;
+  return "outline";
+}
+
 export default function KnowledgeBase() {
-  const { isAdmin, isHQ } = useAuth();
+  const { isAdmin } = useAuth();
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { data: documents = [], isLoading: docLoading } = useDocuments(selectedCategoryId);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showCatDialog, setShowCatDialog] = useState(false);
   const [editingCat, setEditingCat] = useState<any>(null);
   const [showDocDialog, setShowDocDialog] = useState(false);
@@ -88,16 +112,38 @@ export default function KnowledgeBase() {
   const getSubcategories = (parentId: string) => categories.filter((c: any) => c.parent_category_id === parentId);
 
   const filteredDocs = documents.filter((d: any) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      d.title?.toLowerCase().includes(s) ||
-      d.description?.toLowerCase().includes(s) ||
-      d.tags?.some((t: string) => t.toLowerCase().includes(s))
-    );
+    if (search) {
+      const s = search.toLowerCase();
+      const match = d.title?.toLowerCase().includes(s) ||
+        d.description?.toLowerCase().includes(s) ||
+        d.tags?.some((t: string) => t.toLowerCase().includes(s));
+      if (!match) return false;
+    }
+    if (typeFilter !== "all") {
+      if (typeFilter === "other") {
+        return !["pdf", "link", "doc", "docx", "video", "mp4"].includes(d.file_type?.toLowerCase());
+      }
+      if (typeFilter === "video") {
+        return ["video", "mp4", "webm", "avi"].includes(d.file_type?.toLowerCase());
+      }
+      if (typeFilter === "doc") {
+        return ["doc", "docx", "txt", "rtf"].includes(d.file_type?.toLowerCase());
+      }
+      return d.file_type?.toLowerCase() === typeFilter;
+    }
+    return true;
   });
 
   const selectedCategory = categories.find((c: any) => c.id === selectedCategoryId);
+
+  // Find which accordion value should be open based on selected category
+  const getAccordionDefault = () => {
+    if (!selectedCategoryId) return undefined;
+    const cat = categories.find((c: any) => c.id === selectedCategoryId);
+    if (!cat) return undefined;
+    if (cat.parent_category_id) return cat.parent_category_id;
+    return cat.id;
+  };
 
   return (
     <div className="space-y-6 animate-reveal-up">
@@ -122,68 +168,175 @@ export default function KnowledgeBase() {
       </div>
 
       <div className="flex gap-6">
-        {/* Left: Category tree */}
-        <div className="w-64 shrink-0 space-y-1">
+        {/* Left: Collapsible category sidebar */}
+        <div className="w-60 shrink-0">
           <button
             onClick={() => setSelectedCategoryId(null)}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              !selectedCategoryId ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-muted"
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors mb-1 ${
+              !selectedCategoryId ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
             }`}
           >
             <BookOpen className="h-4 w-4" /> All Resources
           </button>
+
           {catLoading ? (
             <div className="px-3 py-4 text-xs text-muted-foreground">Loading…</div>
           ) : (
-            topCategories.map((cat: any) => {
-              const Icon = getIcon(cat.icon);
-              const subs = getSubcategories(cat.id);
-              return (
-                <div key={cat.id}>
-                  <CategoryTreeItem
-                    cat={cat}
-                    Icon={Icon}
-                    isSelected={selectedCategoryId === cat.id}
-                    isAdmin={isAdmin}
-                    onSelect={() => setSelectedCategoryId(cat.id)}
-                    onEdit={() => { setEditingCat(cat); setShowCatDialog(true); }}
-                    onDelete={() => handleDeleteCategory(cat)}
-                    depth={0}
-                  />
-                  {subs.map((sub: any) => {
-                    const SubIcon = getIcon(sub.icon);
-                    return (
-                      <CategoryTreeItem
-                        key={sub.id}
-                        cat={sub}
-                        Icon={SubIcon}
-                        isSelected={selectedCategoryId === sub.id}
-                        isAdmin={isAdmin}
-                        onSelect={() => setSelectedCategoryId(sub.id)}
-                        onEdit={() => { setEditingCat(sub); setShowCatDialog(true); }}
-                        onDelete={() => handleDeleteCategory(sub)}
-                        depth={1}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })
+            <Accordion type="single" collapsible defaultValue={getAccordionDefault()} className="space-y-0.5">
+              {topCategories.map((cat: any) => {
+                const Icon = getIcon(cat.icon);
+                const subs = getSubcategories(cat.id);
+
+                if (subs.length === 0) {
+                  // No subcategories — render as a simple button
+                  return (
+                    <div key={cat.id} className="flex items-center group">
+                      <button
+                        onClick={() => setSelectedCategoryId(cat.id)}
+                        className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                          selectedCategoryId === cat.id ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{cat.name}</span>
+                      </button>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditingCat(cat); setShowCatDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCategory(cat)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <AccordionItem key={cat.id} value={cat.id} className="border-none">
+                    <div className="flex items-center group">
+                      <AccordionTrigger className="flex-1 py-2 px-3 rounded-md text-sm hover:bg-muted hover:no-underline [&[data-state=open]]:bg-muted/50 gap-2">
+                        <span
+                          className={`flex items-center gap-2 flex-1 text-left ${
+                            selectedCategoryId === cat.id ? "text-primary font-medium" : "text-foreground"
+                          }`}
+                          onClick={(e) => { e.stopPropagation(); setSelectedCategoryId(cat.id); }}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{cat.name}</span>
+                        </span>
+                      </AccordionTrigger>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditingCat(cat); setShowCatDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCategory(cat)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                    <AccordionContent className="pb-1 pt-0">
+                      <div className="ml-3 border-l border-border pl-2 space-y-0.5">
+                        {subs.map((sub: any) => {
+                          const SubIcon = getIcon(sub.icon);
+                          return (
+                            <div key={sub.id} className="flex items-center group">
+                              <button
+                                onClick={() => setSelectedCategoryId(sub.id)}
+                                className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                                  selectedCategoryId === sub.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{sub.name}</span>
+                              </button>
+                              {isAdmin && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                                      <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => { setEditingCat(sub); setShowCatDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCategory(sub)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           )}
         </div>
 
-        {/* Right: Resource list */}
+        {/* Right: Resource area */}
         <div className="flex-1 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search resources by title, description, or tag…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          {/* Search + Filters + View Toggle */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search resources…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_FILTERS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex border rounded-md">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="icon"
+                className="h-9 w-9 rounded-r-none"
+                onClick={() => setViewMode("list")}
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="icon"
+                className="h-9 w-9 rounded-l-none"
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {selectedCategory && (
-            <div className="flex items-center gap-2">
-              {(() => { const I = getIcon(selectedCategory.icon); return <I className="h-5 w-5 text-primary" />; })()}
-              <h2 className="text-lg font-semibold">{selectedCategory.name}</h2>
-              {selectedCategory.description && <span className="text-sm text-muted-foreground">— {selectedCategory.description}</span>}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>All Resources</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              {selectedCategory.parent_category_id && (() => {
+                const parent = categories.find((c: any) => c.id === selectedCategory.parent_category_id);
+                return parent ? (
+                  <>
+                    <button onClick={() => setSelectedCategoryId(parent.id)} className="hover:text-foreground transition-colors">{parent.name}</button>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </>
+                ) : null;
+              })()}
+              <span className="text-foreground font-medium">{selectedCategory.name}</span>
             </div>
           )}
 
@@ -193,29 +346,140 @@ export default function KnowledgeBase() {
             <Card>
               <CardContent className="py-12 text-center">
                 <FolderOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground font-medium">No resources available</p>
+                <p className="text-muted-foreground font-medium">No resources found</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isAdmin ? "Click '+ Resource' to add the first document." : "Resources will appear here once published by HQ."}
                 </p>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid gap-3">
-              {filteredDocs.map((doc: any) => (
-                <ResourceCard
-                  key={doc.id}
-                  doc={doc}
-                  isAdmin={isAdmin}
-                  onEdit={() => { setEditingDoc(doc); setShowDocDialog(true); }}
-                  onArchive={() => {
-                    deleteDocument.mutate(doc.id, {
-                      onSuccess: () => toast({ title: "Resource archived" }),
-                      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-                    });
-                  }}
-                />
-              ))}
+          ) : viewMode === "list" ? (
+            /* ── TABLE VIEW ── */
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[40%]">Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDocs.map((doc: any) => {
+                    const isLink = doc.file_type === "link";
+                    const catName = doc.document_categories?.name;
+                    return (
+                      <TableRow key={doc.id} className="group cursor-pointer" onClick={() => handleOpenDoc(doc)}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                              {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{doc.title}</p>
+                              {doc.description && <p className="text-xs text-muted-foreground truncate">{doc.description}</p>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {catName ? <Badge variant="secondary" className="text-[11px]">{catName}</Badge> : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[11px] uppercase">
+                            {isLink ? "🔗 Link" : getFileTypeLabel(doc.file_type)}
+                          </Badge>
+                          {doc.visibility_scope === "hq_only" && (
+                            <Badge variant="destructive" className="text-[11px] ml-1"><Lock className="h-3 w-3 mr-0.5" />HQ</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {doc.updated_at ? format(new Date(doc.updated_at), "dd MMM yyyy") : doc.created_at ? format(new Date(doc.created_at), "dd MMM yyyy") : "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)} title={isLink ? "Open link" : "Download"}>
+                              {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                            </Button>
+                            {isAdmin && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => { setEditingDoc(doc); setShowDocDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Archive</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
+          ) : (
+            /* ── GRID VIEW ── */
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredDocs.map((doc: any) => {
+                const isLink = doc.file_type === "link";
+                const catName = doc.document_categories?.name;
+                return (
+                  <Card key={doc.id} className="hover:shadow-md transition-shadow group cursor-pointer" onClick={() => handleOpenDoc(doc)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.title}</p>
+                          {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                        {catName && <Badge variant="secondary" className="text-[11px]">{catName}</Badge>}
+                        <Badge variant="outline" className="text-[11px] uppercase">{isLink ? "🔗 Link" : getFileTypeLabel(doc.file_type)}</Badge>
+                        {doc.visibility_scope === "hq_only" && <Badge variant="destructive" className="text-[11px]"><Lock className="h-3 w-3 mr-0.5" />HQ</Badge>}
+                      </div>
+                      <div className="flex items-center justify-between mt-3" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[11px] text-muted-foreground">
+                          {doc.updated_at ? format(new Date(doc.updated_at), "dd MMM yyyy") : ""}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)}>
+                            {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                          </Button>
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingDoc(doc); setShowDocDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Archive</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Results count */}
+          {!docLoading && filteredDocs.length > 0 && (
+            <p className="text-xs text-muted-foreground">{filteredDocs.length} resource{filteredDocs.length !== 1 ? "s" : ""}</p>
           )}
         </div>
       </div>
@@ -261,6 +525,21 @@ export default function KnowledgeBase() {
     </div>
   );
 
+  function handleOpenDoc(doc: any) {
+    if (!doc.file_url) {
+      toast({ title: "No file or link available", variant: "destructive" });
+      return;
+    }
+    window.open(doc.file_url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleArchiveDoc(id: string) {
+    deleteDocument.mutate(id, {
+      onSuccess: () => toast({ title: "Resource archived" }),
+      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    });
+  }
+
   function handleDeleteCategory(cat: any) {
     if (confirm(`Delete "${cat.name}"? Documents inside will lose their category.`)) {
       deleteCategory.mutate(cat.id, {
@@ -272,97 +551,6 @@ export default function KnowledgeBase() {
       });
     }
   }
-}
-
-/* ── Category Tree Item ── */
-function CategoryTreeItem({ cat, Icon, isSelected, isAdmin, onSelect, onEdit, onDelete, depth }: {
-  cat: any; Icon: React.ElementType; isSelected: boolean; isAdmin: boolean;
-  onSelect: () => void; onEdit: () => void; onDelete: () => void; depth: number;
-}) {
-  return (
-    <div className="flex items-center group">
-      <button
-        onClick={onSelect}
-        className={`flex-1 flex items-center gap-2 rounded-md text-sm transition-colors ${
-          depth === 0 ? "px-3 py-2" : "pl-8 pr-3 py-1.5"
-        } ${isSelected ? "bg-accent text-accent-foreground font-medium" : depth === 0 ? "text-foreground hover:bg-muted" : "text-muted-foreground hover:bg-muted"}`}
-      >
-        <Icon className={`shrink-0 ${depth === 0 ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
-        <span className="truncate">{cat.name}</span>
-      </button>
-      {isAdmin && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
-              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={onDelete}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </div>
-  );
-}
-
-/* ── Resource Card ── */
-function ResourceCard({ doc, isAdmin, onEdit, onArchive }: { doc: any; isAdmin: boolean; onEdit: () => void; onArchive: () => void }) {
-  const isExternalLink = doc.file_type === "link";
-  const catName = doc.document_categories?.name;
-
-  const handleOpen = () => {
-    if (!doc.file_url) {
-      toast({ title: "No file or link available", variant: "destructive" });
-      return;
-    }
-    window.open(doc.file_url, "_blank", "noopener,noreferrer");
-  };
-
-  return (
-    <Card className="hover:shadow-md transition-shadow group">
-      <CardContent className="p-4 flex items-start gap-4">
-        <button onClick={handleOpen} className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors">
-          {isExternalLink ? <Link className="h-5 w-5 text-primary" /> : <File className="h-5 w-5 text-primary" />}
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <button onClick={handleOpen} className="font-medium text-sm truncate hover:underline text-left block">{doc.title}</button>
-              {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpen} title={isExternalLink ? "Open link" : "Download file"}>
-                {isExternalLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-              </Button>
-              {isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={onArchive}><Trash2 className="h-3.5 w-3.5 mr-2" /> Archive</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {catName && <Badge variant="secondary" className="text-[11px]">{catName}</Badge>}
-            {doc.file_type && doc.file_type !== "link" && <Badge variant="outline" className="text-[11px] uppercase">{doc.file_type}</Badge>}
-            {doc.file_type === "link" && <Badge variant="outline" className="text-[11px]">🔗 Link</Badge>}
-            {doc.visibility_scope === "hq_only" && <Badge variant="destructive" className="text-[11px]"><Lock className="h-3 w-3 mr-1" />HQ Only</Badge>}
-            {doc.visibility_scope === "partner_specific" && <Badge className="text-[11px]"><Users className="h-3 w-3 mr-1" />Partner</Badge>}
-            {doc.tags?.map((t: string) => <Badge key={t} variant="secondary" className="text-[11px]">{t}</Badge>)}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 /* ── Category Dialog ── */
@@ -391,7 +579,6 @@ function CategoryDialog({ open, onOpenChange, editing, categories, onCreate, onU
     }
   };
 
-  // Only top-level categories as parent options (exclude self)
   const parentOptions = categories.filter((c: any) => !c.parent_category_id && c.id !== editing?.id);
 
   return (
@@ -581,8 +768,7 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
   const categoryOptions = buildCategoryOptions(categories);
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    setFiles(selected);
+    setFiles(Array.from(e.target.files || []));
   };
 
   const removeFile = (idx: number) => {
@@ -601,38 +787,21 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
       const ext = file.name.split(".").pop()?.toLowerCase() || "file";
       const path = `kb/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
-      if (uploadError) {
-        failCount++;
-        setProgress(((i + 1) / files.length) * 100);
-        continue;
-      }
+      if (uploadError) { failCount++; setProgress(((i + 1) / files.length) * 100); continue; }
       const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
       const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-
       try {
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           createDocument.mutate({
-            title,
-            file_url: urlData.publicUrl,
-            file_type: ext,
-            file_name: file.name,
-            file_size_bytes: file.size,
-            category_id: categoryId || undefined,
-            visibility_scope: visibility,
-          }, {
-            onSuccess: () => { successCount++; resolve(); },
-            onError: (e) => { failCount++; resolve(); },
-          });
+            title, file_url: urlData.publicUrl, file_type: ext, file_name: file.name,
+            file_size_bytes: file.size, category_id: categoryId || undefined, visibility_scope: visibility,
+          }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
         });
-      } catch {
-        failCount++;
-      }
+      } catch { failCount++; }
       setProgress(((i + 1) / files.length) * 100);
     }
 
-    setUploading(false);
-    setFiles([]);
-    setProgress(0);
+    setUploading(false); setFiles([]); setProgress(0);
     toast({
       title: "Bulk upload complete",
       description: `${successCount} uploaded${failCount > 0 ? `, ${failCount} failed` : ""}`,
@@ -658,21 +827,17 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
             <Label>Select Files</Label>
             <Input ref={fileInputRef} type="file" multiple onChange={handleFilesSelected} disabled={uploading} className="mt-1" />
           </div>
-
           {files.length > 0 && (
             <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-1">
               {files.map((f, i) => (
                 <div key={i} className="flex items-center justify-between text-sm">
                   <span className="truncate flex-1">{f.name} <span className="text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
-                  {!uploading && (
-                    <button onClick={() => removeFile(i)} className="text-destructive hover:underline text-xs ml-2">Remove</button>
-                  )}
+                  {!uploading && <button onClick={() => removeFile(i)} className="text-destructive hover:underline text-xs ml-2">Remove</button>}
                 </div>
               ))}
               <p className="text-xs text-muted-foreground pt-1">{files.length} file(s) selected</p>
             </div>
           )}
-
           <div>
             <Label>Category (applied to all)</Label>
             <Select value={categoryId || "_none"} onValueChange={(v) => setCategoryId(v === "_none" ? "" : v)}>
@@ -687,7 +852,6 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
               </SelectContent>
             </Select>
           </div>
-
           <div>
             <Label>Visibility (applied to all)</Label>
             <Select value={visibility} onValueChange={setVisibility}>
@@ -697,7 +861,6 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
               </SelectContent>
             </Select>
           </div>
-
           {uploading && (
             <div className="space-y-1">
               <div className="h-2 bg-muted rounded-full overflow-hidden">

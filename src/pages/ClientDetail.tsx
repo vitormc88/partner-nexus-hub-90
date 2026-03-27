@@ -550,10 +550,11 @@ export default function ClientDetail() {
         </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
+        <TabsContent value="overview" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            {/* Client Info */}
-            <Card className="border-border/60 shadow-sm lg:col-span-2">
+            {/* Left column: Client Info + Contacts */}
+            <div className="lg:col-span-2 space-y-4">
+            <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold">Client Information</CardTitle>
                 {!editingClient && <Button variant="ghost" size="sm" onClick={startEditClient}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}

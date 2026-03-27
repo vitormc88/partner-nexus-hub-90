@@ -125,7 +125,7 @@ export default function UserManagement() {
                 <TableCell className="font-medium">{user.full_name || "—"}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={user.is_hq ? "bg-primary/5 text-primary" : "bg-amber-500/5 text-amber-600"}>
+                  <Badge variant="outline" className={user.is_hq ? "bg-primary/5 text-primary" : "bg-warning/10 text-warning-foreground"}>
                     {user.is_hq ? "HQ" : "Partner"}
                   </Badge>
                 </TableCell>

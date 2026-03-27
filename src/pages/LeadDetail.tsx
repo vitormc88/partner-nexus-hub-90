@@ -282,9 +282,9 @@ export default function LeadDetail() {
 
 
       {isConverted && (
-        <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20">
+        <Card className="border-success/20 bg-success/5">
           <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2 text-success">
               <CheckCircle2 className="h-5 w-5" />
               <span className="font-medium">Converted to Pipeline Opportunity</span>
             </div>
@@ -303,7 +303,7 @@ export default function LeadDetail() {
           Save Changes
         </Button>
         {canConvert && (
-          <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowConvert(true)}>
+          <Button variant="default" onClick={() => setShowConvert(true)}>
             <ArrowRight className="h-4 w-4 mr-1" />
             Convert to Opportunity
           </Button>

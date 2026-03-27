@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
-import { useHQUsers } from "@/hooks/useHQUsers";
-import { useDealContacts, useDealTasks, useDealActivities } from "@/hooks/useCommissions";
+import { useDealContacts, useDealActivities } from "@/hooks/useCommissions";
+import { useDealTasksEnhanced } from "@/hooks/useDealTasksCRUD";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, CheckCircle2, Circle, MessageSquare, Plus, Pencil, Trash2, Save, X, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, MessageSquare, Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { DealTaskList } from "@/components/deals/DealTaskList";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -38,7 +37,7 @@ export default function DealDetail() {
   const { id } = useParams();
   const { data: deal, isLoading } = useDeal(id);
   const { data: contacts = [] } = useDealContacts(id);
-  const { data: tasks = [] } = useDealTasks(id);
+  const { data: dealTasks = [] } = useDealTasksEnhanced(id);
   const { data: activities = [] } = useDealActivities(id);
   const { data: partners = [] } = usePartners();
   const queryClient = useQueryClient();
@@ -47,19 +46,8 @@ export default function DealDetail() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
 
-  const taskPartnerId = editForm.partner_id || deal?.partner_id || null;
-  const { data: partnerUsers = [] } = usePartnerUsers(taskPartnerId);
-  const { data: hqUsers = [] } = useHQUsers();
-  const assignableUsers = useMemo(() => {
-    const users = [...(taskPartnerId ? partnerUsers : []), ...hqUsers];
-    return users.filter((user, index, array) => array.findIndex((candidate) => candidate.id === user.id) === index);
-  }, [hqUsers, partnerUsers, taskPartnerId]);
-
-  // Task add
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [showEditTask, setShowEditTask] = useState(false);
-  const [editingTask, setEditingTask] = useState<any | null>(null);
-  const [taskForm, setTaskForm] = useState({ title: "", assigned_to: "", due_date: "", description: "" });
+  const dealPartnerId = editForm.partner_id || deal?.partner_id || null;
+  const { data: partnerUsers = [] } = usePartnerUsers(dealPartnerId);
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
@@ -126,84 +114,6 @@ export default function DealDetail() {
     setEditing(false);
   };
 
-  // Task actions
-  const addTask = async () => {
-    if (!taskForm.title) { toast.error("Title required"); return; }
-    const assignedUser = assignableUsers.find((user) => user.id === taskForm.assigned_to);
-    const { error } = await supabase.from("deal_tasks").insert({
-      deal_id: deal.id,
-      title: taskForm.title,
-      assigned_to: assignedUser ? assignedUser.full_name || assignedUser.email || null : null,
-      due_date: taskForm.due_date || null,
-      description: taskForm.description || null,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Task added");
-    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
-    setShowAddTask(false);
-    setTaskForm({ title: "", assigned_to: "", due_date: "", description: "" });
-  };
-
-  const startEditTask = (task: any) => {
-    const matchedUser = assignableUsers.find((user) => user.full_name === task.assigned_to || user.email === task.assigned_to);
-    setEditingTask({
-      ...task,
-      assigned_to: matchedUser?.id || "",
-    });
-    setShowEditTask(true);
-  };
-
-  const saveTaskEdit = async () => {
-    if (!editingTask?.title) { toast.error("Title required"); return; }
-
-    const assignedUser = assignableUsers.find((user) => user.id === editingTask.assigned_to);
-    const { error } = await supabase
-      .from("deal_tasks")
-      .update({
-        title: editingTask.title,
-        assigned_to: assignedUser ? assignedUser.full_name || assignedUser.email || null : null,
-        due_date: editingTask.due_date || null,
-        description: editingTask.description || null,
-      })
-      .eq("id", editingTask.id);
-
-    if (error) { toast.error(error.message); return; }
-
-    toast.success("Task updated");
-    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
-    setShowEditTask(false);
-    setEditingTask(null);
-  };
-
-  const toggleTask = async (taskId: string, completed: boolean) => {
-    await supabase.from("deal_tasks").update({
-      is_completed: !completed,
-      completed_at: !completed ? new Date().toISOString() : null,
-    }).eq("id", taskId);
-    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
-  };
-
-  const deleteTask = async (taskId: string) => {
-    await supabase.from("deal_tasks").delete().eq("id", taskId);
-    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
-    toast.success("Task deleted");
-    if (editingTask?.id === taskId) {
-      setShowEditTask(false);
-      setEditingTask(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!showAddTask) {
-      setTaskForm({ title: "", assigned_to: "", due_date: "", description: "" });
-    }
-  }, [showAddTask]);
-
-  useEffect(() => {
-    if (!showEditTask) {
-      setEditingTask(null);
-    }
-  }, [showEditTask]);
 
   // Contact actions
   const addContact = async () => {

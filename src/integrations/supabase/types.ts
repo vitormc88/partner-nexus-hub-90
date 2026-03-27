@@ -653,35 +653,47 @@ export type Database = {
       deal_tasks: {
         Row: {
           assigned_to: string | null
+          assigned_user_id: string | null
           completed_at: string | null
           created_at: string
+          created_by: string | null
           deal_id: string
           description: string | null
           due_date: string | null
           id: string
           is_completed: boolean | null
+          priority: string
+          status: string
           title: string
         }
         Insert: {
           assigned_to?: string | null
+          assigned_user_id?: string | null
           completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           deal_id: string
           description?: string | null
           due_date?: string | null
           id?: string
           is_completed?: boolean | null
+          priority?: string
+          status?: string
           title: string
         }
         Update: {
           assigned_to?: string | null
+          assigned_user_id?: string | null
           completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           deal_id?: string
           description?: string | null
           due_date?: string | null
           id?: string
           is_completed?: boolean | null
+          priority?: string
+          status?: string
           title?: string
         }
         Relationships: [

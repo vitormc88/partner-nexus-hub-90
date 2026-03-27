@@ -120,29 +120,50 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, message: "Invitation resent" }, { headers: corsHeaders });
     }
 
-    // --- CREATE NEW USER (INVITE FLOW) ---
+    // --- CREATE NEW USER ---
     const email = String(body.email || "").trim().toLowerCase();
     const fullName = String(body.full_name || "").trim();
     const role = String(body.role || "").trim();
     const partnerId = body.partner_id ? String(body.partner_id) : null;
     const isHq = Boolean(body.is_hq);
+    const mode = body.mode || "invite"; // "invite" or "manual"
+    const password = body.password ? String(body.password) : null;
 
     if (!email || !fullName || !role) return Response.json({ error: "Full name, email, and role are required" }, { status: 400, headers: corsHeaders });
     if (!isHq && !partnerId) return Response.json({ error: "Partner is required for partner users" }, { status: 400, headers: corsHeaders });
 
-    // Use inviteUserByEmail to create user and send invitation email
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
-      redirectTo: body.redirectTo || undefined,
-    });
+    let userId: string;
 
-    if (inviteError || !inviteData.user) {
-      return Response.json({ error: inviteError?.message || "Failed to invite user" }, { status: 400, headers: corsHeaders });
+    if (mode === "manual") {
+      // Direct creation with password — no email sent
+      if (!password || password.length < 6) return Response.json({ error: "Password must be at least 6 characters" }, { status: 400, headers: corsHeaders });
+
+      const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (createError || !createData.user) {
+        return Response.json({ error: createError?.message || "Failed to create user" }, { status: 400, headers: corsHeaders });
+      }
+      userId = createData.user.id;
+    } else {
+      // Invite flow — sends email
+      const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: fullName },
+        redirectTo: body.redirectTo || undefined,
+      });
+
+      if (inviteError || !inviteData.user) {
+        return Response.json({ error: inviteError?.message || "Failed to invite user" }, { status: 400, headers: corsHeaders });
+      }
+      userId = inviteData.user.id;
     }
 
-    const userId = inviteData.user.id;
-
-    // Update profile with role details and set status to pending
+    // Update profile
+    const invitationStatus = mode === "manual" ? "active" : "pending";
     const { error: profileError } = await adminClient
       .from("profiles")
       .update({
@@ -151,7 +172,7 @@ Deno.serve(async (req) => {
         partner_id: partnerId,
         is_hq: isHq,
         is_active: true,
-        invitation_status: "pending",
+        invitation_status: invitationStatus,
       })
       .eq("id", userId);
 
@@ -180,6 +201,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    return Response.json({ userId, mode, invited: mode === "invite" }, { headers: corsHeaders });
     return Response.json({ userId, invited: true }, { headers: corsHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";

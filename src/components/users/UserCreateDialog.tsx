@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Mail } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { UserPlus, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLES = [
@@ -24,6 +25,9 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
   const [role, setRole] = useState("partner_sales");
   const [partnerId, setPartnerId] = useState("none");
   const [saving, setSaving] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const qc = useQueryClient();
 
   const { data: partners } = useQuery({
@@ -41,6 +45,9 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
     setEmail("");
     setRole("partner_sales");
     setPartnerId("none");
+    setManualMode(false);
+    setPassword("");
+    setConfirmPassword("");
   };
 
   const handleCreate = async () => {
@@ -48,26 +55,41 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
     if (!email.trim()) { toast.error("Email is required"); return; }
     if (isPartnerRole && partnerId === "none") { toast.error("Partner is required for partner users"); return; }
 
+    if (manualMode) {
+      if (!password) { toast.error("Password is required"); return; }
+      if (password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+      if (password !== confirmPassword) { toast.error("Passwords do not match"); return; }
+    }
+
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: {
-          email: email.trim().toLowerCase(),
-          full_name: fullName.trim(),
-          role,
-          partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
-          is_hq: !isPartnerRole,
-          redirectTo: `${window.location.origin}/reset-password`,
-        },
-      });
+      const payload: Record<string, any> = {
+        email: email.trim().toLowerCase(),
+        full_name: fullName.trim(),
+        role,
+        partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
+        is_hq: !isPartnerRole,
+      };
+
+      if (manualMode) {
+        payload.mode = "manual";
+        payload.password = password;
+      } else {
+        payload.mode = "invite";
+        payload.redirectTo = `${window.location.origin}/reset-password`;
+      }
+
+      const { data, error } = await supabase.functions.invoke("admin-create-user", { body: payload });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success(`Invitation sent to ${email}. The user will receive an email to set their password.`, {
-        duration: 6000,
-        icon: <Mail className="h-4 w-4" />,
-      });
+      if (manualMode) {
+        toast.success(`User ${email} created successfully. They can log in immediately.`, { duration: 5000, icon: <KeyRound className="h-4 w-4" /> });
+      } else {
+        toast.success(`Invitation sent to ${email}. The user will receive an email to set their password.`, { duration: 6000, icon: <Mail className="h-4 w-4" /> });
+      }
+
       qc.invalidateQueries({ queryKey: ["users-management"] });
       resetForm();
       onClose();
@@ -75,8 +97,6 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
       const message = e?.message || "Failed to create user";
       if (message.toLowerCase().includes("already") || message.toLowerCase().includes("exists")) {
         toast.error("A user with this email already exists");
-      } else if (message.toLowerCase().includes("partner")) {
-        toast.error("Partner is required for partner users");
       } else {
         toast.error(message);
       }
@@ -91,11 +111,26 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            Invite New User
+            Create New User
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Mode toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">
+                {manualMode ? "Manual Creation" : "Email Invitation"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {manualMode
+                  ? "Set password directly — user can log in immediately"
+                  : "Send invite email — user sets their own password"}
+              </p>
+            </div>
+            <Switch checked={manualMode} onCheckedChange={setManualMode} />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Full Name *</Label>
@@ -135,21 +170,66 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
             )}
           </div>
 
+          {/* Password fields for manual mode */}
+          {manualMode && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Password *</Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                />
+              </div>
+              <div>
+                <Label>Confirm Password *</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat password"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Info box */}
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
             <div className="flex items-start gap-2">
-              <Mail className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                An invitation email will be sent to the user with a secure link to set their password. 
-                The user's status will be <strong>Pending</strong> until they complete the setup.
-              </p>
+              {manualMode ? (
+                <>
+                  <KeyRound className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    The user will be created with status <strong>Active</strong> and can log in immediately with the password you set.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    An invitation email will be sent to the user with a secure link to set their password.
+                    The user's status will be <strong>Pending</strong> until they complete the setup.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancel</Button>
             <Button onClick={handleCreate} disabled={saving}>
-              <Mail className="h-4 w-4 mr-2" />
-              {saving ? "Sending Invite..." : "Send Invitation"}
+              {manualMode ? (
+                <>
+                  <KeyRound className="h-4 w-4 mr-2" />
+                  {saving ? "Creating..." : "Create User"}
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {saving ? "Sending Invite..." : "Send Invitation"}
+                </>
+              )}
             </Button>
           </div>
         </div>

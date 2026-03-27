@@ -16,14 +16,14 @@ import { toast } from "sonner";
 function StatusBadge({ status }: { status: string | null }) {
   if (status === "active") {
     return (
-      <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
+      <Badge variant="default" className="bg-success/10 text-success border-success/20">
         Active
       </Badge>
     );
   }
   if (status === "pending") {
     return (
-      <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+      <Badge variant="secondary" className="bg-warning/15 text-warning-foreground border-warning/30">
         Pending
       </Badge>
     );
@@ -125,7 +125,7 @@ export default function UserManagement() {
                 <TableCell className="font-medium">{user.full_name || "—"}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={user.is_hq ? "bg-primary/5 text-primary" : "bg-amber-500/5 text-amber-600"}>
+                  <Badge variant="outline" className={user.is_hq ? "bg-primary/5 text-primary" : "bg-warning/10 text-warning-foreground"}>
                     {user.is_hq ? "HQ" : "Partner"}
                   </Badge>
                 </TableCell>
@@ -149,7 +149,7 @@ export default function UserManagement() {
                         {resending === user.id ? (
                           <RotateCw className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Mail className="h-4 w-4 text-blue-600" />
+                          <Mail className="h-4 w-4 text-info" />
                         )}
                       </Button>
                     )}
@@ -157,7 +157,7 @@ export default function UserManagement() {
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost" onClick={() => toggleActive(user)} title={user.is_active ? "Deactivate" : "Activate"}>
-                      {user.is_active ? <ShieldX className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-green-600" />}
+                      {user.is_active ? <ShieldX className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-success" />}
                     </Button>
                   </div>
                 </TableCell>

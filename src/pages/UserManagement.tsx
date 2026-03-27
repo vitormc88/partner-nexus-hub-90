@@ -149,7 +149,7 @@ export default function UserManagement() {
                         {resending === user.id ? (
                           <RotateCw className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Mail className="h-4 w-4 text-blue-600" />
+                          <Mail className="h-4 w-4 text-info" />
                         )}
                       </Button>
                     )}
@@ -157,7 +157,7 @@ export default function UserManagement() {
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost" onClick={() => toggleActive(user)} title={user.is_active ? "Deactivate" : "Activate"}>
-                      {user.is_active ? <ShieldX className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-green-600" />}
+                      {user.is_active ? <ShieldX className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-success" />}
                     </Button>
                   </div>
                 </TableCell>

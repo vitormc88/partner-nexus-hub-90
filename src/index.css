@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* ManWinWin Brand System */
-    --background: 210 14% 97%;
+    --background: 0 0% 100%;
     --foreground: 207 15% 26%;
 
     --card: 0 0% 100%;
@@ -20,42 +20,42 @@
     --primary: 353 94% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 207 12% 94%;
+    --secondary: 210 10% 96%;
     --secondary-foreground: 207 15% 26%;
 
-    --muted: 207 10% 93%;
-    --muted-foreground: 207 16% 57%;
+    --muted: 210 8% 95%;
+    --muted-foreground: 207 14% 45%;
 
-    --accent: 353 90% 96%;
+    --accent: 353 90% 97%;
     --accent-foreground: 353 94% 45%;
 
     --destructive: 353 94% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 207 16% 90%;
-    --input: 207 16% 90%;
+    --border: 210 14% 89%;
+    --input: 210 14% 89%;
     --ring: 353 94% 55%;
 
     --radius: 0.5rem;
 
-    /* Status colors (limited use) */
-    --success: 156 48% 60%;
+    /* Semantic status colors */
+    --success: 156 40% 52%;
     --success-foreground: 0 0% 100%;
-    --warning: 45 100% 73%;
+    --warning: 45 100% 62%;
     --warning-foreground: 207 15% 26%;
-    --info: 215 72% 68%;
+    --info: 215 72% 56%;
     --info-foreground: 0 0% 100%;
 
     /* Sidebar: ManWinWin Dark #39444C */
     --sidebar-background: 207 15% 26%;
-    --sidebar-foreground: 207 12% 78%;
+    --sidebar-foreground: 207 10% 80%;
     --sidebar-primary: 353 94% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 207 14% 32%;
-    --sidebar-accent-foreground: 210 12% 92%;
+    --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 207 12% 22%;
     --sidebar-ring: 353 94% 55%;
-    --sidebar-muted: 207 16% 57%;
+    --sidebar-muted: 207 12% 58%;
   }
 }
 

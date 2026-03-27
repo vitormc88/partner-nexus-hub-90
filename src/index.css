@@ -8,23 +8,23 @@
   :root {
     /* ManWinWin Brand System */
     --background: 0 0% 100%;
-    --foreground: 207 15% 26%;
+    --foreground: 207 18% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 207 15% 26%;
+    --card-foreground: 207 18% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 207 15% 26%;
+    --popover-foreground: 207 18% 20%;
 
     /* Primary: ManWinWin Red #F8223C */
     --primary: 353 94% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 10% 96%;
-    --secondary-foreground: 207 15% 26%;
+    --secondary: 210 10% 94%;
+    --secondary-foreground: 207 18% 20%;
 
-    --muted: 210 8% 95%;
-    --muted-foreground: 207 14% 45%;
+    --muted: 210 8% 93%;
+    --muted-foreground: 207 14% 40%;
 
     --accent: 353 90% 97%;
     --accent-foreground: 353 94% 45%;
@@ -32,8 +32,8 @@
     --destructive: 353 94% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 14% 89%;
-    --input: 210 14% 89%;
+    --border: 210 14% 84%;
+    --input: 210 14% 84%;
     --ring: 353 94% 55%;
 
     --radius: 0.5rem;

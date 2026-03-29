@@ -185,14 +185,6 @@ export default function Pipeline() {
       </div>
 
       <CreateLeadDialog open={showCreate} onOpenChange={setShowCreate} />
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={creating}>{creating ? "Creating..." : "Create Lead"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

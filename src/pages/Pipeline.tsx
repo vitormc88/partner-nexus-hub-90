@@ -60,47 +60,8 @@ export default function Pipeline() {
     queryClient.invalidateQueries({ queryKey: ["deals"] });
   };
 
-  const handleCreate = async () => {
-    if (!form.company_name) { toast.error("Company Name is required"); return; }
-    setCreating(true);
-    try {
-      // Find the selected user's full_name for assigned_salesperson
-      const assignedUser = partnerUsers.find(u => u.id === form.assigned_to);
-      const { error } = await supabase.from("deals").insert({
-        company_name: form.company_name,
-        contact_person_name: form.contact_person_name || null,
-        partner_id: userPartnerId || form.partner_id || null,
-        country: form.country || null,
-        industry: form.sector || null,
-        stage: "Open Lead",
-        expected_value: 0,
-        probability: getStageProbability("Open Lead"),
-        assigned_salesperson: assignedUser?.full_name || null,
-        lead_source: form.lead_source || "Partner (Outbound)",
-        notes: form.notes || null,
-        status: "Open",
-        contact_email: form.contact_email || null,
-        contact_phone: form.contact_phone || null,
-        job_role: form.job_role || null,
-        sector: form.sector || null,
-        asset_range: form.asset_range || null,
-        maintenance_team_size: form.maintenance_team_size || null,
-        register_date: new Date().toISOString().split("T")[0],
-      } as any);
-      if (error) throw error;
-      toast.success("Lead created successfully");
-      queryClient.invalidateQueries({ queryKey: ["deals"] });
-      setShowCreate(false);
-      setForm({ ...defaultLeadForm, partner_id: userPartnerId || "" });
-    } catch (e: any) {
-      const msg = e?.message || "";
-      if (msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("permission denied")) {
-        toast.error("You do not have permission to create leads.");
-      } else {
-        toast.error(msg || "Failed to create lead");
-      }
-    } finally { setCreating(false); }
-  };
+
+
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 

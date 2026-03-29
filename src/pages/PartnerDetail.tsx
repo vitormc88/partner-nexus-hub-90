@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 
 export default function PartnerDetail() {
   const { id } = useParams();
@@ -43,9 +44,8 @@ export default function PartnerDetail() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [showAddClient, setShowAddClient] = useState(false);
-  const [showAddDeal, setShowAddDeal] = useState(false);
+  const [showCreateLead, setShowCreateLead] = useState(false);
   const [clientForm, setClientForm] = useState({ client_code: "", commercial_name: "", country: "", sector: "" });
-  const [dealForm, setDealForm] = useState({ company_name: "", country: "", expected_value: "", assigned_salesperson: "" });
   const [saving, setSaving] = useState(false);
 
   if (isLoading) return <div className="max-w-5xl mx-auto py-12 text-center text-muted-foreground">Loading...</div>;
@@ -109,30 +109,13 @@ export default function PartnerDetail() {
     finally { setSaving(false); }
   };
 
-  const handleAddDeal = async () => {
-    if (!dealForm.company_name) { toast.error("Company name is required"); return; }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("deals").insert({
-        company_name: dealForm.company_name,
-        partner_id: partner.id,
-        country: dealForm.country || null,
-        expected_value: dealForm.expected_value ? parseFloat(dealForm.expected_value) : 0,
-        assigned_salesperson: dealForm.assigned_salesperson || null,
-        stage: "Lead",
-        status: "Open",
-      });
-      if (error) throw error;
-      toast.success("Deal created and linked to partner");
-      queryClient.invalidateQueries({ queryKey: ["deals"] });
-      setShowAddDeal(false);
-      setDealForm({ company_name: "", country: "", expected_value: "", assigned_salesperson: "" });
-    } catch (e: any) { toast.error(e?.message || "Failed to create deal"); }
-    finally { setSaving(false); }
-  };
-
   const score = partner.health_score ?? 50;
   const healthLabel = score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "At Risk" : "Critical";
+
+  // Group leads by status
+  const openDeals = deals.filter(d => d.status === "Open");
+  const wonDeals = deals.filter(d => d.status === "Won");
+  const lostDeals = deals.filter(d => d.status === "Lost");
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -168,7 +151,7 @@ export default function PartnerDetail() {
           { label: "Revenue YTD", value: `€${Number(partner.revenue_ytd || 0).toLocaleString()}` },
           { label: "Pipeline", value: `€${Number(partner.pipeline_value || 0).toLocaleString()}` },
           { label: "Clients", value: clients.length },
-          { label: "Open Deals", value: deals.filter(d => d.status === "Open").length },
+          { label: "Open Leads", value: openDeals.length },
         ].map(kpi => (
           <div key={kpi.label} className="bg-card rounded-xl border p-5 shadow-sm">
             <span className="text-sm font-medium text-muted-foreground">{kpi.label}</span>
@@ -181,7 +164,7 @@ export default function PartnerDetail() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
-          <TabsTrigger value="deals">Deals ({deals.length})</TabsTrigger>
+          <TabsTrigger value="leads">Leads ({deals.length})</TabsTrigger>
           <TabsTrigger value="renewals">Renewals ({partnerRenewals.length})</TabsTrigger>
           <TabsTrigger value="certifications">Certifications ({certs.length})</TabsTrigger>
         </TabsList>
@@ -250,13 +233,25 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="deals" className="mt-5 space-y-3">
+        <TabsContent value="leads" className="mt-5 space-y-3">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowAddDeal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Deal</Button>
+            <Button size="sm" onClick={() => setShowCreateLead(true)}><Plus className="h-4 w-4 mr-1.5" /> New Lead</Button>
           </div>
+
+          {/* Status summary */}
+          {deals.length > 0 && (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span>{openDeals.length} Open</span>
+              <span>·</span>
+              <span className="text-success">{wonDeals.length} Won</span>
+              <span>·</span>
+              <span className="text-destructive">{lostDeals.length} Lost</span>
+            </div>
+          )}
+
           {deals.length === 0 ? (
             <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
-              No deals found. <button onClick={() => setShowAddDeal(true)} className="text-primary hover:underline">Create one</button>
+              No leads found. <button onClick={() => setShowCreateLead(true)} className="text-primary hover:underline">Create one</button>
             </div>
           ) : (
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
@@ -430,24 +425,13 @@ export default function PartnerDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Deal Dialog */}
-      <Dialog open={showAddDeal} onOpenChange={setShowAddDeal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Deal for {partner.company_name}</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div><Label>Company Name *</Label><Input value={dealForm.company_name} onChange={e => setDealForm(f => ({ ...f, company_name: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Country</Label><Input value={dealForm.country} onChange={e => setDealForm(f => ({ ...f, country: e.target.value }))} /></div>
-              <div><Label>Expected Value (€)</Label><Input type="number" value={dealForm.expected_value} onChange={e => setDealForm(f => ({ ...f, expected_value: e.target.value }))} /></div>
-            </div>
-            <div><Label>Assigned Salesperson</Label><Input value={dealForm.assigned_salesperson} onChange={e => setDealForm(f => ({ ...f, assigned_salesperson: e.target.value }))} /></div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowAddDeal(false)}>Cancel</Button>
-              <Button onClick={handleAddDeal} disabled={saving}>{saving ? "Creating..." : "Create Deal"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Create Lead Dialog — shared component with partner locked */}
+      <CreateLeadDialog
+        open={showCreateLead}
+        onOpenChange={setShowCreateLead}
+        lockedPartnerId={partner.id}
+        lockedPartnerName={partner.company_name}
+      />
     </div>
   );
 }

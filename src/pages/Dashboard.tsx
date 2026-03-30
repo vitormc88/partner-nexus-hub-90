@@ -92,21 +92,28 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-reveal-up stagger-2">
         <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
+            <div>
+              <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
+              {totalDueSoonValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">Total: €{totalDueSoonValue.toLocaleString()}</p>
+              )}
+            </div>
             <Link to="/renewals" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
           <div className="space-y-2.5">
-            {urgentRenewals.slice(0, 4).map(r => {
-              const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000) : 0;
+            {urgentRenewals.slice(0, 4).map((r: any) => {
+              const client = clientMap[r.client_id];
+              const label = client ? `${client.client_code} — ${client.short_name || client.commercial_name}` : r.client_id.slice(0, 8);
+              const value = Number(r.estimated_value) || 0;
               return (
                 <div key={r.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{r.client_id.slice(0, 8)}</Link>
-                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}</p>
+                  <div className="min-w-0 flex-1 mr-2">
+                    <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{label}</Link>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · €${value.toLocaleString()}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs tabular-nums font-semibold ${days < 0 ? "text-destructive" : "text-amber-600"}`}>
-                      {days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
+                    <span className={`text-xs tabular-nums font-semibold ${r._days < 0 ? "text-destructive" : "text-warning-foreground"}`}>
+                      {r._days < 0 ? `${Math.abs(r._days)}d ago` : `${r._days}d`}
                     </span>
                     <Badge variant="outline" className="text-[10px]">{r.renewal_type}</Badge>
                   </div>
@@ -123,9 +130,9 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Next 30 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 30 && r.status !== "Won"; }).length, color: "text-amber-600" },
-              { label: "Next 60 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 60 && r.status !== "Won"; }).length, color: "text-foreground" },
-              { label: "Next 90 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 90 && r.status !== "Won"; }).length, color: "text-foreground" },
+              { label: "0–30 days", value: bucket0_30.length, color: "text-warning-foreground" },
+              { label: "31–60 days", value: bucket31_60.length, color: "text-foreground" },
+              { label: "61–90 days", value: bucket61_90.length, color: "text-foreground" },
               { label: "Overdue", value: overdueRenewals.length, color: "text-destructive" },
             ].map(item => (
               <div key={item.label} className="text-center p-2 rounded-lg bg-secondary/50">

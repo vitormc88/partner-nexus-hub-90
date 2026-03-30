@@ -8,13 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
-import { useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
+import { getStageProbability } from "@/data/pipeline-stages";
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
   const { data: partners = [] } = usePartners();
   const { data: clients = [] } = useClients();
+  const { data: deals = [] } = useDeals();
   const { data: renewals = [] } = useRenewals();
   const { data: notifications = [] } = useNotifications();
 
@@ -24,8 +26,12 @@ export default function Dashboard() {
     return m;
   }, [clients]);
 
-  const totalRevenue = partners.reduce((s, p) => s + (Number(p.total_revenue) || 0), 0);
-  const totalPipeline = partners.reduce((s, p) => s + (Number(p.pipeline_value) || 0), 0);
+  // Revenue & Pipeline from deals (same logic as Pipeline module)
+  const wonDeals = deals.filter(d => d.status === "Won");
+  const openDeals = deals.filter(d => d.status === "Open");
+  const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+
   const activePartners = partners.filter((p) => p.status === "Active").length;
   const activeClients = clients.filter(c => c.status === "Active").length;
   const premiumClients = clients.filter(c => c.is_premium).length;
@@ -82,9 +88,9 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total Revenue" value={`€${(totalRevenue / 1000).toFixed(0)}k`} change="+12.3% vs last quarter" changeType="positive" icon={DollarSign} delay={60} />
+        <KPICard title="Total Revenue" value={totalRevenue > 0 ? `€${totalRevenue.toLocaleString()}` : "€0"} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />
         <KPICard title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />
-        <KPICard title="Pipeline Value" value={`€${(totalPipeline / 1000).toFixed(0)}k`} change="+8.7% this month" changeType="positive" icon={TrendingUp} delay={180} />
+        <KPICard title="Pipeline Value" value={totalPipeline > 0 ? `€${totalPipeline.toLocaleString()}` : "€0"} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />
         <KPICard title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />
       </div>
 

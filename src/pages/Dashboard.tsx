@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
-import { useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
+import { getStageProbability } from "@/data/pipeline-stages";
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();

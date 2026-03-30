@@ -88,9 +88,9 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total Revenue" value={`€${(totalRevenue / 1000).toFixed(0)}k`} change="+12.3% vs last quarter" changeType="positive" icon={DollarSign} delay={60} />
+        <KPICard title="Total Revenue" value={totalRevenue > 0 ? `€${totalRevenue.toLocaleString()}` : "€0"} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />
         <KPICard title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />
-        <KPICard title="Pipeline Value" value={`€${(totalPipeline / 1000).toFixed(0)}k`} change="+8.7% this month" changeType="positive" icon={TrendingUp} delay={180} />
+        <KPICard title="Pipeline Value" value={totalPipeline > 0 ? `€${totalPipeline.toLocaleString()}` : "€0"} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />
         <KPICard title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />
       </div>
 

@@ -16,6 +16,7 @@ export default function Dashboard() {
   const { isHQ, profile } = useAuth();
   const { data: partners = [] } = usePartners();
   const { data: clients = [] } = useClients();
+  const { data: deals = [] } = useDeals();
   const { data: renewals = [] } = useRenewals();
   const { data: notifications = [] } = useNotifications();
 
@@ -25,8 +26,12 @@ export default function Dashboard() {
     return m;
   }, [clients]);
 
-  const totalRevenue = partners.reduce((s, p) => s + (Number(p.total_revenue) || 0), 0);
-  const totalPipeline = partners.reduce((s, p) => s + (Number(p.pipeline_value) || 0), 0);
+  // Revenue & Pipeline from deals (same logic as Pipeline module)
+  const wonDeals = deals.filter(d => d.status === "Won");
+  const openDeals = deals.filter(d => d.status === "Open");
+  const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+
   const activePartners = partners.filter((p) => p.status === "Active").length;
   const activeClients = clients.filter(c => c.status === "Active").length;
   const premiumClients = clients.filter(c => c.is_premium).length;

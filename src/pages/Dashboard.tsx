@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -17,6 +18,12 @@ export default function Dashboard() {
   const { data: renewals = [] } = useRenewals();
   const { data: notifications = [] } = useNotifications();
 
+  const clientMap = useMemo(() => {
+    const m: Record<string, { client_code: string; commercial_name: string; short_name?: string | null }> = {};
+    clients.forEach(c => { m[c.id] = { client_code: c.client_code, commercial_name: c.commercial_name, short_name: c.short_name }; });
+    return m;
+  }, [clients]);
+
   const totalRevenue = partners.reduce((s, p) => s + (Number(p.total_revenue) || 0), 0);
   const totalPipeline = partners.reduce((s, p) => s + (Number(p.pipeline_value) || 0), 0);
   const activePartners = partners.filter((p) => p.status === "Active").length;
@@ -24,16 +31,25 @@ export default function Dashboard() {
   const premiumClients = clients.filter(c => c.is_premium).length;
 
   const now = new Date();
-  const urgentRenewals = renewals.filter(r => {
-    if (r.status === "Won" || r.status === "Lost") return false;
-    if (!r.renewal_date) return false;
-    const days = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000);
-    return days <= 30;
-  });
-  const overdueRenewals = renewals.filter(r => {
-    if (!r.renewal_date) return false;
-    return new Date(r.renewal_date) < now && r.status !== "Won";
-  });
+
+  // Active (non-terminal) renewals with days calculated
+  const activeRenewals = useMemo(() => renewals
+    .filter((r: any) => r.status !== "Won" && r.status !== "Lost" && r.renewal_date)
+    .map((r: any) => ({
+      ...r,
+      _days: Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000),
+    })), [renewals, now]);
+
+  const urgentRenewals = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
+  const overdueRenewals = activeRenewals.filter(r => r._days < 0);
+
+  // Exclusive buckets
+  const bucket0_30 = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
+  const bucket31_60 = activeRenewals.filter(r => r._days >= 31 && r._days <= 60);
+  const bucket61_90 = activeRenewals.filter(r => r._days >= 61 && r._days <= 90);
+
+  const totalDueSoonValue = urgentRenewals.reduce((s: number, r: any) => s + (Number(r.estimated_value) || 0), 0);
+
   const atRiskPartners = partners.filter(p => (p.health_score ?? 50) < 40);
   const unreadNotifs = notifications.filter((n: any) => !n.is_read);
 

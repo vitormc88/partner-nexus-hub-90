@@ -190,7 +190,16 @@ export default function DealDetail() {
             {deal.assigned_salesperson || "Unassigned"}
           </p>
         </div>
-        {!editing && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</Button>}
+        {!editing && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setShowCreateProposal(true)}>
+              <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
+            </Button>
+            <Button size="sm" variant="outline" onClick={startEdit}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Stage progress */}
@@ -215,6 +224,7 @@ export default function DealDetail() {
           <TabsTrigger value="tasks">Tasks ({dealTasks.length})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
           <TabsTrigger value="communication">Communication ({activities.length})</TabsTrigger>
+          <TabsTrigger value="proposals">Proposals ({proposals.length})</TabsTrigger>
         </TabsList>
 
         {/* ───── Overview ───── */}

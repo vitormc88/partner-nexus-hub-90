@@ -485,7 +485,25 @@ export default function DealDetail() {
             </div>
           </div>
         </TabsContent>
+
+        {/* ───── Proposals ───── */}
+        <TabsContent value="proposals" className="mt-4">
+          <ProposalsTab
+            leadId={deal.id}
+            defaultClientName={deal.company_name}
+            defaultCountry={deal.country}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* ─── Generate Proposal Dialog (triggered by header button) ─── */}
+      <CreateProposalDialog
+        open={showCreateProposal}
+        onOpenChange={setShowCreateProposal}
+        leadId={deal.id}
+        defaultClientName={deal.company_name}
+        defaultCountry={deal.country}
+      />
 
       {/* ─── Add Contact Dialog ─── */}
       <Dialog open={showAddContact} onOpenChange={setShowAddContact}>

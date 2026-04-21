@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Trash2, Plus, FileX } from "lucide-react";
-import { useLeadProposals, useDeleteProposal } from "@/hooks/useProposals";
+import { FileText, Download, Trash2, Plus, FileX, Printer, Copy } from "lucide-react";
+import { useLeadProposals, useDeleteProposal, useDuplicateProposal } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
 import { toast } from "sonner";

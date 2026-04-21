@@ -43,7 +43,9 @@ export default function DealDetail() {
   const { data: dealTasks = [] } = useDealTasksEnhanced(id);
   const { data: activities = [] } = useDealActivities(id);
   const { data: partners = [] } = usePartners();
+  const { data: proposals = [] } = useLeadProposals(id);
   const queryClient = useQueryClient();
+  const [showCreateProposal, setShowCreateProposal] = useState(false);
 
   // Editing state
   const [editing, setEditing] = useState(false);

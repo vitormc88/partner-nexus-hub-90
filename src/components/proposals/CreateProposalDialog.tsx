@@ -29,6 +29,7 @@ import type {
   ProposalHosting,
   Proposal,
   ProposalDiscountScope,
+  ProposalLineDiscountType,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -38,11 +39,12 @@ interface Props {
   leadId: string;
   defaultClientName: string;
   defaultCountry?: string | null;
+  editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: rules = [] } = usePricingRules();

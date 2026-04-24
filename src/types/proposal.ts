@@ -20,6 +20,19 @@ export interface PricingRule {
   currency: string;
   active: boolean;
   notes: string | null;
+  description?: string | null;
+  product_family?: string | null;
+  license_model?: string | null;
+  applicable_plan?: string | null;
+  billing_frequency?: string | null;
+  region?: string | null;
+  optional?: boolean;
+  included_by_default?: boolean;
+  can_override?: boolean;
+  sort_order?: number;
+  support_calculation_type?: string | null;
+  support_percentage?: number | null;
+  applies_to_license_total?: boolean;
 }
 
 export interface ProposalItem {

@@ -1,6 +1,6 @@
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { formatEuro, t } from "./proposal-i18n";
-import { computeTotals, enrichProposalItem } from "./proposal-engine";
+import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getSectionDiscountSummary } from "./proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";
 
@@ -17,18 +17,21 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     proposal.services_discount_pct || 0,
   );
   const investment = getInvestmentSummary(proposal, items, totals);
+  const softwareDiscountSummary = getSectionDiscountSummary(items, "software", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+  const servicesDiscountSummary = getSectionDiscountSummary(items, "services", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
   const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
   const win = window.open("", "_blank", "width=900,height=1200");
   if (!win) return;
 
   const row = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const effectiveDiscount = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
     return `
     <tr>
       <td>${esc(getCommercialItemLabel(it, proposal))}</td>
       <td class="num">${it.qty}</td>
       <td class="num">${formatEuro(Number(it.gross_total) || 0, lang)}</td>
-      <td class="num">${it.discount_amount ? `${it.discount_type === "percent" ? `${Number(it.discount_value || 0)}% ` : ""}(-${formatEuro(Number(it.discount_amount) || 0, lang)})` : "—"}</td>
+      <td class="num">${effectiveDiscount.amount ? `${effectiveDiscount.source === "section" ? `${esc(s.sectionDiscountLabel(effectiveDiscount.value))} ` : effectiveDiscount.type === "percent" ? `${Number(effectiveDiscount.value || 0)}% ` : ""}(-${formatEuro(Number(effectiveDiscount.amount) || 0, lang)})` : "—"}</td>
       <td class="num">${formatEuro(Number(it.net_total) || 0, lang)}</td>
       <td>${esc(it.frequency)}</td>
     </tr>`;
@@ -121,11 +124,11 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     <div class="subsection">${esc(s.software)}</div>
     ${investment.softwareLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
     <div class="row"><span>${esc(investment.softwareSubtotalLabel)}</span><span>${formatEuro(totals.softwareGrossSubtotal, lang)}</span></div>
-    ${totals.softwareDiscountAmount > 0 ? `<div class="row"><span>${esc(s.softwareDiscountLabel(Number(proposal.software_discount_pct || 0)))}</span><span>− ${formatEuro(totals.softwareDiscountAmount, lang)}</span></div>` : ""}
+    ${totals.softwareDiscountAmount > 0 ? `<div class="row"><span>${esc(softwareDiscountSummary.mode === "uniform-section" ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0)) : s.softwareDiscountsTotalLabel)}</span><span>− ${formatEuro(totals.softwareDiscountAmount, lang)}</span></div>` : ""}
     <div class="subsection">${esc(s.services)}</div>
     ${investment.serviceLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
     <div class="row"><span>${esc(investment.servicesSubtotalLabel)}</span><span>${formatEuro(totals.servicesGrossSubtotal, lang)}</span></div>
-    ${totals.servicesDiscountAmount > 0 ? `<div class="row"><span>${esc(s.servicesDiscountLabel(Number(proposal.services_discount_pct || 0)))}</span><span>− ${formatEuro(totals.servicesDiscountAmount, lang)}</span></div>` : ""}
+    ${totals.servicesDiscountAmount > 0 ? `<div class="row"><span>${esc(servicesDiscountSummary.mode === "uniform-section" ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0)) : s.servicesDiscountsTotalLabel)}</span><span>− ${formatEuro(totals.servicesDiscountAmount, lang)}</span></div>` : ""}
     <div class="row total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
     <div class="subsection">${esc(s.year2Onwards)}</div>
     ${investment.recurringLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}

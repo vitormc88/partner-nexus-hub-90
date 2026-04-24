@@ -1959,6 +1959,7 @@ export type Database = {
           created_by: string | null
           discount_amount: number | null
           discount_pct: number | null
+          discount_scope: string
           docx_url: string | null
           generated_at: string | null
           hosting: string
@@ -1995,6 +1996,7 @@ export type Database = {
           created_by?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
+          discount_scope?: string
           docx_url?: string | null
           generated_at?: string | null
           hosting?: string
@@ -2031,6 +2033,7 @@ export type Database = {
           created_by?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
+          discount_scope?: string
           docx_url?: string | null
           generated_at?: string | null
           hosting?: string

@@ -539,7 +539,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="divide-y">
                   {items.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-5">
+                      <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
                         <Input value={it.item_name} onChange={(e) => updateItem(idx, { item_name: e.target.value })} className="h-8" />
                       </div>
@@ -563,9 +563,26 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Discount</Label>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
+                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="percent">%</SelectItem>
+                              <SelectItem value="fixed">€</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
+                        </div>
+                      </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Total</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(it.total)}</p>
+                        <Label className="text-[10px]">Net</Label>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct))}</p>
+                        {getItemDiscountAmount(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct) > 0 && (
+                          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(getItemBaseTotal(it))}</p>
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">

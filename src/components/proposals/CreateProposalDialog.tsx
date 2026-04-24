@@ -161,7 +161,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         payment_terms: paymentTerms,
         notes: notes || null,
         implementation_type: implType,
-        per_diem: perDiem,
+        per_diem: 0,
         discount_pct: discountPct,
         include_requests_module: includeRequests,
         web_users: webUsers,

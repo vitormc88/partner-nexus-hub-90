@@ -18,6 +18,9 @@ import {
   recomputeItemTotal,
   PLAN_INCLUDES,
   FREQUENCY_LABEL,
+  getItemBaseTotal,
+  getItemDiscountAmount,
+  getItemNetTotal,
 } from "@/lib/proposal-engine";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
@@ -71,6 +74,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [onsiteDays, setOnsiteDays] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
   const [discountScope, setDiscountScope] = useState<ProposalDiscountScope>("none");
+  const [softwareDiscountPct, setSoftwareDiscountPct] = useState(0);
+  const [servicesDiscountPct, setServicesDiscountPct] = useState(0);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -87,6 +92,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   }, [open, defaultClientName, defaultCountry]);
 
+  useEffect(() => {
+    if (!open || !editingProposal) return;
+    setStep(0);
+    setLanguage(editingProposal.language);
+    setPlan(editingProposal.plan);
+    setHosting(editingProposal.hosting);
+    setClientName(editingProposal.client_name);
+    setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
+    setProposalDate(editingProposal.proposal_date);
+    setValidityDays(editingProposal.validity_days);
+    setCountry(editingProposal.country || "");
+    setIncludeRequests(editingProposal.include_requests_module);
+    setWebUsers(editingProposal.web_users);
+    setImplType(editingProposal.implementation_type);
+    setOnsiteDays(Number(editingProposal.service_days || 0));
+    setDiscountPct(Number(editingProposal.discount_pct || 0));
+    setDiscountScope((editingProposal.discount_scope || "none") as ProposalDiscountScope);
+    setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
+    setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
+    setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
+    setNotes(editingProposal.notes || "");
+    if (editingProposal.items?.length) setItems(editingProposal.items);
+  }, [open, editingProposal]);
+
   // Default payment terms in selected language
   useEffect(() => {
     setPaymentTerms(standardPaymentTerms(language));
@@ -95,6 +124,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   // Auto-rebuild items whenever plan/services/options change
   useEffect(() => {
     if (rules.length === 0) return;
+    if (editingProposal?.items?.length && open) return;
     setItems(
       buildDefaultItems({
         rules,
@@ -108,7 +138,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
-  const totals = useMemo(() => computeTotals(items, discountPct, discountScope), [items, discountPct, discountScope]);
+  const totals = useMemo(
+    () => computeTotals(items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct),
+    [items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct],
+  );
   const i18n = t(language);
   const discountLabel =
     discountScope === "services"
@@ -160,7 +193,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     try {
       const insertData: any = {
         lead_id: leadId,
-        version: 1,
+        version: editingProposal?.version || 1,
         language,
         plan,
         status,
@@ -176,8 +209,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         per_diem: 0,
         discount_pct: discountPct,
         discount_scope: discountScope,
+        software_discount_pct: softwareDiscountPct,
+        services_discount_pct: servicesDiscountPct,
         include_requests_module: includeRequests,
         web_users: webUsers,
+        service_days: onsiteDays || null,
         software_subtotal: totals.softwareSubtotal,
         services_subtotal: totals.servicesSubtotal,
         discount_amount: totals.discountAmount,
@@ -185,8 +221,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         total_recurring: totals.totalRecurring,
         created_by: user?.id || null,
       };
-      const { data: prop, error } = await supabase.from("proposals").insert(insertData).select().single();
+      const propResponse = editingProposal?.id
+        ? await supabase.from("proposals").update(insertData).eq("id", editingProposal.id).select().single()
+        : await supabase.from("proposals").insert(insertData).select().single();
+      const { data: prop, error } = propResponse;
       if (error) throw error;
+
+      if (editingProposal?.id) {
+        const { error: deleteItemsError } = await supabase.from("proposal_items").delete().eq("proposal_id", editingProposal.id);
+        if (deleteItemsError) throw deleteItemsError;
+      }
 
       // Insert items
       const itemRows = items.map((it, idx) => ({
@@ -198,7 +242,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         qty: it.qty,
         unit_price: it.unit_price,
         frequency: it.frequency,
-        total: it.total,
+        total: getItemBaseTotal(it),
+        discount_type: it.discount_type || "none",
+        discount_value: Number(it.discount_value || 0),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         sort_order: idx,
@@ -207,7 +253,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
+      await supabase.from("deals").update({ expected_value: totals.totalYear1 }).eq("id", leadId);
       qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["deal", leadId] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
       return prop as unknown as Proposal;
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
@@ -220,7 +269,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const handleSaveDraft = async () => {
     const prop = await persistProposal("Draft");
     if (prop) {
-      toast.success("Draft saved");
+      toast.success(editingProposal ? "Proposal updated" : "Draft saved");
       onOpenChange(false);
     }
   };
@@ -250,7 +299,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       } catch {
         /* upload best-effort */
       }
-      toast.success("Proposal generated");
+      toast.success(editingProposal ? "Proposal updated" : "Proposal generated");
       onOpenChange(false);
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
@@ -265,7 +314,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            New Proposal — {STEPS[step]}
+            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
           </DialogTitle>
         </DialogHeader>
 

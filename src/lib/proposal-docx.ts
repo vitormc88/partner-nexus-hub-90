@@ -376,41 +376,14 @@ export async function generateProposalDocx(
     ],
   });
 
-  // Detailed plan inclusions
-  const includedItems: Paragraph[] = [];
-  const optionalItems: Paragraph[] = [];
-
-  // Always-included modules per plan
-  includedItems.push(bullet(s.maintenanceModule));
-  if (proposal.plan >= 2) {
-    includedItems.push(bullet(s.stockModule));
-    includedItems.push(bullet(s.purchaseOrdersModule));
-  }
-  if (proposal.plan === 3) {
-    includedItems.push(p(s.pluginsLabel, { bold: true, spacing: { before: 80, after: 40 }, indent: { left: 360 } }));
-    includedItems.push(smallBullet(s.pluginImportTool));
-    includedItems.push(smallBullet(s.pluginWorkflow));
-    includedItems.push(smallBullet(s.pluginAdvancedReports));
-    includedItems.push(smallBullet(s.pluginSLA));
-    includedItems.push(bullet(s.apiManwinwin));
-  }
-  includedItems.push(bullet(s.backofficeAccess));
-  includedItems.push(bullet(s.webAccess));
-
-  // Requests Module — included if selected, otherwise optional
-  if (proposal.include_requests_module) {
-    includedItems.push(bullet(s.requestsModuleDesc));
-  } else {
-    optionalItems.push(bullet(s.requestsModuleDesc));
-  }
-  // Web/Mobile additional accesses — show under Included if selected, else Optional
-  if (proposal.web_users > 0) {
-    includedItems.push(
-      bullet(`${s.webAdditionalDesc} (×${proposal.web_users})`),
-    );
-  } else {
-    optionalItems.push(bullet(s.webAdditionalDesc));
-  }
+  const commercialIncludes = getCommercialIncludes(
+    proposal.plan,
+    proposal.language,
+    proposal.include_requests_module,
+    proposal.web_users,
+  );
+  const includedItems: Paragraph[] = commercialIncludes.included.map((text) => bullet(text));
+  const optionalItems: Paragraph[] = commercialIncludes.optional.map((text) => bullet(text));
 
   const planDesc = [
     sectionHeading(s.professional),

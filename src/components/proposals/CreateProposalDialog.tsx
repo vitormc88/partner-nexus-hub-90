@@ -600,8 +600,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
-                  {discountPct > 0 && discountScope !== "none" && (
-                    <div className="flex justify-between text-sm text-emerald-600"><span>{discountLabel}</span><span>-{formatPrice(totals.discountAmount)}</span></div>
+                  {totals.softwareDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.softwareDiscountLabel(softwareDiscountPct)}</span><span>-{formatPrice(totals.softwareDiscountAmount)}</span></div>
+                  )}
+                  {totals.servicesDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.servicesDiscountLabel(servicesDiscountPct)}</span><span>-{formatPrice(totals.servicesDiscountAmount)}</span></div>
                   )}
                 </div>
                 <div className="space-y-1">

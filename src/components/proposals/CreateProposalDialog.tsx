@@ -182,6 +182,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
     [items, softwareDiscountPct, servicesDiscountPct],
   );
+  const previewItems = useMemo(
+    () => items.map((item) => enrichProposalItem(item, softwareDiscountPct, servicesDiscountPct)),
+    [items, softwareDiscountPct, servicesDiscountPct],
+  );
   const i18n = t(language);
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
@@ -210,6 +214,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         unit_price: 0,
         frequency: "one-time",
         total: 0,
+        discount_type: "none",
+        discount_value: 0,
         is_override: true,
         is_recurring: false,
         sort_order: prev.length,

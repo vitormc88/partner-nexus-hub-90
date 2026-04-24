@@ -62,7 +62,7 @@ export default function PricingSettings() {
     });
   }, [rules, search, family, licenseModel, category, plan, region, activeFilter]);
 
-  if (loading) return null;
+  if (authLoading) return null;
   if (!isAdmin) return <Navigate to="/" replace />;
 
   const handleInlinePrice = async (id: string, price: number) => {

@@ -71,10 +71,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   // Step 3
   const [implType, setImplType] = useState<ImplementationType>("Online");
   const [onsiteDays, setOnsiteDays] = useState(0);
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountScope, setDiscountScope] = useState<ProposalDiscountScope>("none");
   const [softwareDiscountPct, setSoftwareDiscountPct] = useState(0);
   const [servicesDiscountPct, setServicesDiscountPct] = useState(0);
+  const [planDiscountPct, setPlanDiscountPct] = useState(0);
+  const [requestsDiscountPct, setRequestsDiscountPct] = useState(0);
+  const [webUsersDiscountPct, setWebUsersDiscountPct] = useState(0);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -106,8 +107,6 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setWebUsers(editingProposal.web_users);
     setImplType(editingProposal.implementation_type);
     setOnsiteDays(Number(editingProposal.service_days || 0));
-    setDiscountPct(Number(editingProposal.discount_pct || 0));
-    setDiscountScope((editingProposal.discount_scope || "none") as ProposalDiscountScope);
     setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
     setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
@@ -138,18 +137,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
   const totals = useMemo(
-    () => computeTotals(items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct),
-    [items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct],
+    () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
+    [items, softwareDiscountPct, servicesDiscountPct],
   );
   const i18n = t(language);
-  const discountLabel =
-    discountScope === "services"
-      ? i18n.servicesDiscountLabel(discountPct)
-      : discountScope === "software"
-      ? i18n.softwareDiscountLabel(discountPct)
-      : discountScope === "total"
-      ? i18n.totalDiscountLabel(discountPct)
-      : i18n.noDiscount;
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
     setItems((prev) => {
@@ -206,8 +197,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         notes: notes || null,
         implementation_type: implType,
         per_diem: 0,
-        discount_pct: discountPct,
-        discount_scope: discountScope,
+        discount_pct: 0,
+        discount_scope: "none",
         software_discount_pct: softwareDiscountPct,
         services_discount_pct: servicesDiscountPct,
         include_requests_module: includeRequests,
@@ -241,9 +232,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         qty: it.qty,
         unit_price: it.unit_price,
         frequency: it.frequency,
-        total: getItemBaseTotal(it),
+        total: it.gross_total ?? getItemBaseTotal(it),
         discount_type: it.discount_type || "none",
         discount_value: Number(it.discount_value || 0),
+        gross_total: Number(it.gross_total ?? getItemBaseTotal(it)),
+        discount_amount: Number(it.discount_amount || 0),
+        net_total: Number(it.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         sort_order: idx,

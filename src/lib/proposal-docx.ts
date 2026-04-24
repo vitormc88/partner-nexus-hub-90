@@ -18,6 +18,7 @@ import {
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { computeTotals } from "@/lib/proposal-engine";
+import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
 
@@ -174,8 +175,9 @@ export async function generateProposalDocx(
 ): Promise<Blob> {
   const lang = proposal.language;
   const s = t(lang);
-  const totals = computeTotals(items, proposal.discount_pct || 0);
+  const totals = computeTotals(items, proposal.discount_pct || 0, proposal.discount_scope || "none");
   const logoBytes = await loadLogo();
+  const investment = getInvestmentSummary(proposal, items, totals);
 
   const dateStr = new Date(proposal.proposal_date)
     .toLocaleDateString("en-GB")
@@ -374,41 +376,14 @@ export async function generateProposalDocx(
     ],
   });
 
-  // Detailed plan inclusions
-  const includedItems: Paragraph[] = [];
-  const optionalItems: Paragraph[] = [];
-
-  // Always-included modules per plan
-  includedItems.push(bullet(s.maintenanceModule));
-  if (proposal.plan >= 2) {
-    includedItems.push(bullet(s.stockModule));
-    includedItems.push(bullet(s.purchaseOrdersModule));
-  }
-  if (proposal.plan === 3) {
-    includedItems.push(p(s.pluginsLabel, { bold: true, spacing: { before: 80, after: 40 }, indent: { left: 360 } }));
-    includedItems.push(smallBullet(s.pluginImportTool));
-    includedItems.push(smallBullet(s.pluginWorkflow));
-    includedItems.push(smallBullet(s.pluginAdvancedReports));
-    includedItems.push(smallBullet(s.pluginSLA));
-    includedItems.push(bullet(s.apiManwinwin));
-  }
-  includedItems.push(bullet(s.backofficeAccess));
-  includedItems.push(bullet(s.webAccess));
-
-  // Requests Module — included if selected, otherwise optional
-  if (proposal.include_requests_module) {
-    includedItems.push(bullet(s.requestsModuleDesc));
-  } else {
-    optionalItems.push(bullet(s.requestsModuleDesc));
-  }
-  // Web/Mobile additional accesses — show under Included if selected, else Optional
-  if (proposal.web_users > 0) {
-    includedItems.push(
-      bullet(`${s.webAdditionalDesc} (×${proposal.web_users})`),
-    );
-  } else {
-    optionalItems.push(bullet(s.webAdditionalDesc));
-  }
+  const commercialIncludes = getCommercialIncludes(
+    proposal.plan,
+    proposal.language,
+    proposal.include_requests_module,
+    proposal.web_users,
+  );
+  const includedItems: Paragraph[] = commercialIncludes.included.map((text) => bullet(text));
+  const optionalItems: Paragraph[] = commercialIncludes.optional.map((text) => bullet(text));
 
   const planDesc = [
     sectionHeading(s.professional),
@@ -432,21 +407,14 @@ export async function generateProposalDocx(
   const customItems = items.filter((i) => i.category === "custom");
 
   const renderLineItem = (i: ProposalItem) => {
-    const freqSuffix =
-      i.frequency === "yearly"
-        ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}`
-        : i.frequency === "monthly"
-        ? " / month"
-        : i.frequency === "per-user-month"
-        ? " (annualised)"
-        : "";
+    const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
     const paragraphs: Paragraph[] = [
       new Paragraph({
         spacing: { after: 40 },
         indent: { left: 360 },
         children: [
           new TextRun({
-            text: `•  ${i.item_name}: `,
+            text: `•  ${getCommercialItemLabel(i, proposal)}: `,
             color: DARK,
             size: 22,
             font: "Calibri",
@@ -461,23 +429,6 @@ export async function generateProposalDocx(
         ],
       }),
     ];
-    if (i.description) {
-      paragraphs.push(
-        new Paragraph({
-          spacing: { after: 80 },
-          indent: { left: 540 },
-          children: [
-            new TextRun({
-              text: i.description,
-              italics: true,
-              color: MUTED,
-              size: 18,
-              font: "Calibri",
-            }),
-          ],
-        }),
-      );
-    }
     return paragraphs;
   };
 
@@ -506,17 +457,15 @@ export async function generateProposalDocx(
 
   /* ----------------------- investment summary table -------------------- */
 
-  const recurringItems = items.filter((i) => i.is_recurring);
-  const oneTimeItems = items.filter((i) => !i.is_recurring);
+  const recurringItems = investment.recurringLines;
 
-  // Year 1: software (recurring) → services (one-time) → discount
-  const y1SoftwareRows = recurringItems.map((i) => ({
-    label: i.item_name,
-    value: formatEuro(i.total, lang),
+  const y1SoftwareRows = investment.softwareLines.map((i) => ({
+    label: i.label,
+    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
   }));
-  const y1ServiceRows = oneTimeItems.map((i) => ({
-    label: i.item_name,
-    value: formatEuro(i.total, lang),
+  const y1ServiceRows = investment.serviceLines.map((i) => ({
+    label: i.label,
+    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
   }));
 
   const tableRows: TableRow[] = [];
@@ -604,7 +553,7 @@ export async function generateProposalDocx(
   }
   if (totals.discountAmount > 0) {
     pushY1Row([
-      cell(`${s.discount} (${proposal.discount_pct}%)`, { italic: true }),
+      cell(investment.discountLabel, { italic: true }),
       cell(`- ${formatEuro(totals.discountAmount, lang)}`, {
         align: AlignmentType.RIGHT,
         italic: true,
@@ -662,8 +611,8 @@ export async function generateProposalDocx(
 
   recurringItems.forEach((r) =>
     pushY2Row([
-      cell(r.item_name),
-      cell(formatEuro(r.total, lang), { align: AlignmentType.RIGHT }),
+      cell(r.label),
+      cell(`${r.value}${r.suffix ? ` ${r.suffix}` : ""}`, { align: AlignmentType.RIGHT }),
     ]),
   );
   pushY2Row([

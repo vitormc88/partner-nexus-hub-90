@@ -63,6 +63,15 @@ interface Strings {
   perDiem: string;
   onsiteDays: string;
   discount: string;
+  noDiscount: string;
+  discountAppliesTo: string;
+  discountScopeNone: string;
+  discountScopeServices: string;
+  discountScopeSoftware: string;
+  discountScopeTotal: string;
+  servicesDiscountLabel: (pct: number) => string;
+  softwareDiscountLabel: (pct: number) => string;
+  totalDiscountLabel: (pct: number) => string;
   notes: string;
   /** Table column labels (PDF) */
   colItem: string;
@@ -165,6 +174,15 @@ const EN: Strings = {
   perDiem: "Onsite per diem",
   onsiteDays: "Onsite days",
   discount: "Discount",
+  noDiscount: "No discount",
+  discountAppliesTo: "Discount applies to",
+  discountScopeNone: "No discount",
+  discountScopeServices: "Services only",
+  discountScopeSoftware: "Software only",
+  discountScopeTotal: "Total proposal",
+  servicesDiscountLabel: (pct) => `Services discount (${pct}%)`,
+  softwareDiscountLabel: (pct) => `Software discount (${pct}%)`,
+  totalDiscountLabel: (pct) => `Total proposal discount (${pct}%)`,
   notes: "Notes",
   colItem: "Item",
   colQty: "Qty",
@@ -264,6 +282,15 @@ const PT: Strings = {
   perDiem: "Per diem presencial",
   onsiteDays: "Dias presenciais",
   discount: "Desconto",
+  noDiscount: "Sem desconto",
+  discountAppliesTo: "Desconto aplica-se a",
+  discountScopeNone: "Sem desconto",
+  discountScopeServices: "Apenas serviços",
+  discountScopeSoftware: "Apenas software",
+  discountScopeTotal: "Proposta total",
+  servicesDiscountLabel: (pct) => `Desconto de serviços (${pct}%)`,
+  softwareDiscountLabel: (pct) => `Desconto de software (${pct}%)`,
+  totalDiscountLabel: (pct) => `Desconto da proposta total (${pct}%)`,
   notes: "Notas",
   colItem: "Item",
   colQty: "Qtd",
@@ -364,6 +391,15 @@ const ES: Strings = {
   perDiem: "Per diem presencial",
   onsiteDays: "Días presenciales",
   discount: "Descuento",
+  noDiscount: "Sin descuento",
+  discountAppliesTo: "El descuento se aplica a",
+  discountScopeNone: "Sin descuento",
+  discountScopeServices: "Solo servicios",
+  discountScopeSoftware: "Solo software",
+  discountScopeTotal: "Propuesta total",
+  servicesDiscountLabel: (pct) => `Descuento de servicios (${pct}%)`,
+  softwareDiscountLabel: (pct) => `Descuento de software (${pct}%)`,
+  totalDiscountLabel: (pct) => `Descuento de la propuesta total (${pct}%)`,
   notes: "Notas",
   colItem: "Ítem",
   colQty: "Cant.",

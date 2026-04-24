@@ -71,6 +71,9 @@ interface Strings {
   discountScopeTotal: string;
   servicesDiscountLabel: (pct: number) => string;
   softwareDiscountLabel: (pct: number) => string;
+  servicesDiscountsTotalLabel: string;
+  softwareDiscountsTotalLabel: string;
+  sectionDiscountLabel: (pct: number) => string;
   totalDiscountLabel: (pct: number) => string;
   notes: string;
   /** Table column labels (PDF) */
@@ -182,6 +185,9 @@ const EN: Strings = {
   discountScopeTotal: "Total proposal",
   servicesDiscountLabel: (pct) => `Services discount (${pct}%)`,
   softwareDiscountLabel: (pct) => `Software discount (${pct}%)`,
+  servicesDiscountsTotalLabel: "Services discounts total",
+  softwareDiscountsTotalLabel: "Software discounts total",
+  sectionDiscountLabel: (pct) => `Section discount ${pct}%`,
   totalDiscountLabel: (pct) => `Total proposal discount (${pct}%)`,
   notes: "Notes",
   colItem: "Item",
@@ -290,6 +296,9 @@ const PT: Strings = {
   discountScopeTotal: "Proposta total",
   servicesDiscountLabel: (pct) => `Desconto de serviços (${pct}%)`,
   softwareDiscountLabel: (pct) => `Desconto de software (${pct}%)`,
+  servicesDiscountsTotalLabel: "Total de descontos de serviços",
+  softwareDiscountsTotalLabel: "Total de descontos de software",
+  sectionDiscountLabel: (pct) => `Desconto da secção ${pct}%`,
   totalDiscountLabel: (pct) => `Desconto da proposta total (${pct}%)`,
   notes: "Notas",
   colItem: "Item",
@@ -399,6 +408,9 @@ const ES: Strings = {
   discountScopeTotal: "Propuesta total",
   servicesDiscountLabel: (pct) => `Descuento de servicios (${pct}%)`,
   softwareDiscountLabel: (pct) => `Descuento de software (${pct}%)`,
+  servicesDiscountsTotalLabel: "Total descuentos de servicios",
+  softwareDiscountsTotalLabel: "Total descuentos de software",
+  sectionDiscountLabel: (pct) => `Descuento de sección ${pct}%`,
   totalDiscountLabel: (pct) => `Descuento de la propuesta total (${pct}%)`,
   notes: "Notas",
   colItem: "Ítem",

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Trash2, Plus, FileX, Printer, Copy } from "lucide-react";
+import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil } from "lucide-react";
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { printProposal } from "@/lib/proposal-print";
@@ -9,6 +9,7 @@ import { formatEuro } from "@/lib/proposal-i18n";
 import { toast } from "sonner";
 import { useState } from "react";
 import { CreateProposalDialog } from "./CreateProposalDialog";
+import type { Proposal, ProposalItem } from "@/types/proposal";
 
 interface Props {
   leadId: string;
@@ -29,6 +30,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const del = useDeleteProposal();
   const dup = useDuplicateProposal();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingProposal, setEditingProposal] = useState<(Proposal & { items?: ProposalItem[] }) | null>(null);
 
   const loadProposalAndItems = async (id: string) => {
     const { data: prop } = await supabase.from("proposals").select("*").eq("id", id).single();
@@ -59,10 +61,18 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const duplicate = async (id: string) => {
     try {
       const created = await dup.mutateAsync(id);
+      const res = await loadProposalAndItems(created.id);
+      if (res) setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
       toast.success(`Duplicated as v${created.version} (Draft)`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to duplicate");
     }
+  };
+
+  const editProposal = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
   };
 
   return (
@@ -118,6 +128,9 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)} title="Download DOCX">
                       <Download className="h-3.5 w-3.5 mr-1" />DOCX
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">
+                      <Pencil className="h-3.5 w-3.5 mr-1" />Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -131,7 +144,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                       size="icon"
                       variant="ghost"
                       onClick={() => {
-                        if (confirm("Delete this proposal?")) del.mutate(p.id);
+                        if (confirm("Delete this proposal?")) del.mutate({ id: p.id, leadId });
                       }}
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       title="Delete"
@@ -152,6 +165,17 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
         leadId={leadId}
         defaultClientName={defaultClientName}
         defaultCountry={defaultCountry}
+      />
+
+      <CreateProposalDialog
+        open={!!editingProposal}
+        onOpenChange={(open) => {
+          if (!open) setEditingProposal(null);
+        }}
+        leadId={leadId}
+        defaultClientName={defaultClientName}
+        defaultCountry={defaultCountry}
+        editingProposal={editingProposal}
       />
     </div>
   );

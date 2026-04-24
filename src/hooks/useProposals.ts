@@ -2,6 +2,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Proposal, ProposalItem, PricingRule } from "@/types/proposal";
 
+async function syncDealExpectedValue(leadId: string) {
+  const { data: latest } = await supabase
+    .from("proposals")
+    .select("id,total_year_1,created_at")
+    .eq("lead_id", leadId)
+    .neq("status", "Lost")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  await supabase
+    .from("deals")
+    .update({ expected_value: latest?.total_year_1 ?? null })
+    .eq("id", leadId);
+}
+
 /** Pricing catalog (HQ-managed) */
 export function usePricingRules() {
   return useQuery({
@@ -91,12 +107,15 @@ export function useProposalItems(proposalId: string | undefined) {
 export function useDeleteProposal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, leadId }: { id: string; leadId: string }) => {
       const { error } = await supabase.from("proposals").delete().eq("id", id);
       if (error) throw error;
+      await syncDealExpectedValue(leadId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["deal"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
     },
   });
 }
@@ -156,10 +175,14 @@ export function useDuplicateProposal() {
         if (e4) throw e4;
       }
 
+      await syncDealExpectedValue(src.lead_id);
+
       return created;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["deal"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
     },
   });
 }

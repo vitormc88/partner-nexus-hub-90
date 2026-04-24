@@ -175,7 +175,13 @@ export async function generateProposalDocx(
 ): Promise<Blob> {
   const lang = proposal.language;
   const s = t(lang);
-  const totals = computeTotals(items, proposal.discount_pct || 0, proposal.discount_scope || "none");
+  const totals = computeTotals(
+    items,
+    proposal.discount_pct || 0,
+    proposal.discount_scope || "none",
+    proposal.software_discount_pct || 0,
+    proposal.services_discount_pct || 0,
+  );
   const logoBytes = await loadLogo();
   const investment = getInvestmentSummary(proposal, items, totals);
 
@@ -206,35 +212,11 @@ export async function generateProposalDocx(
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       children: [
-        new TextRun({
-          text: `${proposal.client_name} | `,
-          bold: true,
-          color: DARK,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: proposal.project_name || "Maintenance Software Implementation",
-          italics: true,
-          color: RED,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: `   ·   ${dateStr}   ·   `,
-          color: MUTED,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: s.restricted,
-          bold: true,
-          color: RED,
-          size: 18,
-          font: "Calibri",
-        }),
+        new TextRun({ text: `${proposal.client_name} | ${proposal.project_name || "Maintenance Software Implementation"}`, bold: true, color: DARK, size: 18, font: "Calibri" }),
       ],
     }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: dateStr, color: MUTED, size: 18, font: "Calibri" })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: s.restricted, bold: true, color: DARK, size: 18, font: "Calibri" })] }),
   );
 
   /* ------------------------------- footer ------------------------------- */
@@ -422,7 +404,7 @@ export async function generateProposalDocx(
           new TextRun({
             text: formatEuro(i.total, lang) + freqSuffix,
             bold: true,
-            color: RED,
+            color: DARK,
             size: 22,
             font: "Calibri",
           }),

@@ -11,20 +11,30 @@ import logoUrl from "@/assets/manwinwin-logo.png";
 export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const lang = proposal.language as any;
   const s = t(lang);
-  const totals = computeTotals(items, proposal.discount_pct || 0, proposal.discount_scope || "none");
+  const totals = computeTotals(
+    items,
+    proposal.discount_pct || 0,
+    proposal.discount_scope || "none",
+    proposal.software_discount_pct || 0,
+    proposal.services_discount_pct || 0,
+  );
   const investment = getInvestmentSummary(proposal, items, totals);
   const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
   const win = window.open("", "_blank", "width=900,height=1200");
   if (!win) return;
 
-  const row = (it: ProposalItem) => `
+  const row = (it: ProposalItem) => {
+    const sectionPct = it.is_recurring ? Number(proposal.software_discount_pct || 0) : Number(proposal.services_discount_pct || 0);
+    return `
     <tr>
       <td>${esc(getCommercialItemLabel(it, proposal))}</td>
       <td class="num">${it.qty}</td>
       <td class="num">${formatEuro(Number(it.unit_price) || 0, lang)}</td>
       <td class="num">${formatEuro(Number(it.total) || 0, lang)}</td>
       <td>${esc(it.frequency)}</td>
+      <td class="num">${(it.discount_type && it.discount_type !== "none") || sectionPct > 0 ? "—" : ""}</td>
     </tr>`;
+  };
 
   const software = items.filter((i) => i.category === "software" || i.category === "addon");
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
@@ -36,7 +46,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
       <h2>${esc(title)}</h2>
       <table>
         <thead>
-          <tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th><th>Frequency</th></tr>
+          <tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th><th>Frequency</th><th class="num">Discount</th></tr>
         </thead>
         <tbody>${list.map(row).join("")}</tbody>
       </table>`;
@@ -50,11 +60,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .cover { padding: 24px 0 20px; border-bottom: 3px solid #c00; margin-bottom: 24px; }
-  .logo { max-width: 280px; height: auto; display:block; margin: 0 auto 20px; }
+  .header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding: 0 0 14px; border-bottom: 2px solid #c00; margin-bottom: 18px; }
+  .logo { max-width: 220px; height: auto; display:block; }
+  .hero { margin-bottom: 18px; }
   .cover h1 { font-size: 24pt; margin: 0 0 6px; color: #1a1a1a; }
   .cover .sub { color: #666; font-size: 12pt; }
-  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 16px 0 24px; font-size: 10.5pt; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 10px 0 24px; font-size: 10.5pt; }
   .meta .k { color: #666; }
   .restricted { color: #c00; font-weight: 600; font-size: 9pt; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
   h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 22px 0 10px; }
@@ -80,18 +91,13 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 <body>
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
 
-  <div class="cover">
+  <div class="header">
     <img class="logo" src="${logoUrl}" alt="ManWinWin logo" />
     <div class="restricted">${esc(s.restricted)}</div>
+  </div>
+  <div class="cover hero">
     <h1>${esc(s.investmentProposal)}</h1>
     <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (${esc(proposal.hosting)})</div>
-    <div class="muted" style="margin-top:6px">${esc(s.forImplementation)}</div>
-  </div>
-
-  <div class="includes">
-    <h2>${esc(s.includes)}</h2>
-    <ul>${includes.included.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
-    ${includes.optional.length ? `<div class="subsection">${esc(s.optionalNotIncluded)}</div><ul>${includes.optional.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
   </div>
 
   <div class="meta">
@@ -103,8 +109,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     <div><span class="k">Version:</span> v${proposal.version}</div>
   </div>
 
-  ${section(s.software, software)}
-  ${section(s.services, services)}
+  <div class="includes">
+    <h2>${esc(s.includes)}</h2>
+    <ul>${includes.included.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
+    ${includes.optional.length ? `<div class="subsection">${esc(s.optionalNotIncluded)}</div><ul>${includes.optional.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
+  </div>
+
   ${section(s.software, software)}
   ${section(s.services, services)}
 

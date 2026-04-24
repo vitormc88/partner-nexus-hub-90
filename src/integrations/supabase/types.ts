@@ -1860,6 +1860,8 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          discount_type: string
+          discount_value: number
           frequency: string
           id: string
           is_override: boolean
@@ -1876,6 +1878,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_type?: string
+          discount_value?: number
           frequency?: string
           id?: string
           is_override?: boolean
@@ -1892,6 +1896,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_type?: string
+          discount_value?: number
           frequency?: string
           id?: string
           is_override?: boolean
@@ -1978,7 +1984,9 @@ export type Database = {
           proposal_date: string
           service_days: number | null
           service_hours: number | null
+          services_discount_pct: number
           services_subtotal: number | null
+          software_discount_pct: number
           software_subtotal: number | null
           status: string
           total_recurring: number | null
@@ -2015,7 +2023,9 @@ export type Database = {
           proposal_date?: string
           service_days?: number | null
           service_hours?: number | null
+          services_discount_pct?: number
           services_subtotal?: number | null
+          software_discount_pct?: number
           software_subtotal?: number | null
           status?: string
           total_recurring?: number | null
@@ -2052,7 +2062,9 @@ export type Database = {
           proposal_date?: string
           service_days?: number | null
           service_hours?: number | null
+          services_discount_pct?: number
           services_subtotal?: number | null
+          software_discount_pct?: number
           software_subtotal?: number | null
           status?: string
           total_recurring?: number | null

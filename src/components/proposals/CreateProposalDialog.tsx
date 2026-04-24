@@ -17,7 +17,9 @@ import {
   computeTotals,
   recomputeItemTotal,
   PLAN_INCLUDES,
-  FREQUENCY_LABEL,
+  getItemBaseTotal,
+  getItemDiscountAmount,
+  getItemNetTotal,
 } from "@/lib/proposal-engine";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
@@ -29,6 +31,7 @@ import type {
   ProposalHosting,
   Proposal,
   ProposalDiscountScope,
+  ProposalLineDiscountType,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -38,11 +41,12 @@ interface Props {
   leadId: string;
   defaultClientName: string;
   defaultCountry?: string | null;
+  editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: rules = [] } = usePricingRules();
@@ -69,6 +73,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [onsiteDays, setOnsiteDays] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
   const [discountScope, setDiscountScope] = useState<ProposalDiscountScope>("none");
+  const [softwareDiscountPct, setSoftwareDiscountPct] = useState(0);
+  const [servicesDiscountPct, setServicesDiscountPct] = useState(0);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -85,6 +91,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   }, [open, defaultClientName, defaultCountry]);
 
+  useEffect(() => {
+    if (!open || !editingProposal) return;
+    setStep(0);
+    setLanguage(editingProposal.language);
+    setPlan(editingProposal.plan);
+    setHosting(editingProposal.hosting);
+    setClientName(editingProposal.client_name);
+    setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
+    setProposalDate(editingProposal.proposal_date);
+    setValidityDays(editingProposal.validity_days);
+    setCountry(editingProposal.country || "");
+    setIncludeRequests(editingProposal.include_requests_module);
+    setWebUsers(editingProposal.web_users);
+    setImplType(editingProposal.implementation_type);
+    setOnsiteDays(Number(editingProposal.service_days || 0));
+    setDiscountPct(Number(editingProposal.discount_pct || 0));
+    setDiscountScope((editingProposal.discount_scope || "none") as ProposalDiscountScope);
+    setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
+    setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
+    setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
+    setNotes(editingProposal.notes || "");
+    if (editingProposal.items?.length) setItems(editingProposal.items);
+  }, [open, editingProposal]);
+
   // Default payment terms in selected language
   useEffect(() => {
     setPaymentTerms(standardPaymentTerms(language));
@@ -93,6 +123,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   // Auto-rebuild items whenever plan/services/options change
   useEffect(() => {
     if (rules.length === 0) return;
+    if (editingProposal?.items?.length && open) return;
     setItems(
       buildDefaultItems({
         rules,
@@ -106,7 +137,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
-  const totals = useMemo(() => computeTotals(items, discountPct, discountScope), [items, discountPct, discountScope]);
+  const totals = useMemo(
+    () => computeTotals(items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct),
+    [items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct],
+  );
   const i18n = t(language);
   const discountLabel =
     discountScope === "services"
@@ -158,7 +192,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     try {
       const insertData: any = {
         lead_id: leadId,
-        version: 1,
+        version: editingProposal?.version || 1,
         language,
         plan,
         status,
@@ -174,8 +208,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         per_diem: 0,
         discount_pct: discountPct,
         discount_scope: discountScope,
+        software_discount_pct: softwareDiscountPct,
+        services_discount_pct: servicesDiscountPct,
         include_requests_module: includeRequests,
         web_users: webUsers,
+        service_days: onsiteDays || null,
         software_subtotal: totals.softwareSubtotal,
         services_subtotal: totals.servicesSubtotal,
         discount_amount: totals.discountAmount,
@@ -183,8 +220,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         total_recurring: totals.totalRecurring,
         created_by: user?.id || null,
       };
-      const { data: prop, error } = await supabase.from("proposals").insert(insertData).select().single();
+      const propResponse = editingProposal?.id
+        ? await supabase.from("proposals").update(insertData).eq("id", editingProposal.id).select().single()
+        : await supabase.from("proposals").insert(insertData).select().single();
+      const { data: prop, error } = propResponse;
       if (error) throw error;
+
+      if (editingProposal?.id) {
+        const { error: deleteItemsError } = await supabase.from("proposal_items").delete().eq("proposal_id", editingProposal.id);
+        if (deleteItemsError) throw deleteItemsError;
+      }
 
       // Insert items
       const itemRows = items.map((it, idx) => ({
@@ -196,7 +241,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         qty: it.qty,
         unit_price: it.unit_price,
         frequency: it.frequency,
-        total: it.total,
+        total: getItemBaseTotal(it),
+        discount_type: it.discount_type || "none",
+        discount_value: Number(it.discount_value || 0),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         sort_order: idx,
@@ -205,7 +252,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
+      await supabase.from("deals").update({ expected_value: totals.totalYear1 }).eq("id", leadId);
       qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["deal", leadId] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
       return prop as unknown as Proposal;
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
@@ -218,7 +268,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const handleSaveDraft = async () => {
     const prop = await persistProposal("Draft");
     if (prop) {
-      toast.success("Draft saved");
+      toast.success(editingProposal ? "Proposal updated" : "Draft saved");
       onOpenChange(false);
     }
   };
@@ -248,7 +298,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       } catch {
         /* upload best-effort */
       }
-      toast.success("Proposal generated");
+      toast.success(editingProposal ? "Proposal updated" : "Proposal generated");
       onOpenChange(false);
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
@@ -263,7 +313,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            New Proposal — {STEPS[step]}
+            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
           </DialogTitle>
         </DialogHeader>
 
@@ -392,6 +442,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <p className="text-[11px] text-muted-foreground mt-1">20 € / user / month</p>
                 </div>
               </div>
+              <div className="bg-card border rounded-lg p-3">
+                <Label className="text-xs">Software discount %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={softwareDiscountPct}
+                  onChange={(e) => {
+                    const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                    setSoftwareDiscountPct(value);
+                    setDiscountScope(value > 0 ? "software" : servicesDiscountPct > 0 ? "services" : "none");
+                    setDiscountPct(value > 0 ? value : servicesDiscountPct);
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Applies only to recurring software/add-on items.</p>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).
               </p>
@@ -414,21 +480,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Select>
                 </div>
                 <div>
-                  <Label>{i18n.discountAppliesTo}</Label>
-                  <Select value={discountScope} onValueChange={(v) => setDiscountScope(v as ProposalDiscountScope)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{i18n.discountScopeNone}</SelectItem>
-                      <SelectItem value="services">{i18n.discountScopeServices}</SelectItem>
-                      <SelectItem value="software">{i18n.discountScopeSoftware}</SelectItem>
-                      <SelectItem value="total">{i18n.discountScopeTotal}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Discount %</Label>
-                  <Input type="number" min={0} max={100} value={discountPct}
-                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  <Label>Services discount %</Label>
+                  <Input type="number" min={0} max={100} value={servicesDiscountPct}
+                    onChange={(e) => {
+                      const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                      setServicesDiscountPct(value);
+                      setDiscountScope(value > 0 ? "services" : softwareDiscountPct > 0 ? "software" : "none");
+                      setDiscountPct(value > 0 ? value : softwareDiscountPct);
+                    }} />
                 </div>
               </div>
               {implType === "Onsite" && (
@@ -480,7 +539,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="divide-y">
                   {items.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-5">
+                      <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
                         <Input value={it.item_name} onChange={(e) => updateItem(idx, { item_name: e.target.value })} className="h-8" />
                       </div>
@@ -504,9 +563,26 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Discount</Label>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
+                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="percent">%</SelectItem>
+                              <SelectItem value="fixed">€</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
+                        </div>
+                      </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Total</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(it.total)}</p>
+                        <Label className="text-[10px]">Net</Label>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct))}</p>
+                        {getItemDiscountAmount(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct) > 0 && (
+                          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(getItemBaseTotal(it))}</p>
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
@@ -524,8 +600,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
-                  {discountPct > 0 && discountScope !== "none" && (
-                    <div className="flex justify-between text-sm text-emerald-600"><span>{discountLabel}</span><span>-{formatPrice(totals.discountAmount)}</span></div>
+                  {totals.softwareDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.softwareDiscountLabel(softwareDiscountPct)}</span><span>-{formatPrice(totals.softwareDiscountAmount)}</span></div>
+                  )}
+                  {totals.servicesDiscountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.servicesDiscountLabel(servicesDiscountPct)}</span><span>-{formatPrice(totals.servicesDiscountAmount)}</span></div>
                   )}
                 </div>
                 <div className="space-y-1">

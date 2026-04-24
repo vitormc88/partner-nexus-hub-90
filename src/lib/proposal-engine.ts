@@ -6,6 +6,7 @@ import type {
   ItemFrequency,
   ProposalLanguage,
   ProposalDiscountScope,
+  ProposalLineDiscountType,
 } from "@/types/proposal";
 import { t } from "@/lib/proposal-i18n";
 
@@ -258,6 +259,9 @@ export interface ProposalTotals {
   recurringYearly: number;
   oneTime: number;
   subtotal: number;
+  softwareDiscountAmount: number;
+  servicesDiscountAmount: number;
+  lineDiscountAmount: number;
   recurringAfterDiscount: number;
   discountScope: ProposalDiscountScope;
   discountAmount: number;
@@ -265,40 +269,65 @@ export interface ProposalTotals {
   totalRecurring: number;
 }
 
+export function getItemBaseTotal(item: ProposalItem): number {
+  return yearlyEquivalent(item.unit_price, item.qty, item.frequency);
+}
+
+export function getItemDiscountAmount(item: ProposalItem, sectionDiscountPct = 0): number {
+  const base = getItemBaseTotal(item);
+  const type = (item.discount_type || "none") as ProposalLineDiscountType;
+  const value = Number(item.discount_value || 0);
+
+  if (type === "percent") return Math.min(base, (base * value) / 100);
+  if (type === "fixed") return Math.min(base, value);
+  if (sectionDiscountPct > 0) return Math.min(base, (base * sectionDiscountPct) / 100);
+  return 0;
+}
+
+export function getItemNetTotal(item: ProposalItem, sectionDiscountPct = 0): number {
+  return Math.max(0, getItemBaseTotal(item) - getItemDiscountAmount(item, sectionDiscountPct));
+}
+
 export function computeTotals(
   items: ProposalItem[],
   discountPct: number,
   discountScope: ProposalDiscountScope = "none",
+  softwareDiscountPct = 0,
+  servicesDiscountPct = 0,
 ): ProposalTotals {
   let softwareSubtotal = 0;
   let servicesSubtotal = 0;
   let recurringYearly = 0;
   let oneTime = 0;
 
+  let softwareDiscountAmount = 0;
+  let servicesDiscountAmount = 0;
+  let lineDiscountAmount = 0;
+
   for (const item of items) {
-    const tot = item.total ?? yearlyEquivalent(item.unit_price, item.qty, item.frequency);
+    const tot = getItemBaseTotal(item);
+    const isSoftware = item.category === "software" || item.category === "addon";
+    const fallbackPct = discountPct > 0 ? (isSoftware ? (discountScope === "software" ? discountPct : 0) : (discountScope === "services" ? discountPct : 0)) : 0;
+    const sectionPct = isSoftware ? softwareDiscountPct || fallbackPct : servicesDiscountPct || fallbackPct;
+    const itemDiscount = getItemDiscountAmount(item, sectionPct);
+    const net = Math.max(0, tot - itemDiscount);
     if (item.category === "software" || item.category === "addon") {
       softwareSubtotal += tot;
+      softwareDiscountAmount += itemDiscount;
     } else {
       servicesSubtotal += tot;
+      servicesDiscountAmount += itemDiscount;
     }
-    if (item.is_recurring) recurringYearly += tot;
-    else oneTime += tot;
+    if (item.discount_type && item.discount_type !== "none") lineDiscountAmount += itemDiscount;
+    if (item.is_recurring) recurringYearly += net;
+    else oneTime += net;
   }
 
   const subtotal = softwareSubtotal + servicesSubtotal;
   const normalizedScope = discountPct > 0 ? discountScope : "none";
-  const discountBase =
-    normalizedScope === "services"
-      ? oneTime
-      : normalizedScope === "software"
-      ? recurringYearly
-      : normalizedScope === "total"
-      ? subtotal
-      : 0;
-  const discountAmount = discountBase * (discountPct / 100);
-  const totalYear1 = subtotal - discountAmount;
-  const recurringAfterDiscount = normalizedScope === "software" ? recurringYearly - discountAmount : recurringYearly;
+  const discountAmount = softwareDiscountAmount + servicesDiscountAmount;
+  const totalYear1 = recurringYearly + oneTime;
+  const recurringAfterDiscount = recurringYearly;
   const totalRecurring = recurringAfterDiscount;
 
   return {
@@ -307,6 +336,9 @@ export function computeTotals(
     recurringYearly,
     oneTime,
     subtotal,
+    softwareDiscountAmount,
+    servicesDiscountAmount,
+    lineDiscountAmount,
     recurringAfterDiscount,
     discountScope: normalizedScope,
     discountAmount,
@@ -316,7 +348,7 @@ export function computeTotals(
 }
 
 export function recomputeItemTotal(item: ProposalItem): number {
-  return yearlyEquivalent(item.unit_price, item.qty, item.frequency);
+  return getItemBaseTotal(item);
 }
 
 export const FREQUENCY_LABEL: Record<ItemFrequency, string> = {

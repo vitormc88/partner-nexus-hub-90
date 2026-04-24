@@ -3,6 +3,7 @@ export type ProposalPlan = 1 | 2 | 3;
 export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Won" | "Lost";
 export type ProposalHosting = "SaaS" | "On-Premise";
 export type ProposalDiscountScope = "none" | "services" | "software" | "total";
+export type ProposalLineDiscountType = "none" | "percent" | "fixed";
 /**
  * Implementation flavours. "RCI Professional" is reserved for Business proposals
  * (not exposed in the Professional UI yet).
@@ -47,6 +48,8 @@ export interface ProposalItem {
   unit_price: number;
   frequency: ItemFrequency;
   total: number;
+  discount_type?: ProposalLineDiscountType;
+  discount_value?: number;
   is_override: boolean;
   is_recurring: boolean;
   sort_order: number;
@@ -75,6 +78,8 @@ export interface Proposal {
   per_diem: number;
   discount_pct: number;
   discount_scope: ProposalDiscountScope;
+  software_discount_pct?: number;
+  services_discount_pct?: number;
   include_requests_module: boolean;
   web_users: number;
   software_subtotal: number;

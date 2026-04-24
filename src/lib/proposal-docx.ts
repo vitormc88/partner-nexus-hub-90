@@ -177,8 +177,6 @@ export async function generateProposalDocx(
   const s = t(lang);
   const totals = computeTotals(
     items,
-    proposal.discount_pct || 0,
-    proposal.discount_scope || "none",
     proposal.software_discount_pct || 0,
     proposal.services_discount_pct || 0,
   );

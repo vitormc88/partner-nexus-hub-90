@@ -17,7 +17,6 @@ import {
   computeTotals,
   recomputeItemTotal,
   PLAN_INCLUDES,
-  FREQUENCY_LABEL,
   getItemBaseTotal,
   getItemDiscountAmount,
   getItemNetTotal,
@@ -465,21 +464,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Select>
                 </div>
                 <div>
-                  <Label>{i18n.discountAppliesTo}</Label>
-                  <Select value={discountScope} onValueChange={(v) => setDiscountScope(v as ProposalDiscountScope)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{i18n.discountScopeNone}</SelectItem>
-                      <SelectItem value="services">{i18n.discountScopeServices}</SelectItem>
-                      <SelectItem value="software">{i18n.discountScopeSoftware}</SelectItem>
-                      <SelectItem value="total">{i18n.discountScopeTotal}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Discount %</Label>
-                  <Input type="number" min={0} max={100} value={discountPct}
-                    onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  <Label>Services discount %</Label>
+                  <Input type="number" min={0} max={100} value={servicesDiscountPct}
+                    onChange={(e) => {
+                      const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                      setServicesDiscountPct(value);
+                      setDiscountScope(value > 0 ? "services" : softwareDiscountPct > 0 ? "software" : "none");
+                      setDiscountPct(value > 0 ? value : softwareDiscountPct);
+                    }} />
                 </div>
               </div>
               {implType === "Onsite" && (

@@ -343,7 +343,14 @@ export function getItemEffectiveDiscount(
 }
 
 export function getItemDiscountAmount(item: ProposalItem, sectionDiscountPct = 0): number {
-  return getItemEffectiveDiscount(item, sectionDiscountPct, sectionDiscountPct).amount;
+  const base = getItemBaseTotal(item);
+  const type = (item.discount_type || "none") as ProposalLineDiscountType;
+  const value = Number(item.discount_value || 0);
+
+  if (type === "percent" && value > 0) return Math.min(base, (base * value) / 100);
+  if (type === "fixed" && value > 0) return Math.min(base, value);
+  if (sectionDiscountPct > 0) return Math.min(base, (base * sectionDiscountPct) / 100);
+  return 0;
 }
 
 export function getItemNetTotal(item: ProposalItem, sectionDiscountPct = 0): number {

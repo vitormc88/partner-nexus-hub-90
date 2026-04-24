@@ -381,7 +381,8 @@ const ES: Strings = {
     `Las traducciones para ${target} aún no están disponibles — la propuesta se generará en inglés.`,
 };
 
-const STRINGS: Record<ProposalLanguage, Strings> = { EN, PT, ES };
+/** Active language tables. RO / TH intentionally omitted → fall back to EN until translated. */
+const STRINGS: Partial<Record<ProposalLanguage, Strings>> = { EN, PT, ES };
 
 /** Returns translation strings, falling back to EN for unknown languages. */
 export function t(lang: ProposalLanguage): Strings {
@@ -404,14 +405,14 @@ export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string
 
 /** Frequency label per language. */
 export function frequencyLabel(freq: string, lang: ProposalLanguage = "EN"): string {
-  const map: Record<string, Record<ProposalLanguage, string>> = {
+  const map: Record<string, Partial<Record<ProposalLanguage, string>>> = {
     yearly: { EN: "/ year", PT: "/ ano", ES: "/ año" },
     monthly: { EN: "/ month", PT: "/ mês", ES: "/ mes" },
     "one-time": { EN: "one-time", PT: "única", ES: "única" },
     "per-user-month": { EN: "/ user / month", PT: "/ utilizador / mês", ES: "/ usuario / mes" },
     "per-hour": { EN: "/ hour", PT: "/ hora", ES: "/ hora" },
   };
-  return map[freq]?.[lang] ?? freq;
+  return map[freq]?.[lang] ?? map[freq]?.EN ?? freq;
 }
 
 /** Default standard payment terms text used when user hasn't customised it. */

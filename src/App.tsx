@@ -70,8 +70,11 @@ const App = () => (
               <Route path="/training" element={<ComingSoon />} />
               <Route path="/community" element={<ComingSoon />} />
               <Route path="/announcements" element={<ComingSoon />} />
-              <Route path="/settings" element={<ComingSoon />} />
-              <Route path="/settings/pricing" element={<PricingSettings />} />
+              <Route path="/settings" element={<Settings />}>
+                <Route path="general" element={<SettingsComingSoon title="General Settings" />} />
+                <Route path="pricing" element={<PricingSettings />} />
+                <Route path="proposals" element={<SettingsComingSoon title="Proposal Settings" />} />
+              </Route>
               <Route path="/users" element={<UserManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />

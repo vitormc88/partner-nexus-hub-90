@@ -16,6 +16,7 @@ import {
   buildDefaultItems,
   computeTotals,
   enrichProposalItem,
+  getItemEffectiveDiscount,
   recomputeItemTotal,
   PLAN_INCLUDES,
   getItemBaseTotal,
@@ -577,6 +578,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="divide-y">
                   {previewItems.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
+                      {(() => {
+                        const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
+                        const discountSourceLabel =
+                          effectiveDiscount.source === "section"
+                            ? `Section discount ${effectiveDiscount.value}%`
+                            : effectiveDiscount.type === "percent"
+                            ? `% ${effectiveDiscount.value}`
+                            : effectiveDiscount.type === "fixed"
+                            ? `€ ${effectiveDiscount.value}`
+                            : "None / 0";
+                        return (
+                          <>
                       <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
                         <Input value={it.item_name} onChange={(e) => updateItem(idx, { item_name: e.target.value })} className="h-8" />
@@ -614,6 +627,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           </Select>
                           <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
                         </div>
+                        <p className="mt-1 text-[10px] text-muted-foreground">{discountSourceLabel}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Gross</Label>
@@ -621,17 +635,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Discount</Label>
-                        <p className="text-sm font-medium text-foreground tabular-nums">{it.discount_amount ? `-${formatPrice(it.discount_amount)}` : "—"}</p>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{effectiveDiscount.amount ? `-${formatPrice(effectiveDiscount.amount)}` : "—"}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Net</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(it.net_total || 0)}</p>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice((it.gross_total || 0) - effectiveDiscount.amount)}</p>
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                   {items.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No items</div>}

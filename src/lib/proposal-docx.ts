@@ -6,7 +6,6 @@ import {
   Table,
   TableRow,
   TableCell,
-  HeadingLevel,
   AlignmentType,
   BorderStyle,
   WidthType,
@@ -14,21 +13,40 @@ import {
   PageOrientation,
   Header,
   Footer,
-  PageNumber,
+  ImageRun,
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { computeTotals } from "@/lib/proposal-engine";
 import { t, formatEuro } from "@/lib/proposal-i18n";
+import logoUrl from "@/assets/manwinwin-logo.png";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
-const GREY_BG = "EFEFEF";
+const GREY_BG = "F5F5F5";
+const GREY_BORDER = "D0D0D0";
+const MUTED = "6B7280";
 
-function p(text: string, opts: { bold?: boolean; size?: number; color?: string; italic?: boolean; align?: any; spacing?: any } = {}) {
+/* -------------------------------------------------------------------------- */
+/*                              small helpers                                 */
+/* -------------------------------------------------------------------------- */
+
+function p(
+  text: string,
+  opts: {
+    bold?: boolean;
+    size?: number;
+    color?: string;
+    italic?: boolean;
+    align?: any;
+    spacing?: any;
+    indent?: any;
+  } = {},
+) {
   return new Paragraph({
     alignment: opts.align,
     spacing: opts.spacing,
+    indent: opts.indent,
     children: [
       new TextRun({
         text,
@@ -45,8 +63,9 @@ function p(text: string, opts: { bold?: boolean; size?: number; color?: string; 
 function bullet(text: string, color = DARK) {
   return new Paragraph({
     spacing: { after: 60 },
+    indent: { left: 360, hanging: 200 },
     children: [
-      new TextRun({ text: "● ", bold: true, color: RED, size: 22, font: "Calibri" }),
+      new TextRun({ text: "•  ", bold: true, color: RED, size: 22, font: "Calibri" }),
       new TextRun({ text, color, size: 22, font: "Calibri" }),
     ],
   });
@@ -55,7 +74,7 @@ function bullet(text: string, color = DARK) {
 function smallBullet(text: string) {
   return new Paragraph({
     spacing: { after: 60 },
-    indent: { left: 360 },
+    indent: { left: 540, hanging: 200 },
     children: [
       new TextRun({ text: "○  ", color: DARK, size: 20, font: "Calibri" }),
       new TextRun({ text, color: DARK, size: 20, font: "Calibri" }),
@@ -63,23 +82,56 @@ function smallBullet(text: string) {
   });
 }
 
-function sectionHeading(text: string) {
+/** Red bar section heading (ManWinWin "title bar" look). */
+function redBarHeading(text: string) {
   return new Paragraph({
-    spacing: { before: 240, after: 120 },
-    children: [new TextRun({ text, bold: true, color: DARK, size: 28, font: "Calibri" })],
+    shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
+    spacing: { before: 320, after: 160 },
+    children: [
+      new TextRun({
+        text: "  " + text,
+        bold: true,
+        color: "FFFFFF",
+        size: 28,
+        font: "Calibri",
+      }),
+    ],
   });
 }
 
-function cell(text: string, opts: { bold?: boolean; bg?: string; align?: any; width?: number; color?: string } = {}) {
+function sectionHeading(text: string) {
+  return new Paragraph({
+    spacing: { before: 240, after: 120 },
+    border: {
+      bottom: { style: BorderStyle.SINGLE, size: 12, color: RED, space: 4 },
+    },
+    children: [new TextRun({ text, bold: true, color: DARK, size: 26, font: "Calibri" })],
+  });
+}
+
+function cell(
+  text: string,
+  opts: {
+    bold?: boolean;
+    bg?: string;
+    align?: any;
+    width?: number;
+    color?: string;
+    italic?: boolean;
+    size?: number;
+  } = {},
+) {
   return new TableCell({
     width: opts.width ? { size: opts.width, type: WidthType.DXA } : undefined,
-    shading: opts.bg ? { fill: opts.bg, type: ShadingType.CLEAR, color: "auto" } : undefined,
+    shading: opts.bg
+      ? { fill: opts.bg, type: ShadingType.CLEAR, color: "auto" }
+      : undefined,
     margins: { top: 80, bottom: 80, left: 120, right: 120 },
     borders: {
-      top: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-      bottom: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-      left: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-      right: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
+      top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+      left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+      right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
     },
     children: [
       new Paragraph({
@@ -88,8 +140,9 @@ function cell(text: string, opts: { bold?: boolean; bg?: string; align?: any; wi
           new TextRun({
             text,
             bold: opts.bold,
+            italics: opts.italic,
             color: opts.color || DARK,
-            size: 20,
+            size: opts.size || 20,
             font: "Calibri",
           }),
         ],
@@ -98,123 +151,181 @@ function cell(text: string, opts: { bold?: boolean; bg?: string; align?: any; wi
   });
 }
 
-export async function generateProposalDocx(proposal: Proposal, items: ProposalItem[]): Promise<Blob> {
+/** Tries to load the logo as a Uint8Array. Returns null on failure
+ *  (so generation never breaks if the asset is missing). */
+async function loadLogo(): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(logoUrl);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  } catch {
+    return null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            main DOCX generator                             */
+/* -------------------------------------------------------------------------- */
+
+export async function generateProposalDocx(
+  proposal: Proposal,
+  items: ProposalItem[],
+): Promise<Blob> {
   const lang = proposal.language;
   const s = t(lang);
   const totals = computeTotals(items, proposal.discount_pct || 0);
+  const logoBytes = await loadLogo();
 
-  const headerRight = [
+  const dateStr = new Date(proposal.proposal_date)
+    .toLocaleDateString("en-GB")
+    .replace(/\//g, ".");
+
+  /* ------------------------------- header ------------------------------- */
+
+  const headerChildren: Paragraph[] = [];
+  if (logoBytes) {
+    // small top-left logo
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+          new ImageRun({
+            type: "png",
+            data: logoBytes,
+            transformation: { width: 90, height: 28 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
+          }),
+        ],
+      }),
+    );
+  }
+  headerChildren.push(
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       children: [
-        new TextRun({ text: `${proposal.client_name} | `, bold: true, color: DARK, size: 20, font: "Calibri" }),
+        new TextRun({
+          text: `${proposal.client_name} | `,
+          bold: true,
+          color: DARK,
+          size: 18,
+          font: "Calibri",
+        }),
         new TextRun({
           text: proposal.project_name || "Maintenance Software Implementation",
           italics: true,
           color: RED,
-          size: 20,
+          size: 18,
           font: "Calibri",
         }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [
         new TextRun({
-          text: new Date(proposal.proposal_date).toLocaleDateString("en-GB").replace(/\//g, "."),
-          color: DARK,
-          size: 20,
+          text: `   ·   ${dateStr}   ·   `,
+          color: MUTED,
+          size: 18,
           font: "Calibri",
         }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [new TextRun({ text: s.restricted, bold: true, color: RED, size: 20, font: "Calibri" })],
-    }),
-  ];
-
-  // Cover page
-  const cover = [
-    new Paragraph({ children: [new TextRun({ text: "", size: 24 })], spacing: { before: 1200 } }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({ text: "MANWINWIN", bold: true, color: DARK, size: 56, font: "Calibri" }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 800 },
-      children: [
-        new TextRun({ text: "S O F T W A R E", color: DARK, size: 24, font: "Calibri" }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: s.investmentProposal, bold: true, color: RED, size: 56, font: "Calibri" })],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
-      children: [
-        new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 36, font: "Calibri" }),
-        new TextRun({ text: `Professional (${proposal.hosting})`, bold: true, color: RED, size: 36, font: "Calibri" }),
-      ],
-    }),
-    new Paragraph({ children: [new TextRun({ text: "" })], pageBreakBefore: false }),
-  ];
-
-  // Title block
-  const titleBlock = [
-    new Paragraph({
-      shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
-      spacing: { before: 240, after: 60 },
-      children: [
-        new TextRun({ text: "  " + s.investmentProposal, bold: true, color: "FFFFFF", size: 36, font: "Calibri" }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 240 },
-      children: [
         new TextRun({
-          text: `${s.forImplementation} ${proposal.client_name.toUpperCase()}`,
+          text: s.restricted,
           bold: true,
           color: RED,
-          size: 24,
+          size: 18,
           font: "Calibri",
         }),
       ],
     }),
-  ];
+  );
 
-  // Plan description
-  const planDesc = [
-    sectionHeading(s.professional),
-    new Paragraph({
-      children: [
-        new TextRun({ text: s.annualLicenseDescription(proposal.plan).replace(`${proposal.plan}`, ""), color: DARK, size: 22, font: "Calibri" }),
-        new TextRun({ text: ` ${proposal.plan} `, bold: true, color: RED, size: 22, font: "Calibri" }),
-        new TextRun({ text: lang === "EN" ? "with:" : ":", color: DARK, size: 22, font: "Calibri" }),
-      ],
-    }),
-    bullet(s.backofficeAccess),
-    bullet(s.webAccess),
-    p(s.includes + ":", { bold: true, spacing: { before: 180, after: 60 } }),
-    bullet(s.maintenanceModule),
-    p(s.optionalNotIncluded, { bold: true, spacing: { before: 180, after: 60 } }),
-    bullet(s.requestsModuleDesc),
-    bullet(s.webAdditionalDesc),
-  ];
+  /* ------------------------------- footer ------------------------------- */
 
-  // License pricing block
-  const license = items.find((i) => i.category === "software");
-  const pricingBlock = [
+  const footer = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border: {
+          top: { style: BorderStyle.SINGLE, size: 6, color: RED, space: 4 },
+        },
+        children: [
+          new TextRun({
+            text: "ManWinWin Software · support@manwinwin.com · www.manwinwin.com",
+            color: MUTED,
+            size: 16,
+            font: "Calibri",
+          }),
+        ],
+      }),
+    ],
+  });
+
+  /* ------------------------------- cover -------------------------------- */
+
+  const cover: Paragraph[] = [];
+  cover.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { before: 1400 } }));
+
+  if (logoBytes) {
+    cover.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 800 },
+        children: [
+          new ImageRun({
+            type: "png",
+            data: logoBytes,
+            transformation: { width: 360, height: 110 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
+          }),
+        ],
+      }),
+    );
+  } else {
+    cover.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "MANWINWIN", bold: true, color: RED, size: 64, font: "Calibri" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 800 },
+        children: [
+          new TextRun({ text: "S O F T W A R E", color: DARK, size: 22, font: "Calibri" }),
+        ],
+      }),
+    );
+  }
+
+  cover.push(
     new Paragraph({
-      spacing: { before: 360, after: 120 },
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 400, after: 200 },
       children: [
         new TextRun({
-          text: s.annualLicenseHeading(proposal.plan, proposal.hosting),
+          text: s.investmentProposal,
+          bold: true,
+          color: RED,
+          size: 56,
+          font: "Calibri",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 600 },
+      children: [
+        new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
+        new TextRun({
+          text: `Professional (${proposal.hosting})`,
+          bold: true,
+          color: RED,
+          size: 32,
+          font: "Calibri",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 1200 },
+      children: [
+        new TextRun({
+          text: proposal.client_name.toUpperCase(),
           bold: true,
           color: DARK,
           size: 28,
@@ -223,11 +334,22 @@ export async function generateProposalDocx(proposal: Proposal, items: ProposalIt
       ],
     }),
     new Paragraph({
-      indent: { left: 360 },
+      alignment: AlignmentType.CENTER,
       children: [
-        new TextRun({ text: "○  " + s.annualLicensePrice + " ", color: DARK, size: 22, font: "Calibri" }),
+        new TextRun({ text: dateStr, color: MUTED, size: 22, font: "Calibri" }),
+      ],
+    }),
+  );
+
+  /* --------------------------- inner page title ------------------------- */
+
+  const titleBlock = [
+    redBarHeading(s.investmentProposal),
+    new Paragraph({
+      spacing: { after: 240 },
+      children: [
         new TextRun({
-          text: license ? formatEuro(license.total, lang) : "—",
+          text: `${s.forImplementation} ${proposal.client_name.toUpperCase()}`,
           bold: true,
           color: RED,
           size: 22,
@@ -235,182 +357,361 @@ export async function generateProposalDocx(proposal: Proposal, items: ProposalIt
         }),
       ],
     }),
-    new Paragraph({
-      indent: { left: 360 },
-      spacing: { after: 240 },
-      children: [
-        new TextRun({ text: "○  " + s.satIncluded, color: DARK, size: 22, font: "Calibri" }),
-      ],
-    }),
   ];
 
-  // Services block
-  const serviceItems = items.filter((i) => i.category === "service");
-  const servicesBlock = [
-    sectionHeading(s.services),
-    p("● " + s.implementation, { bold: true, color: RED, size: 22 }),
+  /* --------------------------- plan description ------------------------- */
+  // Use the i18n string directly (already correctly worded).
+  const planDescIntro = new Paragraph({
+    spacing: { before: 120, after: 180 },
+    children: [
+      new TextRun({
+        text: s.annualLicenseDescription(proposal.plan),
+        bold: true,
+        color: DARK,
+        size: 22,
+        font: "Calibri",
+      }),
+    ],
+  });
+
+  // Detailed plan inclusions
+  const includedItems: Paragraph[] = [];
+  const optionalItems: Paragraph[] = [];
+
+  // Always-included modules per plan
+  includedItems.push(bullet(s.maintenanceModule));
+  if (proposal.plan >= 2) {
+    includedItems.push(bullet(s.stockModule));
+    includedItems.push(bullet(s.purchaseOrdersModule));
+  }
+  if (proposal.plan === 3) {
+    includedItems.push(p(s.pluginsLabel, { bold: true, spacing: { before: 80, after: 40 }, indent: { left: 360 } }));
+    includedItems.push(smallBullet(s.pluginImportTool));
+    includedItems.push(smallBullet(s.pluginWorkflow));
+    includedItems.push(smallBullet(s.pluginAdvancedReports));
+    includedItems.push(smallBullet(s.pluginSLA));
+    includedItems.push(bullet(s.apiManwinwin));
+  }
+  includedItems.push(bullet(s.backofficeAccess));
+  includedItems.push(bullet(s.webAccess));
+
+  // Requests Module — included if selected, otherwise optional
+  if (proposal.include_requests_module) {
+    includedItems.push(bullet(s.requestsModuleDesc));
+  } else {
+    optionalItems.push(bullet(s.requestsModuleDesc));
+  }
+  // Web/Mobile additional accesses — show under Included if selected, else Optional
+  if (proposal.web_users > 0) {
+    includedItems.push(
+      bullet(`${s.webAdditionalDesc} (×${proposal.web_users})`),
+    );
+  } else {
+    optionalItems.push(bullet(s.webAdditionalDesc));
+  }
+
+  const planDesc = [
+    sectionHeading(s.professional),
+    planDescIntro,
+    p(s.includes + ":", { bold: true, color: RED, spacing: { before: 120, after: 80 } }),
+    ...includedItems,
   ];
-  for (const sv of serviceItems) {
-    servicesBlock.push(
+  if (optionalItems.length > 0) {
+    planDesc.push(
+      p(s.optionalNotIncluded, { bold: true, color: MUTED, spacing: { before: 180, after: 80 } }),
+      ...optionalItems,
+    );
+  }
+
+  /* ----------------------- detailed line items ------------------------- */
+
+  const softwareItems = items.filter(
+    (i) => i.category === "software" || i.category === "addon",
+  );
+  const serviceItems = items.filter((i) => i.category === "service");
+  const customItems = items.filter((i) => i.category === "custom");
+
+  const renderLineItem = (i: ProposalItem) => {
+    const freqSuffix =
+      i.frequency === "yearly"
+        ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}`
+        : i.frequency === "monthly"
+        ? " / month"
+        : i.frequency === "per-user-month"
+        ? " (annualised)"
+        : "";
+    const paragraphs: Paragraph[] = [
       new Paragraph({
-        indent: { left: 240 },
+        spacing: { after: 40 },
+        indent: { left: 360 },
         children: [
-          new TextRun({ text: `${sv.item_name}: `, color: DARK, size: 22, font: "Calibri" }),
-          new TextRun({ text: formatEuro(sv.total, lang), bold: true, color: RED, size: 22, font: "Calibri" }),
+          new TextRun({
+            text: `•  ${i.item_name}: `,
+            color: DARK,
+            size: 22,
+            font: "Calibri",
+          }),
+          new TextRun({
+            text: formatEuro(i.total, lang) + freqSuffix,
+            bold: true,
+            color: RED,
+            size: 22,
+            font: "Calibri",
+          }),
+        ],
+      }),
+    ];
+    if (i.description) {
+      paragraphs.push(
+        new Paragraph({
+          spacing: { after: 80 },
+          indent: { left: 540 },
+          children: [
+            new TextRun({
+              text: i.description,
+              italics: true,
+              color: MUTED,
+              size: 18,
+              font: "Calibri",
+            }),
+          ],
+        }),
+      );
+    }
+    return paragraphs;
+  };
+
+  const softwareBlock: Paragraph[] = [];
+  if (softwareItems.length > 0) {
+    softwareBlock.push(
+      sectionHeading(s.software),
+      ...softwareItems.flatMap(renderLineItem),
+      new Paragraph({
+        spacing: { before: 80, after: 80 },
+        indent: { left: 360 },
+        children: [
+          new TextRun({ text: s.satIncluded, italics: true, color: MUTED, size: 18, font: "Calibri" }),
         ],
       }),
     );
-    if (sv.description) {
-      servicesBlock.push(p(sv.description, { italic: true, size: 20, spacing: { after: 120 } }));
-    }
   }
 
-  // Investment table
-  const investmentTitle = sectionHeading(s.investmentInProject);
+  const servicesBlock: Paragraph[] = [];
+  if (serviceItems.length > 0) {
+    servicesBlock.push(sectionHeading(s.services), ...serviceItems.flatMap(renderLineItem));
+  }
+  if (customItems.length > 0) {
+    servicesBlock.push(...customItems.flatMap(renderLineItem));
+  }
 
-  const planLabel = `${s.year1.includes("1") || lang !== "EN" ? "Annual " : ""}Professional License - Plan ${proposal.plan}`;
+  /* ----------------------- investment summary table -------------------- */
+
   const recurringItems = items.filter((i) => i.is_recurring);
   const oneTimeItems = items.filter((i) => !i.is_recurring);
 
+  // Year 1: software (recurring) → services (one-time) → discount
+  const y1SoftwareRows = recurringItems.map((i) => ({
+    label: i.item_name,
+    value: formatEuro(i.total, lang),
+  }));
+  const y1ServiceRows = oneTimeItems.map((i) => ({
+    label: i.item_name,
+    value: formatEuro(i.total, lang),
+  }));
+
   const tableRows: TableRow[] = [];
 
-  // Header row
+  // Header
   tableRows.push(
     new TableRow({
+      tableHeader: true,
       children: [
-        cell("", { width: 2400 }),
-        cell("", { width: 4400 }),
-        cell(planLabel, { bold: true, bg: GREY_BG, align: AlignmentType.CENTER, width: 2800 }),
+        cell("", { bg: RED, width: 2200 }),
+        cell(s.colItem, { bold: true, bg: RED, color: "FFFFFF", width: 5000 }),
+        cell(s.colTotal, {
+          bold: true,
+          bg: RED,
+          color: "FFFFFF",
+          align: AlignmentType.RIGHT,
+          width: 2400,
+        }),
       ],
     }),
   );
 
-  // Year 1 — Software section + services
-  const y1Rows: { label: string; value: string }[] = [
-    ...recurringItems.map((i) => ({ label: i.item_name, value: formatEuro(i.total, lang) })),
-    ...oneTimeItems.map((i) => ({ label: i.item_name, value: formatEuro(i.total, lang) })),
-  ];
+  // ---- Year 1 ----
+  const y1RowCount =
+    (y1SoftwareRows.length > 0 ? y1SoftwareRows.length + 1 : 0) +
+    (y1ServiceRows.length > 0 ? y1ServiceRows.length + 1 : 0) +
+    (totals.discountAmount > 0 ? 1 : 0) +
+    1; // total row
 
-  y1Rows.forEach((r, idx) => {
-    const isFirst = idx === 0;
+  let y1FirstRow = true;
+  const pushY1Row = (children: TableCell[]) => {
+    const labelCell = y1FirstRow
+      ? new TableCell({
+          rowSpan: y1RowCount,
+          shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+          },
+          verticalAlign: "center" as any,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: s.year1,
+                  bold: true,
+                  color: "FFFFFF",
+                  size: 22,
+                  font: "Calibri",
+                }),
+              ],
+            }),
+          ],
+        })
+      : null;
+    y1FirstRow = false;
     tableRows.push(
       new TableRow({
-        children: [
-          isFirst
-            ? new TableCell({
-                rowSpan: y1Rows.length + 1,
-                shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
-                margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                },
-                verticalAlign: "center" as any,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: s.year1, bold: true, color: DARK, size: 22, font: "Calibri" })],
-                  }),
-                ],
-              })
-            : (null as any),
-          cell(r.label),
-          cell(r.value, { align: AlignmentType.RIGHT }),
-        ].filter(Boolean) as TableCell[],
+        children: [labelCell, ...children].filter(Boolean) as TableCell[],
       }),
     );
-  });
+  };
 
-  // Year 1 total row
-  tableRows.push(
-    new TableRow({
-      children: [
-        cell(s.totalOfYear, { bold: true, bg: GREY_BG }),
-        cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: GREY_BG, align: AlignmentType.RIGHT }),
-      ],
+  if (y1SoftwareRows.length > 0) {
+    pushY1Row([
+      cell(s.software, { bold: true, bg: GREY_BG }),
+      cell("", { bg: GREY_BG }),
+    ]);
+    y1SoftwareRows.forEach((r) =>
+      pushY1Row([cell(r.label), cell(r.value, { align: AlignmentType.RIGHT })]),
+    );
+  }
+  if (y1ServiceRows.length > 0) {
+    pushY1Row([
+      cell(s.services, { bold: true, bg: GREY_BG }),
+      cell("", { bg: GREY_BG }),
+    ]);
+    y1ServiceRows.forEach((r) =>
+      pushY1Row([cell(r.label), cell(r.value, { align: AlignmentType.RIGHT })]),
+    );
+  }
+  if (totals.discountAmount > 0) {
+    pushY1Row([
+      cell(`${s.discount} (${proposal.discount_pct}%)`, { italic: true }),
+      cell(`- ${formatEuro(totals.discountAmount, lang)}`, {
+        align: AlignmentType.RIGHT,
+        italic: true,
+      }),
+    ]);
+  }
+  pushY1Row([
+    cell(s.totalOfYear, { bold: true, bg: GREY_BG }),
+    cell(formatEuro(totals.totalYear1, lang), {
+      bold: true,
+      bg: GREY_BG,
+      align: AlignmentType.RIGHT,
     }),
-  );
+  ]);
 
-  // Year 2+ rows
-  recurringItems.forEach((r, idx) => {
-    const isFirst = idx === 0;
+  // ---- Year 2+ : recurring only ----
+  const y2RowCount = recurringItems.length + 1;
+  let y2FirstRow = true;
+  const pushY2Row = (children: TableCell[]) => {
+    const labelCell = y2FirstRow
+      ? new TableCell({
+          rowSpan: y2RowCount,
+          shading: { fill: DARK, type: ShadingType.CLEAR, color: "auto" },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+          },
+          verticalAlign: "center" as any,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({
+                  text: s.year2Onwards,
+                  bold: true,
+                  color: "FFFFFF",
+                  size: 22,
+                  font: "Calibri",
+                }),
+              ],
+            }),
+          ],
+        })
+      : null;
+    y2FirstRow = false;
     tableRows.push(
       new TableRow({
-        children: [
-          isFirst
-            ? new TableCell({
-                rowSpan: recurringItems.length + 1,
-                shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
-                margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "BFBFBF" },
-                },
-                verticalAlign: "center" as any,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: s.year2Onwards, bold: true, color: DARK, size: 22, font: "Calibri" })],
-                  }),
-                ],
-              })
-            : (null as any),
-          cell(r.item_name),
-          cell(formatEuro(r.total, lang), { align: AlignmentType.RIGHT }),
-        ].filter(Boolean) as TableCell[],
+        children: [labelCell, ...children].filter(Boolean) as TableCell[],
       }),
     );
-  });
+  };
 
-  tableRows.push(
-    new TableRow({
-      children: [
-        cell(s.totalPerYear, { bold: true, bg: GREY_BG }),
-        cell(`${formatEuro(totals.totalRecurring, lang)} ${s.perYear}`, { bold: true, bg: GREY_BG, align: AlignmentType.RIGHT }),
-      ],
-    }),
+  recurringItems.forEach((r) =>
+    pushY2Row([
+      cell(r.item_name),
+      cell(formatEuro(r.total, lang), { align: AlignmentType.RIGHT }),
+    ]),
   );
+  pushY2Row([
+    cell(s.totalPerYear, { bold: true, bg: GREY_BG }),
+    cell(`${formatEuro(totals.totalRecurring, lang)} ${s.perYear}`, {
+      bold: true,
+      bg: GREY_BG,
+      align: AlignmentType.RIGHT,
+    }),
+  ]);
 
   const investmentTable = new Table({
     width: { size: 9600, type: WidthType.DXA },
-    columnWidths: [2400, 4400, 2800],
+    columnWidths: [2200, 5000, 2400],
     rows: tableRows,
   });
 
-  // Billing
+  /* ------------------------------ billing ------------------------------ */
+
   const billingBlock = [
     sectionHeading(s.billingHeader),
     p(s.standardTerms, { bold: true, spacing: { after: 120 } }),
     smallBullet(s.paymentLine1),
     smallBullet(s.paymentLine2),
-    p(s.footnote1, { size: 18, italic: true, spacing: { before: 180 } }),
-    p(s.footnote2, { size: 18, italic: true }),
+    p(s.footnote1, { size: 18, italic: true, color: MUTED, spacing: { before: 180 } }),
+    p(s.footnote2, { size: 18, italic: true, color: MUTED }),
   ];
 
-  // Other info
+  /* ----------------------------- other info ---------------------------- */
+
   const otherBlock = [
     sectionHeading(s.otherInfo),
     smallBullet(s.vatNote),
     smallBullet(s.validityNote(proposal.validity_days)),
   ];
 
-  // SaaS features (only for SaaS)
   const saasBlock =
     proposal.hosting === "SaaS"
       ? [sectionHeading(s.saasFeatures), ...s.saasFeaturesList.map(smallBullet)]
       : [];
 
-  // S&AT
   const satBlock = [sectionHeading(s.satTitle), ...s.satList.map(smallBullet)];
 
-  // Notes
   const notesBlock = proposal.notes
     ? [sectionHeading(s.notes), p(proposal.notes)]
     : [];
+
+  /* ------------------------------- doc --------------------------------- */
 
   const doc = new Document({
     creator: "PartnerOS",
@@ -419,6 +720,7 @@ export async function generateProposalDocx(proposal: Proposal, items: ProposalIt
       default: { document: { run: { font: "Calibri", size: 22 } } },
     },
     sections: [
+      // Cover (no header)
       {
         properties: {
           page: {
@@ -426,43 +728,32 @@ export async function generateProposalDocx(proposal: Proposal, items: ProposalIt
             margin: { top: 1440, right: 1080, bottom: 1080, left: 1080 },
           },
         },
-        children: [...cover],
+        footers: { default: footer },
+        children: cover,
       },
+      // Inner pages with header + footer
       {
         properties: {
           page: {
             size: { width: 11906, height: 16838 },
-            margin: { top: 1440, right: 1080, bottom: 1080, left: 1080 },
+            margin: { top: 1800, right: 1080, bottom: 1080, left: 1080 },
           },
         },
-        headers: {
-          default: new Header({ children: headerRight }),
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({
-                    text: "ManWinWin Software · support@manwinwin.com · www.manwinwin.com",
-                    color: "888888",
-                    size: 16,
-                    font: "Calibri",
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
+        headers: { default: new Header({ children: headerChildren }) },
+        footers: { default: footer },
         children: [
           ...titleBlock,
           ...planDesc,
-          ...pricingBlock,
+          ...softwareBlock,
           ...servicesBlock,
-          investmentTitle,
+          sectionHeading(s.investmentInProject),
           investmentTable,
-          p(s.assumingSameYear1, { italic: true, size: 18, spacing: { before: 120, after: 240 } }),
+          p(s.assumingSameYear1, {
+            italic: true,
+            size: 18,
+            color: MUTED,
+            spacing: { before: 120, after: 240 },
+          }),
           ...billingBlock,
           ...otherBlock,
           ...saasBlock,
@@ -476,7 +767,10 @@ export async function generateProposalDocx(proposal: Proposal, items: ProposalIt
   return await Packer.toBlob(doc);
 }
 
-export async function downloadProposalDocx(proposal: Proposal, items: ProposalItem[]) {
+export async function downloadProposalDocx(
+  proposal: Proposal,
+  items: ProposalItem[],
+) {
   const blob = await generateProposalDocx(proposal, items);
   const fileName = `Proposal_${proposal.client_name.replace(/\s+/g, "_")}_v${proposal.version}.docx`;
   saveAs(blob, fileName);

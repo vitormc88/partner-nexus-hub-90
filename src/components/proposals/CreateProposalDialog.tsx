@@ -442,6 +442,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <p className="text-[11px] text-muted-foreground mt-1">20 € / user / month</p>
                 </div>
               </div>
+              <div className="bg-card border rounded-lg p-3">
+                <Label className="text-xs">Software discount %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={softwareDiscountPct}
+                  onChange={(e) => {
+                    const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                    setSoftwareDiscountPct(value);
+                    setDiscountScope(value > 0 ? "software" : servicesDiscountPct > 0 ? "services" : "none");
+                    setDiscountPct(value > 0 ? value : servicesDiscountPct);
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Applies only to recurring software/add-on items.</p>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).
               </p>

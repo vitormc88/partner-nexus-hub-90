@@ -28,6 +28,7 @@ import type {
   ImplementationType,
   ProposalHosting,
   Proposal,
+  ProposalDiscountScope,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -67,6 +68,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [implType, setImplType] = useState<ImplementationType>("Online");
   const [onsiteDays, setOnsiteDays] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
+  const [discountScope, setDiscountScope] = useState<ProposalDiscountScope>("none");
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -104,8 +106,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
-  const totals = useMemo(() => computeTotals(items, discountPct), [items, discountPct]);
+  const totals = useMemo(() => computeTotals(items, discountPct, discountScope), [items, discountPct, discountScope]);
   const i18n = t(language);
+  const discountLabel =
+    discountScope === "services"
+      ? i18n.servicesDiscountLabel(discountPct)
+      : discountScope === "software"
+      ? i18n.softwareDiscountLabel(discountPct)
+      : discountScope === "total"
+      ? i18n.totalDiscountLabel(discountPct)
+      : i18n.noDiscount;
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
     setItems((prev) => {
@@ -163,6 +173,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         implementation_type: implType,
         per_diem: 0,
         discount_pct: discountPct,
+        discount_scope: discountScope,
         include_requests_module: includeRequests,
         web_users: webUsers,
         software_subtotal: totals.softwareSubtotal,
@@ -403,6 +414,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Select>
                 </div>
                 <div>
+                  <Label>{i18n.discountAppliesTo}</Label>
+                  <Select value={discountScope} onValueChange={(v) => setDiscountScope(v as ProposalDiscountScope)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{i18n.discountScopeNone}</SelectItem>
+                      <SelectItem value="services">{i18n.discountScopeServices}</SelectItem>
+                      <SelectItem value="software">{i18n.discountScopeSoftware}</SelectItem>
+                      <SelectItem value="total">{i18n.discountScopeTotal}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Discount %</Label>
                   <Input type="number" min={0} max={100} value={discountPct}
                     onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
@@ -501,8 +524,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
-                  {discountPct > 0 && (
-                    <div className="flex justify-between text-sm text-emerald-600"><span>{i18n.discount} ({discountPct}%)</span><span>-{formatPrice(totals.discountAmount)}</span></div>
+                  {discountPct > 0 && discountScope !== "none" && (
+                    <div className="flex justify-between text-sm text-emerald-600"><span>{discountLabel}</span><span>-{formatPrice(totals.discountAmount)}</span></div>
                   )}
                 </div>
                 <div className="space-y-1">

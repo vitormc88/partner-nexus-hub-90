@@ -407,21 +407,14 @@ export async function generateProposalDocx(
   const customItems = items.filter((i) => i.category === "custom");
 
   const renderLineItem = (i: ProposalItem) => {
-    const freqSuffix =
-      i.frequency === "yearly"
-        ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}`
-        : i.frequency === "monthly"
-        ? " / month"
-        : i.frequency === "per-user-month"
-        ? " (annualised)"
-        : "";
+    const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
     const paragraphs: Paragraph[] = [
       new Paragraph({
         spacing: { after: 40 },
         indent: { left: 360 },
         children: [
           new TextRun({
-            text: `•  ${i.item_name}: `,
+            text: `•  ${getCommercialItemLabel(i, proposal)}: `,
             color: DARK,
             size: 22,
             font: "Calibri",
@@ -436,23 +429,6 @@ export async function generateProposalDocx(
         ],
       }),
     ];
-    if (i.description) {
-      paragraphs.push(
-        new Paragraph({
-          spacing: { after: 80 },
-          indent: { left: 540 },
-          children: [
-            new TextRun({
-              text: i.description,
-              italics: true,
-              color: MUTED,
-              size: 18,
-              font: "Calibri",
-            }),
-          ],
-        }),
-      );
-    }
     return paragraphs;
   };
 

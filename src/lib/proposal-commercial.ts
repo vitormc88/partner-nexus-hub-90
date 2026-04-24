@@ -1,6 +1,7 @@
 import type { Proposal, ProposalItem, ProposalDiscountScope, ProposalLanguage, ProposalPlan } from "@/types/proposal";
 import type { ProposalTotals } from "@/lib/proposal-engine";
 import { formatEuro, frequencyLabel, t } from "@/lib/proposal-i18n";
+import { getItemBaseTotal, getItemDiscountAmount, getItemNetTotal } from "@/lib/proposal-engine";
 
 type LocalizedSet = Record<"EN" | "PT" | "ES", string>;
 
@@ -77,29 +78,43 @@ export function getCommercialItemLabel(item: ProposalItem, proposal: Proposal) {
 }
 
 export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
+  const softwarePct = proposal.discount_scope === "software" ? Number(proposal.discount_pct || 0) : 0;
+  const servicesPct = proposal.discount_scope === "services" ? Number(proposal.discount_pct || 0) : 0;
   const software = items.filter((item) => item.category === "software" || item.category === "addon");
   const services = items.filter((item) => item.category === "service" || (item.category === "custom" && !item.is_recurring));
   const recurring = items.filter((item) => item.is_recurring);
+
+  const toRow = (item: ProposalItem) => {
+    const sectionPct = item.is_recurring ? softwarePct : servicesPct;
+    const base = getItemBaseTotal(item);
+    const discount = getItemDiscountAmount(item, sectionPct);
+    const net = getItemNetTotal(item, sectionPct);
+    const hasDiscount = discount > 0;
+
+    return {
+      item,
+      label: getCommercialItemLabel(item, proposal),
+      value: formatEuro(net, proposal.language),
+      baseValue: formatEuro(base, proposal.language),
+      discountValue: formatEuro(discount, proposal.language),
+      hasDiscount,
+      suffix: item.is_recurring ? frequencyLabel("yearly", proposal.language) : frequencyLabel(item.frequency, proposal.language),
+      discountLabel:
+        item.discount_type && item.discount_type !== "none"
+          ? `${getCommercialItemLabel(item, proposal)} discount`
+          : item.is_recurring
+          ? t(proposal.language).softwareDiscountLabel(sectionPct)
+          : t(proposal.language).servicesDiscountLabel(sectionPct),
+    };
+  };
 
   return {
     software,
     services,
     recurring,
-    softwareLines: software.map((item) => ({
-      label: getCommercialItemLabel(item, proposal),
-      value: formatEuro(item.total, proposal.language),
-      suffix: item.is_recurring ? frequencyLabel("yearly", proposal.language) : frequencyLabel(item.frequency, proposal.language),
-    })),
-    serviceLines: services.map((item) => ({
-      label: getCommercialItemLabel(item, proposal),
-      value: formatEuro(item.total, proposal.language),
-      suffix: item.frequency === "one-time" ? "" : frequencyLabel(item.frequency, proposal.language),
-    })),
-    recurringLines: recurring.map((item) => ({
-      label: getCommercialItemLabel(item, proposal),
-      value: formatEuro(item.total, proposal.language),
-      suffix: frequencyLabel("yearly", proposal.language),
-    })),
+    softwareLines: software.map(toRow),
+    serviceLines: services.map(toRow),
+    recurringLines: recurring.map(toRow),
   };
 }
 

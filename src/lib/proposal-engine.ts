@@ -5,6 +5,7 @@ import type {
   ImplementationType,
   ItemFrequency,
   ProposalLanguage,
+  ProposalDiscountScope,
 } from "@/types/proposal";
 import { t } from "@/lib/proposal-i18n";
 
@@ -257,12 +258,18 @@ export interface ProposalTotals {
   recurringYearly: number;
   oneTime: number;
   subtotal: number;
+  recurringAfterDiscount: number;
+  discountScope: ProposalDiscountScope;
   discountAmount: number;
   totalYear1: number;
   totalRecurring: number;
 }
 
-export function computeTotals(items: ProposalItem[], discountPct: number): ProposalTotals {
+export function computeTotals(
+  items: ProposalItem[],
+  discountPct: number,
+  discountScope: ProposalDiscountScope = "none",
+): ProposalTotals {
   let softwareSubtotal = 0;
   let servicesSubtotal = 0;
   let recurringYearly = 0;
@@ -280,9 +287,19 @@ export function computeTotals(items: ProposalItem[], discountPct: number): Propo
   }
 
   const subtotal = softwareSubtotal + servicesSubtotal;
-  const discountAmount = subtotal * (discountPct / 100);
+  const normalizedScope = discountPct > 0 ? discountScope : "none";
+  const discountBase =
+    normalizedScope === "services"
+      ? oneTime
+      : normalizedScope === "software"
+      ? recurringYearly
+      : normalizedScope === "total"
+      ? subtotal
+      : 0;
+  const discountAmount = discountBase * (discountPct / 100);
   const totalYear1 = subtotal - discountAmount;
-  const totalRecurring = recurringYearly;
+  const recurringAfterDiscount = normalizedScope === "software" ? recurringYearly - discountAmount : recurringYearly;
+  const totalRecurring = recurringAfterDiscount;
 
   return {
     softwareSubtotal,
@@ -290,6 +307,8 @@ export function computeTotals(items: ProposalItem[], discountPct: number): Propo
     recurringYearly,
     oneTime,
     subtotal,
+    recurringAfterDiscount,
+    discountScope: normalizedScope,
     discountAmount,
     totalYear1,
     totalRecurring,

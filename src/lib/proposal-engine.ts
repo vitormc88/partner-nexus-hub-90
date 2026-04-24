@@ -292,6 +292,8 @@ export function computeTotals(
   items: ProposalItem[],
   discountPct: number,
   discountScope: ProposalDiscountScope = "none",
+  softwareDiscountPct = 0,
+  servicesDiscountPct = 0,
 ): ProposalTotals {
   let softwareSubtotal = 0;
   let servicesSubtotal = 0;
@@ -305,7 +307,8 @@ export function computeTotals(
   for (const item of items) {
     const tot = getItemBaseTotal(item);
     const isSoftware = item.category === "software" || item.category === "addon";
-    const sectionPct = discountPct > 0 ? (isSoftware ? (discountScope === "software" ? discountPct : 0) : (discountScope === "services" ? discountPct : 0)) : 0;
+    const fallbackPct = discountPct > 0 ? (isSoftware ? (discountScope === "software" ? discountPct : 0) : (discountScope === "services" ? discountPct : 0)) : 0;
+    const sectionPct = isSoftware ? softwareDiscountPct || fallbackPct : servicesDiscountPct || fallbackPct;
     const itemDiscount = getItemDiscountAmount(item, sectionPct);
     const net = Math.max(0, tot - itemDiscount);
     if (item.category === "software" || item.category === "addon") {

@@ -271,6 +271,19 @@ export interface ProposalTotals {
   totalRecurring: number;
 }
 
+export interface ProposalItemEffectiveDiscount {
+  source: "none" | "line" | "section";
+  type: ProposalLineDiscountType;
+  value: number;
+  amount: number;
+}
+
+export interface ProposalSectionDiscountSummary {
+  amount: number;
+  mode: "none" | "uniform-section" | "mixed";
+  pct?: number;
+}
+
 export function getItemBaseTotal(item: ProposalItem): number {
   return yearlyEquivalent(item.unit_price, item.qty, item.frequency);
 }
@@ -284,13 +297,58 @@ export function hasItemOwnDiscount(item: ProposalItem): boolean {
   return Boolean(item.discount_type && item.discount_type !== "none" && Number(item.discount_value || 0) > 0);
 }
 
+export function getItemEffectiveDiscount(
+  item: ProposalItem,
+  softwareDiscountPct = 0,
+  servicesDiscountPct = 0,
+): ProposalItemEffectiveDiscount {
+  const base = getItemBaseTotal(item);
+  const type = (item.discount_type || "none") as ProposalLineDiscountType;
+  const value = Number(item.discount_value || 0);
+
+  if (type === "percent" && value > 0) {
+    return {
+      source: "line",
+      type,
+      value,
+      amount: Math.min(base, (base * value) / 100),
+    };
+  }
+
+  if (type === "fixed" && value > 0) {
+    return {
+      source: "line",
+      type,
+      value,
+      amount: Math.min(base, value),
+    };
+  }
+
+  const sectionPct = getItemSectionDiscountPct(item, softwareDiscountPct, servicesDiscountPct);
+  if (sectionPct > 0) {
+    return {
+      source: "section",
+      type: "percent",
+      value: sectionPct,
+      amount: Math.min(base, (base * sectionPct) / 100),
+    };
+  }
+
+  return {
+    source: "none",
+    type: "none",
+    value: 0,
+    amount: 0,
+  };
+}
+
 export function getItemDiscountAmount(item: ProposalItem, sectionDiscountPct = 0): number {
   const base = getItemBaseTotal(item);
   const type = (item.discount_type || "none") as ProposalLineDiscountType;
   const value = Number(item.discount_value || 0);
 
-  if (type === "percent") return Math.min(base, (base * value) / 100);
-  if (type === "fixed") return Math.min(base, value);
+  if (type === "percent" && value > 0) return Math.min(base, (base * value) / 100);
+  if (type === "fixed" && value > 0) return Math.min(base, value);
   if (sectionDiscountPct > 0) return Math.min(base, (base * sectionDiscountPct) / 100);
   return 0;
 }
@@ -300,9 +358,9 @@ export function getItemNetTotal(item: ProposalItem, sectionDiscountPct = 0): num
 }
 
 export function enrichProposalItem(item: ProposalItem, softwareDiscountPct = 0, servicesDiscountPct = 0): ProposalItem {
-  const sectionPct = getItemSectionDiscountPct(item, softwareDiscountPct, servicesDiscountPct);
   const grossTotal = getItemBaseTotal(item);
-  const discountAmount = getItemDiscountAmount(item, sectionPct);
+  const effectiveDiscount = getItemEffectiveDiscount(item, softwareDiscountPct, servicesDiscountPct);
+  const discountAmount = effectiveDiscount.amount;
   const netTotal = Math.max(0, grossTotal - discountAmount);
   return {
     ...item,
@@ -311,6 +369,38 @@ export function enrichProposalItem(item: ProposalItem, softwareDiscountPct = 0, 
     discount_amount: discountAmount,
     net_total: netTotal,
   };
+}
+
+export function getSectionDiscountSummary(
+  items: ProposalItem[],
+  section: "software" | "services",
+  softwareDiscountPct = 0,
+  servicesDiscountPct = 0,
+): ProposalSectionDiscountSummary {
+  const sectionItems = items.filter((item) => {
+    const isSoftware = item.category === "software" || item.category === "addon";
+    return section === "software" ? isSoftware : !isSoftware;
+  });
+
+  const effectiveDiscounts = sectionItems
+    .map((item) => getItemEffectiveDiscount(item, softwareDiscountPct, servicesDiscountPct))
+    .filter((discount) => discount.amount > 0);
+
+  if (effectiveDiscounts.length === 0) {
+    return { amount: 0, mode: "none" };
+  }
+
+  const amount = effectiveDiscounts.reduce((sum, discount) => sum + discount.amount, 0);
+  const firstPct = effectiveDiscounts[0]?.value;
+  const uniformSection = effectiveDiscounts.every(
+    (discount) => discount.source === "section" && discount.type === "percent" && discount.value === firstPct,
+  );
+
+  if (uniformSection && firstPct && firstPct > 0) {
+    return { amount, mode: "uniform-section", pct: firstPct };
+  }
+
+  return { amount, mode: "mixed" };
 }
 
 export function computeTotals(

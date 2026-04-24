@@ -575,7 +575,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Button>
                 </div>
                 <div className="divide-y">
-                  {items.map((it, idx) => (
+                  {previewItems.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
@@ -616,11 +616,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         </div>
                       </div>
                       <div className="col-span-1 text-right">
+                        <Label className="text-[10px]">Gross</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(it.gross_total || 0)}</p>
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <Label className="text-[10px]">Discount</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{it.discount_amount ? `-${formatPrice(it.discount_amount)}` : "—"}</p>
+                      </div>
+                      <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Net</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct))}</p>
-                        {getItemDiscountAmount(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct) > 0 && (
-                          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(getItemBaseTotal(it))}</p>
-                        )}
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(it.net_total || 0)}</p>
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
@@ -636,14 +641,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               {/* Totals */}
               <div className="bg-card border rounded-lg p-4 grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
-                  {totals.softwareDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.softwareDiscountLabel(softwareDiscountPct)}</span><span>-{formatPrice(totals.softwareDiscountAmount)}</span></div>
-                  )}
-                  {totals.servicesDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.servicesDiscountLabel(servicesDiscountPct)}</span><span>-{formatPrice(totals.servicesDiscountAmount)}</span></div>
-                  )}
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software gross subtotal</span><span className="font-medium">{formatPrice(totals.softwareGrossSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software discount total</span><span className="font-medium">{totals.softwareDiscountAmount ? `-${formatPrice(totals.softwareDiscountAmount)}` : "—"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software net subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services gross subtotal</span><span className="font-medium">{formatPrice(totals.servicesGrossSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services discount total</span><span className="font-medium">{totals.servicesDiscountAmount ? `-${formatPrice(totals.servicesDiscountAmount)}` : "—"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services net subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-base font-bold"><span>{i18n.year1}</span><span className="text-primary">{formatPrice(totals.totalYear1)}</span></div>

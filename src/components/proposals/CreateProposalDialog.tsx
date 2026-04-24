@@ -272,7 +272,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       }
 
       // Insert items
-      const itemRows = items.map((it, idx) => ({
+      const itemRows = items.map((it, idx) => {
+        const enriched = enrichProposalItem(it, softwareDiscountPct, servicesDiscountPct);
+        return {
         proposal_id: prop.id,
         category: it.category,
         item_code: it.item_code,
@@ -281,16 +283,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         qty: it.qty,
         unit_price: it.unit_price,
         frequency: it.frequency,
-        total: it.gross_total ?? getItemBaseTotal(it),
+        total: enriched.gross_total ?? getItemBaseTotal(it),
         discount_type: it.discount_type || "none",
         discount_value: Number(it.discount_value || 0),
-        gross_total: Number(it.gross_total ?? getItemBaseTotal(it)),
-        discount_amount: Number(it.discount_amount || 0),
-        net_total: Number(it.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
+        gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
+        discount_amount: Number(enriched.discount_amount || 0),
+        net_total: Number(enriched.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         sort_order: idx,
-      }));
+      }});
       if (itemRows.length > 0) {
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;

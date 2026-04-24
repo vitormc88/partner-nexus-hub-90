@@ -19,7 +19,7 @@ import type { PricingRule } from "@/types/proposal";
 const ALL = "__all__";
 
 export default function PricingSettings() {
-  const { roles, loading } = useAuth();
+  const { roles, isLoading: authLoading } = useAuth();
   const isAdmin = roles.includes("hq_admin");
 
   const { data: rules = [], isLoading } = useAllPricingRules();

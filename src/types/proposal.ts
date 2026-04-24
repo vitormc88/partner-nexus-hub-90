@@ -78,6 +78,8 @@ export interface Proposal {
   per_diem: number;
   discount_pct: number;
   discount_scope: ProposalDiscountScope;
+  software_discount_pct?: number;
+  services_discount_pct?: number;
   include_requests_module: boolean;
   web_users: number;
   software_subtotal: number;

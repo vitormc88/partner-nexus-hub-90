@@ -479,20 +479,21 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 </div>
               </div>
               <div className="bg-card border rounded-lg p-3">
-                <Label className="text-xs">Software discount %</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={softwareDiscountPct}
-                  onChange={(e) => {
-                    const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                    setSoftwareDiscountPct(value);
-                    setDiscountScope(value > 0 ? "software" : servicesDiscountPct > 0 ? "services" : "none");
-                    setDiscountPct(value > 0 ? value : servicesDiscountPct);
-                  }}
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Applies only to recurring software/add-on items.</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Professional plan discount %</Label>
+                    <Input type="number" min={0} max={100} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Requests Module discount %</Label>
+                    <Input type="number" min={0} max={100} value={requestsDiscountPct} onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Web/Mobile users discount %</Label>
+                    <Input type="number" min={0} max={100} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Each software line can be discounted independently; recurring totals use the discounted net values.</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).
@@ -518,12 +519,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div>
                   <Label>Services discount %</Label>
                   <Input type="number" min={0} max={100} value={servicesDiscountPct}
-                    onChange={(e) => {
-                      const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                      setServicesDiscountPct(value);
-                      setDiscountScope(value > 0 ? "services" : softwareDiscountPct > 0 ? "software" : "none");
-                      setDiscountPct(value > 0 ? value : softwareDiscountPct);
-                    }} />
+                    onChange={(e) => setServicesDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
                 </div>
               </div>
               {implType === "Onsite" && (

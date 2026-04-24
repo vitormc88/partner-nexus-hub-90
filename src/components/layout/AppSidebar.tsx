@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
-import { LogOut, UserCog } from "lucide-react";
+import { LogOut, UserCog, Tag } from "lucide-react";
 import {
   LayoutDashboard,
   Users,

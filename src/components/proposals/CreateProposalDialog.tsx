@@ -289,8 +289,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       <SelectItem value="EN">English</SelectItem>
                       <SelectItem value="PT">Portuguese</SelectItem>
                       <SelectItem value="ES">Spanish</SelectItem>
+                      <SelectItem value="RO">Romanian (preview)</SelectItem>
+                      <SelectItem value="TH">Thai (preview)</SelectItem>
                     </SelectContent>
                   </Select>
+                  {(language === "RO" || language === "TH") && (
+                    <p className="text-[11px] text-amber-600 mt-1">
+                      Translation incomplete — missing labels will fall back to English.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>Plan</Label>

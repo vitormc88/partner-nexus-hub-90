@@ -2,6 +2,7 @@ export type ProposalLanguage = "EN" | "PT" | "ES" | "RO" | "TH";
 export type ProposalPlan = 1 | 2 | 3;
 export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Won" | "Lost";
 export type ProposalHosting = "SaaS" | "On-Premise";
+export type ProposalDiscountScope = "none" | "services" | "software" | "total";
 /**
  * Implementation flavours. "RCI Professional" is reserved for Business proposals
  * (not exposed in the Professional UI yet).
@@ -73,6 +74,7 @@ export interface Proposal {
   backoffice_work_hours: number | null;
   per_diem: number;
   discount_pct: number;
+  discount_scope: ProposalDiscountScope;
   include_requests_module: boolean;
   web_users: number;
   software_subtotal: number;

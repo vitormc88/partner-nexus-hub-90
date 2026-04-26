@@ -639,7 +639,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         const hasNoDiscount = effectiveDiscount.amount === 0;
                         const isSoftwareItem = it.category === "software" || it.category === "addon";
                         const discountSourceLabel = hasSectionDiscount
-                          ? `${isSoftwareItem ? "Software" : "Services"} section discount ${effectiveDiscount.value}%`
+                          ? `${isSoftwareItem ? "Software" : "Services"} discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "percent"
                           ? `Line discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "fixed"
@@ -693,7 +693,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           <div className="flex items-center gap-1">
                             <div className="flex-1 h-8 rounded-md border border-primary/30 bg-primary/5 px-2 flex items-center">
                               <span className="text-[11px] font-medium text-primary truncate">
-                                {it.is_recurring ? "Software" : "Services"} section {effectiveDiscount.value}%
+                                {isSoftwareItem ? "Software" : "Services"} discount {effectiveDiscount.value}%
                               </span>
                             </div>
                             <Button

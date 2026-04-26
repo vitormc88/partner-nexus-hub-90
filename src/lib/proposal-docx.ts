@@ -399,57 +399,65 @@ export async function generateProposalDocx(
     ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
     : s.servicesDiscountsTotalLabel;
 
-  // ---- Detailed Year 1 table (Item | Gross | Discount | Net) ----
-  const Y1_COL_ITEM = 4200;
-  const Y1_COL_GROSS = 1800;
-  const Y1_COL_DISCOUNT = 1800;
-  const Y1_COL_NET = 1800;
-  const Y1_TABLE_WIDTH = Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT + Y1_COL_NET;
+  // Per-section discount presence — drives whether columns appear
+  const softwareHasDiscount = totals.softwareDiscountAmount > 0;
+  const servicesHasDiscount = totals.servicesDiscountAmount > 0;
 
+  // Layouts:
+  //   - Detailed (with discounts):  Item | Gross | Discount | Net
+  //   - Simple (no discounts):      Item | Total | Frequency
+  const COL_ITEM = 4800;
+  const COL_NUM = 1600;
+  const COL_NUM_3 = 1500;
+  const TABLE_WIDTH = COL_ITEM + COL_NUM_3 * 3; // 4800 + 4500 = 9300
+
+  const itemFullLabel = (rawItem: ProposalItem) => {
+    const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    return baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
+  };
+
+  const frequencyText = (rawItem: ProposalItem) => (rawItem.is_recurring ? s.perYear : "one-time");
+
+  // --- Detailed rows (with discount columns) ---
   const detailHeaderRow = (sectionLabel: string) =>
     new TableRow({
       tableHeader: true,
       children: [
-        cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: Y1_COL_ITEM }),
-        cell("Gross", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
-        cell("Discount", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT }),
-        cell("Net", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_NET }),
+        cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: COL_ITEM }),
+        cell("Gross", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell("Discount", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell("Net", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
       ],
     });
 
   const detailLineRow = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
     const eff = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const isSoftware = rawItem.category === "software" || rawItem.category === "addon";
     const discountText = eff.amount
-      ? `${eff.source === "section" ? `${s.sectionDiscountLabel(eff.value)} ` : eff.type === "percent" ? `${Number(eff.value || 0)}% ` : ""}-${formatEuro(eff.amount || 0, lang)}`
+      ? `${eff.source === "section"
+          ? `${isSoftware ? s.softwareDiscountLabel(eff.value) : s.servicesDiscountLabel(eff.value)} `
+          : eff.type === "percent"
+          ? `${Number(eff.value || 0)}% `
+          : ""}-${formatEuro(eff.amount || 0, lang)}`
       : "—";
-    // getCommercialItemLabel already includes (×qty) for web_user; only append for other items with qty > 1
-    const baseLabel = getCommercialItemLabel(it, proposal);
-    const labelHasQty = /\(×\d+\)/.test(baseLabel);
-    const label = baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
     return new TableRow({
       children: [
-        cell(label, { width: Y1_COL_ITEM }),
-        cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
-        cell(discountText, { align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT, color: eff.amount ? RED : MUTED, italic: Boolean(eff.amount) }),
-        cell(formatEuro(Number(it.net_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_NET, bold: true }),
+        cell(itemFullLabel(rawItem), { width: COL_ITEM }),
+        cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(discountText, { align: AlignmentType.RIGHT, width: COL_NUM_3, color: eff.amount ? RED : MUTED, italic: Boolean(eff.amount) }),
+        cell(formatEuro(Number(it.net_total) || 0, lang), { align: AlignmentType.RIGHT, width: COL_NUM_3, bold: true }),
       ],
     });
   };
 
-  const subtotalRow = (label: string, value: string, opts: { strong?: boolean; discount?: boolean } = {}) =>
-    new TableRow({
-      children: [
-        cell(label, { bold: opts.strong, bg: GREY_BG, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT }),
-        cell(value, { bold: opts.strong, bg: GREY_BG, align: AlignmentType.RIGHT, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_NET }),
-      ],
-    });
-  // Need a 2-col-wide row helper (label spans 3 cols)
   const wideSubtotalRow = (label: string, value: string, opts: { strong?: boolean; discount?: boolean } = {}) =>
     new TableRow({
       children: [
         new TableCell({
-          width: { size: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT, type: WidthType.DXA },
+          width: { size: COL_ITEM + COL_NUM_3 * 2, type: WidthType.DXA },
           columnSpan: 3,
           shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
           margins: { top: 80, bottom: 80, left: 120, right: 120 },
@@ -475,41 +483,44 @@ export async function generateProposalDocx(
             }),
           ],
         }),
-        cell(value, { bold: opts.strong, bg: GREY_BG, align: AlignmentType.RIGHT, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_NET }),
+        cell(value, { bold: opts.strong, bg: GREY_BG, align: AlignmentType.RIGHT, italic: opts.discount, color: opts.discount ? RED : undefined, width: COL_NUM_3 }),
       ],
     });
 
-  const year1TableRows: TableRow[] = [];
+  // --- Simple rows (no discount columns): Item | Total | Frequency ---
+  const SIMPLE_COL_ITEM = 5400;
+  const SIMPLE_COL_TOTAL = 1900;
+  const SIMPLE_COL_FREQ = 2000;
+  const SIMPLE_TABLE_WIDTH = SIMPLE_COL_ITEM + SIMPLE_COL_TOTAL + SIMPLE_COL_FREQ;
 
-  if (softwareItems.length > 0) {
-    year1TableRows.push(detailHeaderRow(s.software));
-    softwareItems.forEach((it) => year1TableRows.push(detailLineRow(it)));
-    year1TableRows.push(wideSubtotalRow(`${s.software} gross subtotal`, formatEuro(totals.softwareGrossSubtotal, lang)));
-    if (totals.softwareDiscountAmount > 0) {
-      year1TableRows.push(wideSubtotalRow(softwareUniformLabel, `- ${formatEuro(totals.softwareDiscountAmount, lang)}`, { discount: true }));
-    }
-    year1TableRows.push(wideSubtotalRow(`${s.software} net subtotal`, formatEuro(totals.softwareSubtotal, lang), { strong: true }));
-  }
+  const simpleHeaderRow = (sectionLabel: string) =>
+    new TableRow({
+      tableHeader: true,
+      children: [
+        cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: SIMPLE_COL_ITEM }),
+        cell(s.colTotal, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL }),
+        cell(s.colFrequency, { bold: true, bg: RED, color: "FFFFFF", width: SIMPLE_COL_FREQ }),
+      ],
+    });
 
-  if (serviceItems.length > 0 || customItems.length > 0) {
-    year1TableRows.push(detailHeaderRow(s.services));
-    [...serviceItems, ...customItems.filter((c) => !c.is_recurring)].forEach((it) => year1TableRows.push(detailLineRow(it)));
-    year1TableRows.push(wideSubtotalRow(`${s.services} gross subtotal`, formatEuro(totals.servicesGrossSubtotal, lang)));
-    if (totals.servicesDiscountAmount > 0) {
-      year1TableRows.push(wideSubtotalRow(servicesUniformLabel, `- ${formatEuro(totals.servicesDiscountAmount, lang)}`, { discount: true }));
-    }
-    year1TableRows.push(wideSubtotalRow(`${s.services} net subtotal`, formatEuro(totals.servicesSubtotal, lang), { strong: true }));
-  }
+  const simpleLineRow = (rawItem: ProposalItem) => {
+    const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    return new TableRow({
+      children: [
+        cell(itemFullLabel(rawItem), { width: SIMPLE_COL_ITEM }),
+        cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL, bold: true }),
+        cell(frequencyText(rawItem), { width: SIMPLE_COL_FREQ, color: MUTED, size: 18 }),
+      ],
+    });
+  };
 
-  // Year 1 total bar
-  year1TableRows.push(
+  const simpleSubtotalRow = (label: string, value: string) =>
     new TableRow({
       children: [
         new TableCell({
-          width: { size: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT, type: WidthType.DXA },
-          columnSpan: 3,
-          shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
-          margins: { top: 100, bottom: 100, left: 120, right: 120 },
+          width: { size: SIMPLE_COL_ITEM, type: WidthType.DXA },
+          shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
           borders: {
             top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
             bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
@@ -518,20 +529,108 @@ export async function generateProposalDocx(
           },
           children: [
             new Paragraph({
-              alignment: AlignmentType.LEFT,
-              children: [new TextRun({ text: s.totalOfYear, bold: true, color: "FFFFFF", size: 24, font: "Calibri" })],
+              alignment: AlignmentType.RIGHT,
+              children: [new TextRun({ text: label, bold: true, color: DARK, size: 20, font: "Calibri" })],
             }),
           ],
         }),
-        cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_NET, size: 24 }),
+        cell(value, { bold: true, bg: GREY_BG, align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL }),
+        cell("", { bg: GREY_BG, width: SIMPLE_COL_FREQ }),
       ],
-    }),
+    });
+
+  // Build one Table per section, picking the appropriate layout.
+  const sectionTables: Table[] = [];
+
+  const buildSection = (
+    title: string,
+    list: ProposalItem[],
+    grossAmount: number,
+    netAmount: number,
+    discountAmount: number,
+    discountLabel: string,
+    showDiscountColumns: boolean,
+  ): Table | null => {
+    if (list.length === 0) return null;
+
+    if (showDiscountColumns) {
+      const rows: TableRow[] = [detailHeaderRow(title)];
+      list.forEach((it) => rows.push(detailLineRow(it)));
+      rows.push(wideSubtotalRow(`${title} gross subtotal`, formatEuro(grossAmount, lang)));
+      if (discountAmount > 0) {
+        rows.push(wideSubtotalRow(discountLabel, `- ${formatEuro(discountAmount, lang)}`, { discount: true }));
+      }
+      rows.push(wideSubtotalRow(`${title} net subtotal`, formatEuro(netAmount, lang), { strong: true }));
+      return new Table({
+        width: { size: TABLE_WIDTH, type: WidthType.DXA },
+        columnWidths: [COL_ITEM, COL_NUM_3, COL_NUM_3, COL_NUM_3],
+        rows,
+      });
+    }
+
+    const rows: TableRow[] = [simpleHeaderRow(title)];
+    list.forEach((it) => rows.push(simpleLineRow(it)));
+    rows.push(simpleSubtotalRow(`${title} subtotal`, formatEuro(grossAmount, lang)));
+    return new Table({
+      width: { size: SIMPLE_TABLE_WIDTH, type: WidthType.DXA },
+      columnWidths: [SIMPLE_COL_ITEM, SIMPLE_COL_TOTAL, SIMPLE_COL_FREQ],
+      rows,
+    });
+  };
+
+  const softwareTable = buildSection(
+    s.software,
+    softwareItems,
+    totals.softwareGrossSubtotal,
+    totals.softwareSubtotal,
+    totals.softwareDiscountAmount,
+    softwareUniformLabel,
+    softwareHasDiscount,
   );
 
-  const investmentTable = new Table({
-    width: { size: Y1_TABLE_WIDTH, type: WidthType.DXA },
-    columnWidths: [Y1_COL_ITEM, Y1_COL_GROSS, Y1_COL_DISCOUNT, Y1_COL_NET],
-    rows: year1TableRows,
+  const allServiceItems = [...serviceItems, ...customItems.filter((c) => !c.is_recurring)];
+  const servicesTable = buildSection(
+    s.services,
+    allServiceItems,
+    totals.servicesGrossSubtotal,
+    totals.servicesSubtotal,
+    totals.servicesDiscountAmount,
+    servicesUniformLabel,
+    servicesHasDiscount,
+  );
+
+  if (softwareTable) sectionTables.push(softwareTable);
+  if (servicesTable) sectionTables.push(servicesTable);
+
+  // Year 1 total bar — its own single-row table to ensure full width
+  const totalBarWidth = SIMPLE_TABLE_WIDTH;
+  const totalBar = new Table({
+    width: { size: totalBarWidth, type: WidthType.DXA },
+    columnWidths: [totalBarWidth - SIMPLE_COL_TOTAL, SIMPLE_COL_TOTAL],
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: totalBarWidth - SIMPLE_COL_TOTAL, type: WidthType.DXA },
+            shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
+            margins: { top: 100, bottom: 100, left: 120, right: 120 },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+              left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+              right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.LEFT,
+                children: [new TextRun({ text: s.totalOfYear, bold: true, color: "FFFFFF", size: 24, font: "Calibri" })],
+              }),
+            ],
+          }),
+          cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL, size: 24 }),
+        ],
+      }),
+    ],
   });
 
   // ---- Year 2+ renewal table ----
@@ -648,7 +747,8 @@ export async function generateProposalDocx(
           ...planDesc,
           sectionHeading(s.investmentInProject),
           p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
-          investmentTable,
+          ...sectionTables.flatMap((tbl) => [tbl, p("", { spacing: { after: 80 } })]),
+          totalBar,
           ...(recurringItems.length > 0
             ? [
                 renewalTable,

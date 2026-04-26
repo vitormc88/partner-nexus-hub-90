@@ -232,13 +232,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
 
+  // We materialize Services discount % onto each service line (above), so we
+  // pass 0 here to avoid double-applying. Software section discount has been
+  // disabled in the wizard for some time and is also passed as 0.
   const totals = useMemo(
-    () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
-    [items, softwareDiscountPct, servicesDiscountPct],
+    () => computeTotals(items, 0, 0),
+    [items],
   );
   const previewItems = useMemo(
-    () => items.map((item) => enrichProposalItem(item, softwareDiscountPct, servicesDiscountPct)),
-    [items, softwareDiscountPct, servicesDiscountPct],
+    () => items.map((item) => enrichProposalItem(item, 0, 0)),
+    [items],
   );
   const i18n = t(language);
 

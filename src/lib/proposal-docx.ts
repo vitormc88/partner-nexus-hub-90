@@ -447,7 +447,7 @@ export async function generateProposalDocx(
 
   /* ----------------------- investment summary table -------------------- */
 
-  const recurringItems = investment.recurringLines;
+  const recurringItems = investment.renewalLines;
 
   const y1SoftwareRows = investment.softwareLines.map((i) => ({
     label: i.label,
@@ -612,8 +612,8 @@ export async function generateProposalDocx(
 
   recurringItems.forEach((r) =>
     pushY2Row([
-      cell(r.label),
-      cell(`${r.value}${r.suffix ? ` ${r.suffix}` : ""}`, { align: AlignmentType.RIGHT }),
+      cell(r.discounted ? `${r.label}  (${s.renewalDiscountApplied})` : r.label),
+      cell(`${r.value} ${r.suffix}`, { align: AlignmentType.RIGHT }),
     ]),
   );
   pushY2Row([
@@ -702,8 +702,11 @@ export async function generateProposalDocx(
             italic: true,
             size: 18,
             color: MUTED,
-            spacing: { before: 120, after: 240 },
+            spacing: { before: 120, after: 80 },
           }),
+          ...(totals.recurringDiscountAmount === 0 && totals.discountAmount > 0
+            ? [p(s.discountsYear1OnlyNote, { italic: true, size: 18, color: MUTED, spacing: { after: 240 } })]
+            : []),
           ...billingBlock,
           ...otherBlock,
           ...saasBlock,

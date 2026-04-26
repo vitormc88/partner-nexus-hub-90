@@ -77,6 +77,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [planDiscountPct, setPlanDiscountPct] = useState(0);
   const [requestsDiscountPct, setRequestsDiscountPct] = useState(0);
   const [webUsersDiscountPct, setWebUsersDiscountPct] = useState(0);
+  // Renewal toggles (default OFF — discounts apply to Year 1 only)
+  const [planDiscountRenews, setPlanDiscountRenews] = useState(false);
+  const [requestsDiscountRenews, setRequestsDiscountRenews] = useState(false);
+  const [webUsersDiscountRenews, setWebUsersDiscountRenews] = useState(false);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -120,6 +124,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
       setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
       setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
+      setPlanDiscountRenews(Boolean(planItem?.apply_discount_to_renewal));
+      setRequestsDiscountRenews(Boolean(requestsItem?.apply_discount_to_renewal));
+      setWebUsersDiscountRenews(Boolean(webItem?.apply_discount_to_renewal));
     }
   }, [open, editingProposal]);
 
@@ -150,34 +157,47 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       prev.map((item) => {
         let discountValue = 0;
         let discountType: ProposalLineDiscountType = "none";
+        let renews = false;
 
-        if (item.item_code === `plan_${plan}_annual` && planDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = planDiscountPct;
-        } else if (item.item_code === "requests_module" && requestsDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = requestsDiscountPct;
-        } else if (item.item_code === "web_user" && webUsersDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = webUsersDiscountPct;
-        } else if (
-          (item.item_code === `plan_${plan}_annual` || item.item_code === "requests_module" || item.item_code === "web_user") &&
-          item.discount_type === "percent"
-        ) {
-          discountType = "none";
-          discountValue = 0;
+        if (item.item_code === `plan_${plan}_annual`) {
+          if (planDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = planDiscountPct;
+            renews = planDiscountRenews;
+          }
+        } else if (item.item_code === "requests_module") {
+          if (requestsDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = requestsDiscountPct;
+            renews = requestsDiscountRenews;
+          }
+        } else if (item.item_code === "web_user") {
+          if (webUsersDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = webUsersDiscountPct;
+            renews = webUsersDiscountRenews;
+          }
         } else {
           return item;
         }
 
-        if ((item.discount_type || "none") === discountType && Number(item.discount_value || 0) === discountValue) {
+        const currentType = item.discount_type || "none";
+        const currentValue = Number(item.discount_value || 0);
+        const currentRenews = Boolean(item.apply_discount_to_renewal);
+        if (currentType === discountType && currentValue === discountValue && currentRenews === renews) {
           return item;
         }
 
-        return { ...item, discount_type: discountType, discount_value: discountValue, is_override: true };
+        return {
+          ...item,
+          discount_type: discountType,
+          discount_value: discountValue,
+          apply_discount_to_renewal: renews,
+          is_override: true,
+        };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
 
   const totals = useMemo(
     () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
@@ -291,6 +311,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         net_total: Number(enriched.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
+        apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
         sort_order: idx,
       }});
       if (itemRows.length > 0) {
@@ -487,22 +508,36 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <p className="text-[11px] text-muted-foreground mt-1">20 € / user / month</p>
                 </div>
               </div>
-              <div className="bg-card border rounded-lg p-3">
+              <div className="bg-card border rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Professional plan discount %</Label>
                     <Input type="number" min={0} max={100} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={planDiscountRenews} onCheckedChange={setPlanDiscountRenews} disabled={planDiscountPct <= 0} />
+                    </div>
                   </div>
                   <div>
                     <Label className="text-xs">Requests Module discount %</Label>
                     <Input type="number" min={0} max={100} value={requestsDiscountPct} onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={requestsDiscountRenews} onCheckedChange={setRequestsDiscountRenews} disabled={requestsDiscountPct <= 0} />
+                    </div>
                   </div>
                   <div>
                     <Label className="text-xs">Web/Mobile users discount %</Label>
                     <Input type="number" min={0} max={100} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={webUsersDiscountRenews} onCheckedChange={setWebUsersDiscountRenews} disabled={webUsersDiscountPct <= 0} />
+                    </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Each software line can be discounted independently; recurring totals use the discounted net values.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  By default, software discounts apply to <strong>Year 1 only</strong>. Toggle "Apply to renewals" to also discount Year 2 and following (e.g. negotiated volume discount on Web/Mobile users).
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).
@@ -582,25 +617,42 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
                       {(() => {
                         const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
-                        const discountSourceLabel =
-                          effectiveDiscount.source === "section"
-                            ? `Section discount ${effectiveDiscount.value}%`
-                            : effectiveDiscount.type === "percent"
-                            ? `% ${effectiveDiscount.value}`
-                            : effectiveDiscount.type === "fixed"
-                            ? `€ ${effectiveDiscount.value}`
-                            : "None / 0";
+                        const hasSectionDiscount = effectiveDiscount.source === "section";
+                        const hasNoDiscount = effectiveDiscount.amount === 0;
+                        const discountSourceLabel = hasSectionDiscount
+                          ? `Section discount ${effectiveDiscount.value}%`
+                          : effectiveDiscount.type === "percent"
+                          ? `Line discount % ${effectiveDiscount.value}`
+                          : effectiveDiscount.type === "fixed"
+                          ? `Line discount € ${effectiveDiscount.value}`
+                          : "—";
+                        const grossYearly = it.gross_total || 0;
+                        const netYearly = grossYearly - effectiveDiscount.amount;
+                        const renewalValue = it.is_recurring
+                          ? it.apply_discount_to_renewal
+                            ? netYearly
+                            : grossYearly
+                          : 0;
                         return (
                           <>
                       <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
                         <Input value={it.item_name} onChange={(e) => updateItem(idx, { item_name: e.target.value })} className="h-8" />
+                        {it.is_recurring && effectiveDiscount.amount > 0 && (
+                          <div className="flex items-center justify-between mt-1.5 px-1">
+                            <span className="text-[10px] text-muted-foreground">Apply discount to renewals</span>
+                            <Switch
+                              checked={Boolean(it.apply_discount_to_renewal)}
+                              onCheckedChange={(v) => updateItem(idx, { apply_discount_to_renewal: v })}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="col-span-1">
                         <Label className="text-[10px]">Qty</Label>
                         <Input type="number" value={it.qty} onChange={(e) => updateItem(idx, { qty: Number(e.target.value) || 0 })} className="h-8" />
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <Label className="text-[10px]">Unit price</Label>
                         <Input type="number" value={it.unit_price} onChange={(e) => updateItem(idx, { unit_price: Number(e.target.value) || 0 })} className="h-8" />
                       </div>
@@ -629,19 +681,24 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           </Select>
                           <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
                         </div>
-                        <p className="mt-1 text-[10px] text-muted-foreground">{discountSourceLabel}</p>
+                        <p className={`mt-1 text-[10px] ${hasSectionDiscount ? "text-primary font-medium" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Gross</Label>
-                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(it.gross_total || 0)}</p>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(grossYearly)}</p>
                       </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Discount</Label>
-                        <p className="text-sm font-medium text-foreground tabular-nums">{effectiveDiscount.amount ? `-${formatPrice(effectiveDiscount.amount)}` : "—"}</p>
+                        <Label className="text-[10px]">Discount Y1</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{hasNoDiscount ? "—" : `-${formatPrice(effectiveDiscount.amount)}`}</p>
                       </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Net</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice((it.gross_total || 0) - effectiveDiscount.amount)}</p>
+                        <Label className="text-[10px]">{it.is_recurring ? "Net Y1" : "Net"}</Label>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(netYearly)}</p>
+                        {it.is_recurring && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Renewal: {formatPrice(renewalValue)}/yr
+                          </p>
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
@@ -669,7 +726,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-base font-bold"><span>{i18n.year1}</span><span className="text-primary">{formatPrice(totals.totalYear1)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">{i18n.year2Onwards}</span><span className="font-medium">{formatPrice(totals.totalRecurring)} {i18n.perYear}</span></div>
+                  <div className="border-t mt-2 pt-2 space-y-1">
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Recurring gross (Y2+)</span><span className="font-medium">{formatPrice(totals.recurringGrossYearly)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Renewal discounts (Y2+)</span><span className="font-medium">{totals.recurringDiscountAmount ? `-${formatPrice(totals.recurringDiscountAmount)}` : "—"}</span></div>
+                    <div className="flex justify-between text-sm font-semibold"><span>{i18n.year2Onwards}</span><span className="text-primary">{formatPrice(totals.totalRecurring)} {i18n.perYear}</span></div>
+                  </div>
+                  {totals.recurringDiscountAmount === 0 && totals.discountAmount > 0 && (
+                    <p className="text-[10px] text-muted-foreground italic mt-2">
+                      Discounts apply to Year 1 only. Toggle "Apply discount to renewals" on a recurring line to also discount Year 2+.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

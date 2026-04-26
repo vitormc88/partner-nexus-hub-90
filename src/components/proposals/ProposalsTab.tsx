@@ -46,16 +46,33 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     return { prop, items };
   };
 
+  /** Bump status to Ready when a document is generated from a Draft. */
+  const promoteToReadyIfDraft = async (prop: any) => {
+    if (prop?.status === "Draft") {
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      // refresh list
+      // (handled by react-query invalidation triggered elsewhere; do a manual refetch)
+      const { data: refreshed } = await supabase.from("proposals").select("*").eq("id", prop.id).maybeSingle();
+      return refreshed;
+    }
+    return prop;
+  };
+
   const reDownload = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
     await downloadProposalDocx(res.prop as any, res.items as any);
+    await promoteToReadyIfDraft(res.prop);
   };
 
   const printPdf = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
     printProposal(res.prop as any, res.items as any);
+    await promoteToReadyIfDraft(res.prop);
   };
 
   const duplicate = async (id: string) => {

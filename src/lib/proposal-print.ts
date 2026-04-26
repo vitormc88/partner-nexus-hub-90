@@ -1,5 +1,5 @@
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { formatEuro, t } from "./proposal-i18n";
+import { formatEuro, frequencyLabel as i18nFrequencyLabel, t } from "./proposal-i18n";
 import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "./proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";

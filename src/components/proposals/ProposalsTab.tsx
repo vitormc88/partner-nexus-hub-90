@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 
@@ -29,6 +30,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const { data: proposals = [], isLoading } = useLeadProposals(leadId);
   const del = useDeleteProposal();
   const dup = useDuplicateProposal();
+  const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editingProposal, setEditingProposal] = useState<(Proposal & { items?: ProposalItem[] }) | null>(null);
 
@@ -46,16 +48,29 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     return { prop, items };
   };
 
+  /** Bump status to Ready when a document is generated from a Draft. */
+  const promoteToReadyIfDraft = async (prop: any) => {
+    if (prop?.status === "Draft") {
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+    }
+  };
+
   const reDownload = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
     await downloadProposalDocx(res.prop as any, res.items as any);
+    await promoteToReadyIfDraft(res.prop);
   };
 
   const printPdf = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
     printProposal(res.prop as any, res.items as any);
+    await promoteToReadyIfDraft(res.prop);
   };
 
   const duplicate = async (id: string) => {

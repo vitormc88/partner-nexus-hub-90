@@ -99,6 +99,9 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
    * Render a section as a single table.
    * - With discounts: Item | Gross | Discount | Net  + gross/discount/net subtotal rows.
    * - Without discounts: Item | Total | Frequency  + single subtotal row.
+   *
+   * Subtotal rows live in <tbody> (not <tfoot>) so the browser does NOT
+   * repeat them on every page when the table spans a page break.
    */
   const sectionBlock = (
     title: string,
@@ -118,12 +121,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         <thead>
           <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
         </thead>
-        <tbody>${list.map(detailedLineRow).join("")}</tbody>
-        <tfoot>
+        <tbody>
+          ${list.map(detailedLineRow).join("")}
           <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
           ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
           <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
-        </tfoot>
+        </tbody>
       </table>`;
     }
 
@@ -134,10 +137,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         <thead>
           <tr><th>Item</th><th class="num">Total</th><th>Frequency</th></tr>
         </thead>
-        <tbody>${list.map(simpleLineRow).join("")}</tbody>
-        <tfoot>
+        <tbody>
+          ${list.map(simpleLineRow).join("")}
           <tr class="subtotal-row strong"><td colspan="2">${esc(title)} subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
-        </tfoot>
+        </tbody>
       </table>`;
   };
 
@@ -167,10 +170,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   td.discount { color: #c00; font-size: 9.5pt; }
   td.discount .discount-amount { font-weight: 600; }
   td.strong { font-weight: 600; }
-  table.lines tfoot tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; }
-  table.lines tfoot tr.subtotal-row td:first-child { text-align: right; }
-  table.lines tfoot tr.subtotal-row.discount-row td { color: #c00; }
-  table.lines tfoot tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
+  table.lines tbody tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; page-break-inside: avoid; }
+  table.lines tbody tr.subtotal-row td:first-child { text-align: right; }
+  table.lines tbody tr.subtotal-row.discount-row td { color: #c00; }
+  table.lines tbody tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
   .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 18px; }
   .renewal-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 6px; }

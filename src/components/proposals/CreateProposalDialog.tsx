@@ -127,6 +127,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       setPlanDiscountRenews(Boolean(planItem?.apply_discount_to_renewal));
       setRequestsDiscountRenews(Boolean(requestsItem?.apply_discount_to_renewal));
       setWebUsersDiscountRenews(Boolean(webItem?.apply_discount_to_renewal));
+      // Seed Services discount % from saved service-line discounts.
+      // If all service lines share the same % discount, treat that as the
+      // section input. Otherwise leave at 0 (user can re-enter or keep the
+      // overrides per line).
+      const serviceItems = editingProposal.items.filter((item) => item.category === "service");
+      const seenPcts = new Set<number>();
+      let allPercent = serviceItems.length > 0;
+      for (const sv of serviceItems) {
+        if (sv.discount_type === "percent" && Number(sv.discount_value || 0) > 0) {
+          seenPcts.add(Number(sv.discount_value || 0));
+        } else {
+          allPercent = false;
+          break;
+        }
+      }
+      if (allPercent && seenPcts.size === 1) {
+        setServicesDiscountPct(Number([...seenPcts][0]));
+      } else if (Number(editingProposal.services_discount_pct || 0) > 0) {
+        // Backwards compatibility for proposals saved before line materialization.
+        setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
+      } else {
+        setServicesDiscountPct(0);
+      }
     }
   }, [open, editingProposal]);
 
@@ -160,34 +183,56 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
+  // Propagate the per-step discount inputs as line-item discounts.
+  // Services use the same model as Software: the wizard input becomes a
+  // normal % line discount on each service item (auto-managed, source = "auto").
+  // The user can still override any line manually in the Preview step.
   useEffect(() => {
     setItems((prev) =>
       prev.map((item) => {
+        const isService = item.category === "service";
         let discountValue = 0;
         let discountType: ProposalLineDiscountType = "none";
         let renews = false;
+        let managed = false;
 
         if (item.item_code === `plan_${plan}_annual`) {
+          managed = true;
           if (planDiscountPct > 0) {
             discountType = "percent";
             discountValue = planDiscountPct;
             renews = planDiscountRenews;
           }
         } else if (item.item_code === "requests_module") {
+          managed = true;
           if (requestsDiscountPct > 0) {
             discountType = "percent";
             discountValue = requestsDiscountPct;
             renews = requestsDiscountRenews;
           }
         } else if (item.item_code === "web_user") {
+          managed = true;
           if (webUsersDiscountPct > 0) {
             discountType = "percent";
             discountValue = webUsersDiscountPct;
             renews = webUsersDiscountRenews;
           }
+        } else if (isService) {
+          // Auto-apply Services discount % as a line-item discount on every
+          // service line UNLESS the user has manually overridden that line.
+          if (item.is_override && (item.discount_type === "percent" || item.discount_type === "fixed") && Number(item.discount_value || 0) > 0 && Number(item.discount_value || 0) !== Number(servicesDiscountPct || 0)) {
+            return item; // manual override — keep user's value
+          }
+          managed = true;
+          if (servicesDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = servicesDiscountPct;
+          }
         } else {
           return item;
         }
+
+        if (!managed) return item;
 
         const currentType = item.discount_type || "none";
         const currentValue = Number(item.discount_value || 0);
@@ -201,19 +246,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           discount_type: discountType,
           discount_value: discountValue,
           apply_discount_to_renewal: renews,
-          is_override: true,
+          // Mark as override only if there's an actual discount; otherwise
+          // leave is_override flag untouched so user-specific overrides
+          // (qty, name, price) aren't reset by zero-discount paths.
+          is_override: discountValue > 0 ? true : item.is_override,
         };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
 
+  // We materialize Services discount % onto each service line (above), so we
+  // pass 0 here to avoid double-applying. Software section discount has been
+  // disabled in the wizard for some time and is also passed as 0.
   const totals = useMemo(
-    () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
-    [items, softwareDiscountPct, servicesDiscountPct],
+    () => computeTotals(items, 0, 0),
+    [items],
   );
   const previewItems = useMemo(
-    () => items.map((item) => enrichProposalItem(item, softwareDiscountPct, servicesDiscountPct)),
-    [items, softwareDiscountPct, servicesDiscountPct],
+    () => items.map((item) => enrichProposalItem(item, 0, 0)),
+    [items],
   );
   const i18n = t(language);
 
@@ -255,12 +306,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
+  /** Compute next available version number for this lead. */
+  const computeNextVersion = async (): Promise<number> => {
+    const { data: siblings } = await supabase
+      .from("proposals")
+      .select("version")
+      .eq("lead_id", leadId)
+      .order("version", { ascending: false })
+      .limit(1);
+    return (siblings?.[0]?.version || 0) + 1;
+  };
+
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
     setSaving(true);
     try {
+      // Auto-assign version on first save (new proposal). Editing keeps existing version.
+      const versionForInsert = editingProposal?.version || (await computeNextVersion());
       const insertData: any = {
         lead_id: leadId,
-        version: editingProposal?.version || 1,
+        version: versionForInsert,
         language,
         plan,
         status,
@@ -276,8 +340,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
-        software_discount_pct: softwareDiscountPct,
-        services_discount_pct: servicesDiscountPct,
+        // Discounts are now materialized as line-item discounts. Section
+        // percentages are stored as 0 to prevent double-application by the
+        // render layer (DOCX/PDF) which receives proposal.*_discount_pct.
+        software_discount_pct: 0,
+        services_discount_pct: 0,
         include_requests_module: includeRequests,
         web_users: webUsers,
         service_days: onsiteDays || null,
@@ -301,7 +368,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
       // Insert items
       const itemRows = items.map((it, idx) => {
-        const enriched = enrichProposalItem(it, softwareDiscountPct, servicesDiscountPct);
+        const enriched = enrichProposalItem(it, 0, 0);
         return {
         proposal_id: prop.id,
         category: it.category,
@@ -316,7 +383,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         discount_value: Number(it.discount_value || 0),
         gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
         discount_amount: Number(enriched.discount_amount || 0),
-        net_total: Number(enriched.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
+        net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
@@ -634,17 +701,17 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   {previewItems.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
                       {(() => {
-                        const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
-                        const hasSectionDiscount = effectiveDiscount.source === "section";
+                        // All discounts are now line-item — pass 0 here so we
+                        // never read a "section" source. Both Software and
+                        // Services line items use the same UI.
+                        const effectiveDiscount = getItemEffectiveDiscount(it, 0, 0);
                         const hasNoDiscount = effectiveDiscount.amount === 0;
-                        const isSoftwareItem = it.category === "software" || it.category === "addon";
-                        const discountSourceLabel = hasSectionDiscount
-                          ? `${isSoftwareItem ? "Software" : "Services"} discount ${effectiveDiscount.value}%`
-                          : effectiveDiscount.type === "percent"
-                          ? `Line discount ${effectiveDiscount.value}%`
-                          : effectiveDiscount.type === "fixed"
-                          ? `Line discount ${effectiveDiscount.value} €`
-                          : "—";
+                        const discountSourceLabel =
+                          effectiveDiscount.type === "percent"
+                            ? `${effectiveDiscount.value}%`
+                            : effectiveDiscount.type === "fixed"
+                            ? `${effectiveDiscount.value} €`
+                            : "—";
                         const grossYearly = it.gross_total || 0;
                         const netYearly = grossYearly - effectiveDiscount.amount;
                         const renewalValue = it.is_recurring
@@ -689,37 +756,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </div>
                       <div className="col-span-2">
                         <Label className="text-[10px]">Discount</Label>
-                        {hasSectionDiscount ? (
-                          <div className="flex items-center gap-1">
-                            <div className="flex-1 h-8 rounded-md border border-primary/30 bg-primary/5 px-2 flex items-center">
-                              <span className="text-[11px] font-medium text-primary truncate">
-                                {isSoftwareItem ? "Software" : "Services"} discount {effectiveDiscount.value}%
-                              </span>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 px-2 text-[10px]"
-                              onClick={() => updateItem(idx, { discount_type: "percent", discount_value: effectiveDiscount.value })}
-                              title="Override section discount on this line"
-                            >
-                              Override
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-1">
-                            <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
-                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="percent">%</SelectItem>
-                                <SelectItem value="fixed">€</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
-                          </div>
-                        )}
-                        <p className={`mt-1 text-[10px] ${hasSectionDiscount ? "text-primary font-medium" : effectiveDiscount.source === "line" ? "text-foreground" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
+                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="percent">%</SelectItem>
+                              <SelectItem value="fixed">€</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
+                        </div>
+                        <p className={`mt-1 text-[10px] ${effectiveDiscount.source === "line" ? "text-foreground" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Gross</Label>

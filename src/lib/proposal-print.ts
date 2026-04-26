@@ -119,7 +119,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
       <h2>${esc(title)}</h2>
       <table class="lines">
         <thead>
-          <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
+          <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colGross)}</th><th class="num">${esc(s.discount)}</th><th class="num">${esc(s.colNet)}</th></tr>
         </thead>
         <tbody>
           ${list.map(detailedLineRow).join("")}

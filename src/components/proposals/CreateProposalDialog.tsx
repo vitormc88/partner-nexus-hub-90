@@ -311,6 +311,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         net_total: Number(enriched.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
+        apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
         sort_order: idx,
       }});
       if (itemRows.length > 0) {

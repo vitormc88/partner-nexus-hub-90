@@ -617,25 +617,42 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
                       {(() => {
                         const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
-                        const discountSourceLabel =
-                          effectiveDiscount.source === "section"
-                            ? `Section discount ${effectiveDiscount.value}%`
-                            : effectiveDiscount.type === "percent"
-                            ? `% ${effectiveDiscount.value}`
-                            : effectiveDiscount.type === "fixed"
-                            ? `€ ${effectiveDiscount.value}`
-                            : "None / 0";
+                        const hasSectionDiscount = effectiveDiscount.source === "section";
+                        const hasNoDiscount = effectiveDiscount.amount === 0;
+                        const discountSourceLabel = hasSectionDiscount
+                          ? `Section discount ${effectiveDiscount.value}%`
+                          : effectiveDiscount.type === "percent"
+                          ? `Line discount % ${effectiveDiscount.value}`
+                          : effectiveDiscount.type === "fixed"
+                          ? `Line discount € ${effectiveDiscount.value}`
+                          : "—";
+                        const grossYearly = it.gross_total || 0;
+                        const netYearly = grossYearly - effectiveDiscount.amount;
+                        const renewalValue = it.is_recurring
+                          ? it.apply_discount_to_renewal
+                            ? netYearly
+                            : grossYearly
+                          : 0;
                         return (
                           <>
                       <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
                         <Input value={it.item_name} onChange={(e) => updateItem(idx, { item_name: e.target.value })} className="h-8" />
+                        {it.is_recurring && effectiveDiscount.amount > 0 && (
+                          <div className="flex items-center justify-between mt-1.5 px-1">
+                            <span className="text-[10px] text-muted-foreground">Apply discount to renewals</span>
+                            <Switch
+                              checked={Boolean(it.apply_discount_to_renewal)}
+                              onCheckedChange={(v) => updateItem(idx, { apply_discount_to_renewal: v })}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="col-span-1">
                         <Label className="text-[10px]">Qty</Label>
                         <Input type="number" value={it.qty} onChange={(e) => updateItem(idx, { qty: Number(e.target.value) || 0 })} className="h-8" />
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <Label className="text-[10px]">Unit price</Label>
                         <Input type="number" value={it.unit_price} onChange={(e) => updateItem(idx, { unit_price: Number(e.target.value) || 0 })} className="h-8" />
                       </div>
@@ -664,19 +681,24 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                           </Select>
                           <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
                         </div>
-                        <p className="mt-1 text-[10px] text-muted-foreground">{discountSourceLabel}</p>
+                        <p className={`mt-1 text-[10px] ${hasSectionDiscount ? "text-primary font-medium" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Gross</Label>
-                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(it.gross_total || 0)}</p>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(grossYearly)}</p>
                       </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Discount</Label>
-                        <p className="text-sm font-medium text-foreground tabular-nums">{effectiveDiscount.amount ? `-${formatPrice(effectiveDiscount.amount)}` : "—"}</p>
+                        <Label className="text-[10px]">Discount Y1</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{hasNoDiscount ? "—" : `-${formatPrice(effectiveDiscount.amount)}`}</p>
                       </div>
                       <div className="col-span-1 text-right">
-                        <Label className="text-[10px]">Net</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice((it.gross_total || 0) - effectiveDiscount.amount)}</p>
+                        <Label className="text-[10px]">{it.is_recurring ? "Net Y1" : "Net"}</Label>
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(netYearly)}</p>
+                        {it.is_recurring && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Renewal: {formatPrice(renewalValue)}/yr
+                          </p>
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">

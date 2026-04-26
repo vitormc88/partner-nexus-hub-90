@@ -34,9 +34,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   const lineRow = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, softwarePct, servicesPct);
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    const qtySuffix = it.qty > 1 && !labelHasQty ? ` <span class="muted">×${it.qty}</span>` : "";
     return `
     <tr>
-      <td>${esc(getCommercialItemLabel(it, proposal))}${it.qty > 1 ? ` <span class="muted">×${it.qty}</span>` : ""}</td>
+      <td>${esc(baseLabel)}${qtySuffix}</td>
       <td class="num">${formatEuro(Number(it.gross_total) || 0, lang)}</td>
       <td class="num discount">${discountCellLabel(rawItem)}</td>
       <td class="num strong">${formatEuro(Number(it.net_total) || 0, lang)}</td>
@@ -58,7 +61,25 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
   const recurring = items.filter((i) => i.is_recurring);
 
-  const detailedTable = (title: string, list: ProposalItem[]) =>
+  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
+    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
+    : s.softwareDiscountsTotalLabel;
+  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
+    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
+    : s.servicesDiscountsTotalLabel;
+
+  /**
+   * Render a section (Software / Services) as a detailed table immediately
+   * followed by its subtotals — no duplicate section title, no extra heading.
+   */
+  const sectionBlock = (
+    title: string,
+    list: ProposalItem[],
+    grossAmount: number,
+    discountLabel: string,
+    discountAmount: number,
+    netAmount: number,
+  ) =>
     list.length === 0
       ? ""
       : `
@@ -68,30 +89,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
           <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
         </thead>
         <tbody>${list.map(lineRow).join("")}</tbody>
+        <tfoot>
+          <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
+          <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
+        </tfoot>
       </table>`;
-
-  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
-    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
-    : s.softwareDiscountsTotalLabel;
-  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
-    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
-    : s.servicesDiscountsTotalLabel;
-
-  const summarySection = (
-    label: string,
-    grossLabel: string,
-    grossAmount: number,
-    discountLabel: string,
-    discountAmount: number,
-    netLabel: string,
-    netAmount: number,
-  ) => `
-    <div class="sum-block">
-      <div class="sum-title">${esc(label)}</div>
-      <div class="row"><span>${esc(grossLabel)}</span><span>${formatEuro(grossAmount, lang)}</span></div>
-      ${discountAmount > 0 ? `<div class="row discount-row"><span>${esc(discountLabel)}</span><span>− ${formatEuro(discountAmount, lang)}</span></div>` : ""}
-      <div class="row strong"><span>${esc(netLabel)}</span><span>${formatEuro(netAmount, lang)}</span></div>
-    </div>`;
 
   const html = `<!doctype html>
 <html lang="${lang.toLowerCase()}">
@@ -118,6 +121,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   td.discount { color: #c00; font-size: 9.5pt; }
   td.discount .discount-amount { font-weight: 600; }
   td.strong { font-weight: 600; }
+  table.lines tfoot tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; }
+  table.lines tfoot tr.subtotal-row td:first-child { text-align: right; }
+  table.lines tfoot tr.subtotal-row.discount-row td { color: #c00; }
+  table.lines tfoot tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
   .summary { margin-top: 18px; }
   .sum-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 10px; }
@@ -175,30 +182,24 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   <div class="year-bar"><span class="label">${esc(s.year1)}</span><span class="bar"></span></div>
 
-  ${detailedTable(s.software, software)}
-  ${detailedTable(s.services, services)}
+  ${sectionBlock(
+    s.software,
+    software,
+    totals.softwareGrossSubtotal,
+    softwareUniformLabel,
+    totals.softwareDiscountAmount,
+    totals.softwareSubtotal,
+  )}
+  ${sectionBlock(
+    s.services,
+    services,
+    totals.servicesGrossSubtotal,
+    servicesUniformLabel,
+    totals.servicesDiscountAmount,
+    totals.servicesSubtotal,
+  )}
 
-  <div class="summary">
-    ${software.length > 0 ? summarySection(
-      s.software,
-      `${s.software} gross subtotal`,
-      totals.softwareGrossSubtotal,
-      softwareUniformLabel,
-      totals.softwareDiscountAmount,
-      `${s.software} net subtotal`,
-      totals.softwareSubtotal,
-    ) : ""}
-    ${services.length > 0 ? summarySection(
-      s.services,
-      `${s.services} gross subtotal`,
-      totals.servicesGrossSubtotal,
-      servicesUniformLabel,
-      totals.servicesDiscountAmount,
-      `${s.services} net subtotal`,
-      totals.servicesSubtotal,
-    ) : ""}
-    <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
-  </div>
+  <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
 
   ${recurring.length > 0 ? `
     <div class="year-bar"><span class="label">${esc(s.year2Onwards)}</span><span class="bar"></span></div>

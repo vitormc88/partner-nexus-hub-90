@@ -380,69 +380,15 @@ export async function generateProposalDocx(
   }
 
   /* ----------------------- detailed line items ------------------------- */
+  // Note: detailed line items are rendered inside the Investment Summary table
+  // below (Year 1 / Year 2+). We intentionally do NOT render bullet-list
+  // duplicates of Software / Services here to avoid repeating section labels.
 
   const softwareItems = items.filter(
     (i) => i.category === "software" || i.category === "addon",
   );
   const serviceItems = items.filter((i) => i.category === "service");
   const customItems = items.filter((i) => i.category === "custom");
-
-  const renderLineItem = (rawItem: ProposalItem) => {
-    const i = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
-    const effectiveDiscount = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
-    const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
-    const paragraphs: Paragraph[] = [
-      new Paragraph({
-        spacing: { after: 40 },
-        indent: { left: 360 },
-        children: [
-          new TextRun({
-            text: `•  ${getCommercialItemLabel(i, proposal)}: `,
-            color: DARK,
-            size: 22,
-            font: "Calibri",
-          }),
-          new TextRun({
-            text: `${formatEuro(i.gross_total || 0, lang)} gross${freqSuffix}`,
-            bold: true,
-            color: DARK,
-            size: 22,
-            font: "Calibri",
-          }),
-          ...(effectiveDiscount.amount
-            ? [
-                new TextRun({ text: ` · discount ${effectiveDiscount.source === "section" ? `${s.sectionDiscountLabel(effectiveDiscount.value)} ` : effectiveDiscount.type === "percent" ? `${Number(effectiveDiscount.value || 0)}% ` : ""}(-${formatEuro(effectiveDiscount.amount || 0, lang)})`, color: RED, size: 20, font: "Calibri" }),
-                new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" }),
-              ]
-            : [new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" })]),
-        ],
-      }),
-    ];
-    return paragraphs;
-  };
-
-  const softwareBlock: Paragraph[] = [];
-  if (softwareItems.length > 0) {
-    softwareBlock.push(
-      sectionHeading(s.software),
-      ...softwareItems.flatMap(renderLineItem),
-      new Paragraph({
-        spacing: { before: 80, after: 80 },
-        indent: { left: 360 },
-        children: [
-          new TextRun({ text: s.satIncluded, italics: true, color: MUTED, size: 18, font: "Calibri" }),
-        ],
-      }),
-    );
-  }
-
-  const servicesBlock: Paragraph[] = [];
-  if (serviceItems.length > 0) {
-    servicesBlock.push(sectionHeading(s.services), ...serviceItems.flatMap(renderLineItem));
-  }
-  if (customItems.length > 0) {
-    servicesBlock.push(...customItems.flatMap(renderLineItem));
-  }
 
   /* ----------------------- investment summary table -------------------- */
 
@@ -477,9 +423,13 @@ export async function generateProposalDocx(
     const discountText = eff.amount
       ? `${eff.source === "section" ? `${s.sectionDiscountLabel(eff.value)} ` : eff.type === "percent" ? `${Number(eff.value || 0)}% ` : ""}-${formatEuro(eff.amount || 0, lang)}`
       : "—";
+    // getCommercialItemLabel already includes (×qty) for web_user; only append for other items with qty > 1
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    const label = baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
     return new TableRow({
       children: [
-        cell(getCommercialItemLabel(it, proposal) + (it.qty > 1 ? `  (×${it.qty})` : ""), { width: Y1_COL_ITEM }),
+        cell(label, { width: Y1_COL_ITEM }),
         cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
         cell(discountText, { align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT, color: eff.amount ? RED : MUTED, italic: Boolean(eff.amount) }),
         cell(formatEuro(Number(it.net_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_NET, bold: true }),
@@ -696,14 +646,11 @@ export async function generateProposalDocx(
         children: [
           ...titleBlock,
           ...planDesc,
-          ...softwareBlock,
-          ...servicesBlock,
           sectionHeading(s.investmentInProject),
           p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
           investmentTable,
           ...(recurringItems.length > 0
             ? [
-                p(s.year2Onwards, { bold: true, size: 24, color: RED, spacing: { before: 240, after: 100 } }),
                 renewalTable,
                 p(s.assumingSameYear1, {
                   italic: true,

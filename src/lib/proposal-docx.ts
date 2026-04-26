@@ -700,14 +700,11 @@ export async function generateProposalDocx(
         children: [
           ...titleBlock,
           ...planDesc,
-          ...softwareBlock,
-          ...servicesBlock,
           sectionHeading(s.investmentInProject),
           p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
           investmentTable,
           ...(recurringItems.length > 0
             ? [
-                p(s.year2Onwards, { bold: true, size: 24, color: RED, spacing: { before: 240, after: 100 } }),
                 renewalTable,
                 p(s.assumingSameYear1, {
                   italic: true,

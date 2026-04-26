@@ -135,7 +135,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
       <h2>${esc(title)}</h2>
       <table class="lines">
         <thead>
-          <tr><th>Item</th><th class="num">Total</th><th>Frequency</th></tr>
+          <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colTotal)}</th><th>${esc(s.colFrequency)}</th></tr>
         </thead>
         <tbody>
           ${list.map(simpleLineRow).join("")}

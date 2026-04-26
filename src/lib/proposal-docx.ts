@@ -571,7 +571,7 @@ export async function generateProposalDocx(
 
     const rows: TableRow[] = [simpleHeaderRow(title)];
     list.forEach((it) => rows.push(simpleLineRow(it)));
-    rows.push(simpleSubtotalRow(`${title} subtotal`, formatEuro(grossAmount, lang)));
+    rows.push(simpleSubtotalRow(s.sectionSubtotal(title), formatEuro(grossAmount, lang)));
     return new Table({
       width: { size: SIMPLE_TABLE_WIDTH, type: WidthType.DXA },
       columnWidths: [SIMPLE_COL_ITEM, SIMPLE_COL_TOTAL, SIMPLE_COL_FREQ],

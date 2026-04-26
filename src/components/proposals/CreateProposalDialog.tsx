@@ -157,34 +157,47 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       prev.map((item) => {
         let discountValue = 0;
         let discountType: ProposalLineDiscountType = "none";
+        let renews = false;
 
-        if (item.item_code === `plan_${plan}_annual` && planDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = planDiscountPct;
-        } else if (item.item_code === "requests_module" && requestsDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = requestsDiscountPct;
-        } else if (item.item_code === "web_user" && webUsersDiscountPct > 0) {
-          discountType = "percent";
-          discountValue = webUsersDiscountPct;
-        } else if (
-          (item.item_code === `plan_${plan}_annual` || item.item_code === "requests_module" || item.item_code === "web_user") &&
-          item.discount_type === "percent"
-        ) {
-          discountType = "none";
-          discountValue = 0;
+        if (item.item_code === `plan_${plan}_annual`) {
+          if (planDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = planDiscountPct;
+            renews = planDiscountRenews;
+          }
+        } else if (item.item_code === "requests_module") {
+          if (requestsDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = requestsDiscountPct;
+            renews = requestsDiscountRenews;
+          }
+        } else if (item.item_code === "web_user") {
+          if (webUsersDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = webUsersDiscountPct;
+            renews = webUsersDiscountRenews;
+          }
         } else {
           return item;
         }
 
-        if ((item.discount_type || "none") === discountType && Number(item.discount_value || 0) === discountValue) {
+        const currentType = item.discount_type || "none";
+        const currentValue = Number(item.discount_value || 0);
+        const currentRenews = Boolean(item.apply_discount_to_renewal);
+        if (currentType === discountType && currentValue === discountValue && currentRenews === renews) {
           return item;
         }
 
-        return { ...item, discount_type: discountType, discount_value: discountValue, is_override: true };
+        return {
+          ...item,
+          discount_type: discountType,
+          discount_value: discountValue,
+          apply_discount_to_renewal: renews,
+          is_override: true,
+        };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
 
   const totals = useMemo(
     () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),

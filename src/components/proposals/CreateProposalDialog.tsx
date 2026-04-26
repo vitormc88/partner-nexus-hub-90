@@ -127,6 +127,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       setPlanDiscountRenews(Boolean(planItem?.apply_discount_to_renewal));
       setRequestsDiscountRenews(Boolean(requestsItem?.apply_discount_to_renewal));
       setWebUsersDiscountRenews(Boolean(webItem?.apply_discount_to_renewal));
+      // Seed Services discount % from saved service-line discounts.
+      // If all service lines share the same % discount, treat that as the
+      // section input. Otherwise leave at 0 (user can re-enter or keep the
+      // overrides per line).
+      const serviceItems = editingProposal.items.filter((item) => item.category === "service");
+      const seenPcts = new Set<number>();
+      let allPercent = serviceItems.length > 0;
+      for (const sv of serviceItems) {
+        if (sv.discount_type === "percent" && Number(sv.discount_value || 0) > 0) {
+          seenPcts.add(Number(sv.discount_value || 0));
+        } else {
+          allPercent = false;
+          break;
+        }
+      }
+      if (allPercent && seenPcts.size === 1) {
+        setServicesDiscountPct(Number([...seenPcts][0]));
+      } else if (Number(editingProposal.services_discount_pct || 0) > 0) {
+        // Backwards compatibility for proposals saved before line materialization.
+        setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
+      } else {
+        setServicesDiscountPct(0);
+      }
     }
   }, [open, editingProposal]);
 

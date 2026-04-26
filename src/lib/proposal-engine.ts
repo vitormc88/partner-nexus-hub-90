@@ -269,6 +269,10 @@ export interface ProposalTotals {
   discountAmount: number;
   totalYear1: number;
   totalRecurring: number;
+  /** Year 2+ gross recurring (no discount) */
+  recurringGrossYearly: number;
+  /** Year 2+ discounts that explicitly apply to renewals */
+  recurringDiscountAmount: number;
 }
 
 export interface ProposalItemEffectiveDiscount {
@@ -357,6 +361,24 @@ export function getItemNetTotal(item: ProposalItem, sectionDiscountPct = 0): num
   return Math.max(0, getItemBaseTotal(item) - getItemDiscountAmount(item, sectionDiscountPct));
 }
 
+/**
+ * Renewal (Year 2+) value for a recurring item.
+ * - If the item is not recurring → 0 (services do not renew).
+ * - If `apply_discount_to_renewal` is true → returns net (discounted).
+ * - Otherwise → returns gross (discount applied to Year 1 only).
+ */
+export function getItemRenewalValue(
+  item: ProposalItem,
+  softwareDiscountPct = 0,
+  servicesDiscountPct = 0,
+): number {
+  if (!item.is_recurring) return 0;
+  const gross = getItemBaseTotal(item);
+  if (!item.apply_discount_to_renewal) return gross;
+  const eff = getItemEffectiveDiscount(item, softwareDiscountPct, servicesDiscountPct);
+  return Math.max(0, gross - eff.amount);
+}
+
 export function enrichProposalItem(item: ProposalItem, softwareDiscountPct = 0, servicesDiscountPct = 0): ProposalItem {
   const grossTotal = getItemBaseTotal(item);
   const effectiveDiscount = getItemEffectiveDiscount(item, softwareDiscountPct, servicesDiscountPct);
@@ -419,6 +441,9 @@ export function computeTotals(
   let servicesDiscountAmount = 0;
   let lineDiscountAmount = 0;
 
+  let recurringGrossYearly = 0;
+  let recurringDiscountAmount = 0;
+
   for (const item of items) {
     const isSoftware = item.category === "software" || item.category === "addon";
     const enriched = enrichProposalItem(item, softwareDiscountPct, servicesDiscountPct);
@@ -432,15 +457,22 @@ export function computeTotals(
       servicesDiscountAmount += enriched.discount_amount || 0;
     }
     if (hasItemOwnDiscount(enriched)) lineDiscountAmount += enriched.discount_amount || 0;
-    if (enriched.is_recurring) recurringYearly += enriched.net_total || 0;
-    else oneTime += enriched.net_total || 0;
+    if (enriched.is_recurring) {
+      recurringYearly += enriched.net_total || 0;
+      recurringGrossYearly += enriched.gross_total || 0;
+      if (item.apply_discount_to_renewal) {
+        recurringDiscountAmount += enriched.discount_amount || 0;
+      }
+    } else {
+      oneTime += enriched.net_total || 0;
+    }
   }
 
   const subtotal = softwareSubtotal + servicesSubtotal;
   const discountAmount = softwareDiscountAmount + servicesDiscountAmount;
   const totalYear1 = recurringYearly + oneTime;
-  const recurringAfterDiscount = recurringYearly;
-  const totalRecurring = recurringAfterDiscount;
+  const recurringAfterDiscount = recurringGrossYearly - recurringDiscountAmount;
+  const totalRecurring = Math.max(0, recurringAfterDiscount);
 
   return {
     softwareSubtotal,
@@ -458,6 +490,8 @@ export function computeTotals(
     discountAmount,
     totalYear1,
     totalRecurring,
+    recurringGrossYearly,
+    recurringDiscountAmount,
   };
 }
 

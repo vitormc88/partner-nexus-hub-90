@@ -61,7 +61,25 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
   const recurring = items.filter((i) => i.is_recurring);
 
-  const detailedTable = (title: string, list: ProposalItem[]) =>
+  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
+    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
+    : s.softwareDiscountsTotalLabel;
+  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
+    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
+    : s.servicesDiscountsTotalLabel;
+
+  /**
+   * Render a section (Software / Services) as a detailed table immediately
+   * followed by its subtotals — no duplicate section title, no extra heading.
+   */
+  const sectionBlock = (
+    title: string,
+    list: ProposalItem[],
+    grossAmount: number,
+    discountLabel: string,
+    discountAmount: number,
+    netAmount: number,
+  ) =>
     list.length === 0
       ? ""
       : `
@@ -71,30 +89,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
           <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
         </thead>
         <tbody>${list.map(lineRow).join("")}</tbody>
+        <tfoot>
+          <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
+          <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
+        </tfoot>
       </table>`;
-
-  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
-    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
-    : s.softwareDiscountsTotalLabel;
-  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
-    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
-    : s.servicesDiscountsTotalLabel;
-
-  const summarySection = (
-    label: string,
-    grossLabel: string,
-    grossAmount: number,
-    discountLabel: string,
-    discountAmount: number,
-    netLabel: string,
-    netAmount: number,
-  ) => `
-    <div class="sum-block">
-      <div class="sum-title">${esc(label)}</div>
-      <div class="row"><span>${esc(grossLabel)}</span><span>${formatEuro(grossAmount, lang)}</span></div>
-      ${discountAmount > 0 ? `<div class="row discount-row"><span>${esc(discountLabel)}</span><span>− ${formatEuro(discountAmount, lang)}</span></div>` : ""}
-      <div class="row strong"><span>${esc(netLabel)}</span><span>${formatEuro(netAmount, lang)}</span></div>
-    </div>`;
 
   const html = `<!doctype html>
 <html lang="${lang.toLowerCase()}">

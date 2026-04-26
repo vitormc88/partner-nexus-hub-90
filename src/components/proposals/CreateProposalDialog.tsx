@@ -283,12 +283,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
+  /** Compute next available version number for this lead. */
+  const computeNextVersion = async (): Promise<number> => {
+    const { data: siblings } = await supabase
+      .from("proposals")
+      .select("version")
+      .eq("lead_id", leadId)
+      .order("version", { ascending: false })
+      .limit(1);
+    return (siblings?.[0]?.version || 0) + 1;
+  };
+
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
     setSaving(true);
     try {
+      // Auto-assign version on first save (new proposal). Editing keeps existing version.
+      const versionForInsert = editingProposal?.version || (await computeNextVersion());
       const insertData: any = {
         lead_id: leadId,
-        version: editingProposal?.version || 1,
+        version: versionForInsert,
         language,
         plan,
         status,
@@ -304,8 +317,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
-        software_discount_pct: softwareDiscountPct,
-        services_discount_pct: servicesDiscountPct,
+        // Discounts are now materialized as line-item discounts. Section
+        // percentages are stored as 0 to prevent double-application by the
+        // render layer (DOCX/PDF) which receives proposal.*_discount_pct.
+        software_discount_pct: 0,
+        services_discount_pct: 0,
         include_requests_module: includeRequests,
         web_users: webUsers,
         service_days: onsiteDays || null,
@@ -329,7 +345,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
       // Insert items
       const itemRows = items.map((it, idx) => {
-        const enriched = enrichProposalItem(it, softwareDiscountPct, servicesDiscountPct);
+        const enriched = enrichProposalItem(it, 0, 0);
         return {
         proposal_id: prop.id,
         category: it.category,
@@ -344,7 +360,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         discount_value: Number(it.discount_value || 0),
         gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
         discount_amount: Number(enriched.discount_amount || 0),
-        net_total: Number(enriched.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
+        net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),

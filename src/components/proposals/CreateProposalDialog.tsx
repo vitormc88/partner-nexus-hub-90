@@ -124,6 +124,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
       setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
       setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
+      setPlanDiscountRenews(Boolean(planItem?.apply_discount_to_renewal));
+      setRequestsDiscountRenews(Boolean(requestsItem?.apply_discount_to_renewal));
+      setWebUsersDiscountRenews(Boolean(webItem?.apply_discount_to_renewal));
     }
   }, [open, editingProposal]);
 

@@ -160,34 +160,56 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
+  // Propagate the per-step discount inputs as line-item discounts.
+  // Services use the same model as Software: the wizard input becomes a
+  // normal % line discount on each service item (auto-managed, source = "auto").
+  // The user can still override any line manually in the Preview step.
   useEffect(() => {
     setItems((prev) =>
       prev.map((item) => {
+        const isService = item.category === "service";
         let discountValue = 0;
         let discountType: ProposalLineDiscountType = "none";
         let renews = false;
+        let managed = false;
 
         if (item.item_code === `plan_${plan}_annual`) {
+          managed = true;
           if (planDiscountPct > 0) {
             discountType = "percent";
             discountValue = planDiscountPct;
             renews = planDiscountRenews;
           }
         } else if (item.item_code === "requests_module") {
+          managed = true;
           if (requestsDiscountPct > 0) {
             discountType = "percent";
             discountValue = requestsDiscountPct;
             renews = requestsDiscountRenews;
           }
         } else if (item.item_code === "web_user") {
+          managed = true;
           if (webUsersDiscountPct > 0) {
             discountType = "percent";
             discountValue = webUsersDiscountPct;
             renews = webUsersDiscountRenews;
           }
+        } else if (isService) {
+          // Auto-apply Services discount % as a line-item discount on every
+          // service line UNLESS the user has manually overridden that line.
+          if (item.is_override && (item.discount_type === "percent" || item.discount_type === "fixed") && Number(item.discount_value || 0) > 0 && Number(item.discount_value || 0) !== Number(servicesDiscountPct || 0)) {
+            return item; // manual override — keep user's value
+          }
+          managed = true;
+          if (servicesDiscountPct > 0) {
+            discountType = "percent";
+            discountValue = servicesDiscountPct;
+          }
         } else {
           return item;
         }
+
+        if (!managed) return item;
 
         const currentType = item.discount_type || "none";
         const currentValue = Number(item.discount_value || 0);
@@ -201,11 +223,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           discount_type: discountType,
           discount_value: discountValue,
           apply_discount_to_renewal: renews,
-          is_override: true,
+          // Mark as override only if there's an actual discount; otherwise
+          // leave is_override flag untouched so user-specific overrides
+          // (qty, name, price) aren't reset by zero-discount paths.
+          is_override: discountValue > 0 ? true : item.is_override,
         };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
 
   const totals = useMemo(
     () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),

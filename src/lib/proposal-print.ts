@@ -99,6 +99,9 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
    * Render a section as a single table.
    * - With discounts: Item | Gross | Discount | Net  + gross/discount/net subtotal rows.
    * - Without discounts: Item | Total | Frequency  + single subtotal row.
+   *
+   * Subtotal rows live in <tbody> (not <tfoot>) so the browser does NOT
+   * repeat them on every page when the table spans a page break.
    */
   const sectionBlock = (
     title: string,
@@ -118,12 +121,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         <thead>
           <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
         </thead>
-        <tbody>${list.map(detailedLineRow).join("")}</tbody>
-        <tfoot>
+        <tbody>
+          ${list.map(detailedLineRow).join("")}
           <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
           ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
           <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
-        </tfoot>
+        </tbody>
       </table>`;
     }
 
@@ -134,10 +137,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         <thead>
           <tr><th>Item</th><th class="num">Total</th><th>Frequency</th></tr>
         </thead>
-        <tbody>${list.map(simpleLineRow).join("")}</tbody>
-        <tfoot>
+        <tbody>
+          ${list.map(simpleLineRow).join("")}
           <tr class="subtotal-row strong"><td colspan="2">${esc(title)} subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
-        </tfoot>
+        </tbody>
       </table>`;
   };
 

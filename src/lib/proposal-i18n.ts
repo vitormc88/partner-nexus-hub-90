@@ -82,6 +82,16 @@ interface Strings {
   colUnit: string;
   colTotal: string;
   colFrequency: string;
+  colGross: string;
+  colNet: string;
+  /** Commercial item labels */
+  planAnnualLicense: (plan: number) => string;
+  onlineImplementationLabel: (plan: number) => string;
+  lightImplementationLabel: (plan: number) => string;
+  requestsImplementationLabel: string;
+  requestsModuleShort: string;
+  webUsersAdditionalLabel: (qty: number) => string;
+  onsiteDaysLabel: (qty: number) => string;
   /** Misc */
   client: string;
   date: string;

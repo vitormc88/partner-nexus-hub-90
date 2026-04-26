@@ -20,29 +20,60 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const win = window.open("", "_blank", "width=900,height=1200");
   if (!win) return;
 
+  const software = items.filter((i) => i.category === "software" || i.category === "addon");
+  const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
+  const recurring = items.filter((i) => i.is_recurring);
+
+  // Per-section discount presence — drives whether columns appear
+  const softwareHasDiscount = totals.softwareDiscountAmount > 0;
+  const servicesHasDiscount = totals.servicesDiscountAmount > 0;
+
+  const itemLabel = (rawItem: ProposalItem) => {
+    const it = enrichProposalItem(rawItem, softwarePct, servicesPct);
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    const qtySuffix = it.qty > 1 && !labelHasQty ? ` <span class="muted">×${it.qty}</span>` : "";
+    return `${esc(baseLabel)}${qtySuffix}`;
+  };
+
+  const frequencyLabel = (rawItem: ProposalItem) => {
+    if (!rawItem.is_recurring) return "one-time";
+    return s.perYear;
+  };
+
   const discountCellLabel = (rawItem: ProposalItem) => {
     const eff = getItemEffectiveDiscount(rawItem, softwarePct, servicesPct);
     if (!eff.amount) return "—";
+    const isSoftware = rawItem.category === "software" || rawItem.category === "addon";
     const prefix =
       eff.source === "section"
-        ? `${esc(s.sectionDiscountLabel(eff.value))} `
+        ? `${isSoftware ? esc(s.softwareDiscountLabel(eff.value)) : esc(s.servicesDiscountLabel(eff.value))} `
         : eff.type === "percent"
         ? `${Number(eff.value || 0)}% `
         : "";
     return `${prefix}<span class="discount-amount">-${formatEuro(Number(eff.amount) || 0, lang)}</span>`;
   };
 
-  const lineRow = (rawItem: ProposalItem) => {
+  // Detailed (with discount columns) line row
+  const detailedLineRow = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, softwarePct, servicesPct);
-    const baseLabel = getCommercialItemLabel(it, proposal);
-    const labelHasQty = /\(×\d+\)/.test(baseLabel);
-    const qtySuffix = it.qty > 1 && !labelHasQty ? ` <span class="muted">×${it.qty}</span>` : "";
     return `
     <tr>
-      <td>${esc(baseLabel)}${qtySuffix}</td>
+      <td>${itemLabel(rawItem)}</td>
       <td class="num">${formatEuro(Number(it.gross_total) || 0, lang)}</td>
       <td class="num discount">${discountCellLabel(rawItem)}</td>
       <td class="num strong">${formatEuro(Number(it.net_total) || 0, lang)}</td>
+    </tr>`;
+  };
+
+  // Simple (no-discount) line row: Item | Total | Frequency
+  const simpleLineRow = (rawItem: ProposalItem) => {
+    const it = enrichProposalItem(rawItem, softwarePct, servicesPct);
+    return `
+    <tr>
+      <td>${itemLabel(rawItem)}</td>
+      <td class="num strong">${formatEuro(Number(it.gross_total) || 0, lang)}</td>
+      <td class="freq">${esc(frequencyLabel(rawItem))}</td>
     </tr>`;
   };
 
@@ -57,10 +88,6 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     </tr>`;
   };
 
-  const software = items.filter((i) => i.category === "software" || i.category === "addon");
-  const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
-  const recurring = items.filter((i) => i.is_recurring);
-
   const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
     ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
     : s.softwareDiscountsTotalLabel;
@@ -69,32 +96,50 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     : s.servicesDiscountsTotalLabel;
 
   /**
-   * Render a section (Software / Services) as a detailed table immediately
-   * followed by its subtotals — no duplicate section title, no extra heading.
+   * Render a section as a single table.
+   * - With discounts: Item | Gross | Discount | Net  + gross/discount/net subtotal rows.
+   * - Without discounts: Item | Total | Frequency  + single subtotal row.
    */
   const sectionBlock = (
     title: string,
     list: ProposalItem[],
     grossAmount: number,
-    discountLabel: string,
-    discountAmount: number,
     netAmount: number,
-  ) =>
-    list.length === 0
-      ? ""
-      : `
+    discountAmount: number,
+    discountLabel: string,
+    showDiscountColumns: boolean,
+  ) => {
+    if (list.length === 0) return "";
+
+    if (showDiscountColumns) {
+      return `
       <h2>${esc(title)}</h2>
       <table class="lines">
         <thead>
           <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
         </thead>
-        <tbody>${list.map(lineRow).join("")}</tbody>
+        <tbody>${list.map(detailedLineRow).join("")}</tbody>
         <tfoot>
           <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
           ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
           <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
         </tfoot>
       </table>`;
+    }
+
+    // Simple — no discounts in this section
+    return `
+      <h2>${esc(title)}</h2>
+      <table class="lines">
+        <thead>
+          <tr><th>Item</th><th class="num">Total</th><th>Frequency</th></tr>
+        </thead>
+        <tbody>${list.map(simpleLineRow).join("")}</tbody>
+        <tfoot>
+          <tr class="subtotal-row strong"><td colspan="2">${esc(title)} subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+        </tfoot>
+      </table>`;
+  };
 
   const html = `<!doctype html>
 <html lang="${lang.toLowerCase()}">
@@ -118,6 +163,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   table.lines th, table.lines td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
   table.lines th { background: #f6f6f6; font-weight: 600; font-size: 9.5pt; color: #333; }
   td.num, th.num { text-align: right; white-space: nowrap; }
+  td.freq { color: #555; font-size: 9.5pt; white-space: nowrap; }
   td.discount { color: #c00; font-size: 9.5pt; }
   td.discount .discount-amount { font-weight: 600; }
   td.strong { font-weight: 600; }
@@ -126,12 +172,6 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   table.lines tfoot tr.subtotal-row.discount-row td { color: #c00; }
   table.lines tfoot tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
-  .summary { margin-top: 18px; }
-  .sum-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 10px; }
-  .sum-title { font-weight: 700; font-size: 11pt; color: #333; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
-  .sum-block .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 10.5pt; }
-  .sum-block .row.discount-row { color: #c00; }
-  .sum-block .row.strong { font-weight: 700; border-top: 1px solid #eee; padding-top: 6px; margin-top: 4px; }
   .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 18px; }
   .renewal-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 6px; }
   .renewal-block table { width: 100%; border-collapse: collapse; }
@@ -186,17 +226,19 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     s.software,
     software,
     totals.softwareGrossSubtotal,
-    softwareUniformLabel,
-    totals.softwareDiscountAmount,
     totals.softwareSubtotal,
+    totals.softwareDiscountAmount,
+    softwareUniformLabel,
+    softwareHasDiscount,
   )}
   ${sectionBlock(
     s.services,
     services,
     totals.servicesGrossSubtotal,
-    servicesUniformLabel,
-    totals.servicesDiscountAmount,
     totals.servicesSubtotal,
+    totals.servicesDiscountAmount,
+    servicesUniformLabel,
+    servicesHasDiscount,
   )}
 
   <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>

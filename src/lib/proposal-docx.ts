@@ -477,9 +477,13 @@ export async function generateProposalDocx(
     const discountText = eff.amount
       ? `${eff.source === "section" ? `${s.sectionDiscountLabel(eff.value)} ` : eff.type === "percent" ? `${Number(eff.value || 0)}% ` : ""}-${formatEuro(eff.amount || 0, lang)}`
       : "—";
+    // getCommercialItemLabel already includes (×qty) for web_user; only append for other items with qty > 1
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    const label = baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
     return new TableRow({
       children: [
-        cell(getCommercialItemLabel(it, proposal) + (it.qty > 1 ? `  (×${it.qty})` : ""), { width: Y1_COL_ITEM }),
+        cell(label, { width: Y1_COL_ITEM }),
         cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
         cell(discountText, { align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT, color: eff.amount ? RED : MUTED, italic: Boolean(eff.amount) }),
         cell(formatEuro(Number(it.net_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_NET, bold: true }),

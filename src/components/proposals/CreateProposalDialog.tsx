@@ -619,12 +619,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
                         const hasSectionDiscount = effectiveDiscount.source === "section";
                         const hasNoDiscount = effectiveDiscount.amount === 0;
+                        const isSoftwareItem = it.category === "software" || it.category === "addon";
                         const discountSourceLabel = hasSectionDiscount
-                          ? `Section discount ${effectiveDiscount.value}%`
+                          ? `${isSoftwareItem ? "Software" : "Services"} section discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "percent"
-                          ? `Line discount % ${effectiveDiscount.value}`
+                          ? `Line discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "fixed"
-                          ? `Line discount € ${effectiveDiscount.value}`
+                          ? `Line discount ${effectiveDiscount.value} €`
                           : "—";
                         const grossYearly = it.gross_total || 0;
                         const netYearly = grossYearly - effectiveDiscount.amount;

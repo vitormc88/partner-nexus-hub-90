@@ -123,9 +123,9 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         </thead>
         <tbody>
           ${list.map(detailedLineRow).join("")}
-          <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          <tr class="subtotal-row"><td colspan="3">${esc(s.grossSubtotal(title))}</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
           ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
-          <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
+          <tr class="subtotal-row strong"><td colspan="3">${esc(s.netSubtotal(title))}</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
         </tbody>
       </table>`;
     }

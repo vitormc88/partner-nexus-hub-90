@@ -639,7 +639,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         const hasNoDiscount = effectiveDiscount.amount === 0;
                         const isSoftwareItem = it.category === "software" || it.category === "addon";
                         const discountSourceLabel = hasSectionDiscount
-                          ? `${isSoftwareItem ? "Software" : "Services"} section discount ${effectiveDiscount.value}%`
+                          ? `${isSoftwareItem ? "Software" : "Services"} discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "percent"
                           ? `Line discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "fixed"

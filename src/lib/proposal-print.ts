@@ -121,6 +121,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   td.discount { color: #c00; font-size: 9.5pt; }
   td.discount .discount-amount { font-weight: 600; }
   td.strong { font-weight: 600; }
+  table.lines tfoot tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; }
+  table.lines tfoot tr.subtotal-row td:first-child { text-align: right; }
+  table.lines tfoot tr.subtotal-row.discount-row td { color: #c00; }
+  table.lines tfoot tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
   .summary { margin-top: 18px; }
   .sum-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 10px; }

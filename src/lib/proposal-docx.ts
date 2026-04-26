@@ -612,8 +612,8 @@ export async function generateProposalDocx(
 
   recurringItems.forEach((r) =>
     pushY2Row([
-      cell(r.label),
-      cell(`${r.value}${r.suffix ? ` ${r.suffix}` : ""}`, { align: AlignmentType.RIGHT }),
+      cell(r.discounted ? `${r.label}  (${s.renewalDiscountApplied})` : r.label),
+      cell(`${r.value} ${r.suffix}`, { align: AlignmentType.RIGHT }),
     ]),
   );
   pushY2Row([

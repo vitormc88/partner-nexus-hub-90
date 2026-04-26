@@ -139,7 +139,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
         </thead>
         <tbody>
           ${list.map(simpleLineRow).join("")}
-          <tr class="subtotal-row strong"><td colspan="2">${esc(title)} subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          <tr class="subtotal-row strong"><td colspan="2">${esc(s.sectionSubtotal(title))}</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
         </tbody>
       </table>`;
   };

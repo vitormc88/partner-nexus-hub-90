@@ -135,6 +135,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setPaymentTerms(standardPaymentTerms(language));
   }, [language]);
 
+  // Reset Requests discount when the Requests Module is turned off
+  useEffect(() => {
+    if (!includeRequests) {
+      setRequestsDiscountPct(0);
+      setRequestsDiscountRenews(false);
+    }
+  }, [includeRequests]);
+
   // Auto-rebuild items whenever plan/services/options change
   useEffect(() => {
     if (rules.length === 0) return;

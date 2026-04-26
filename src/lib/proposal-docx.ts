@@ -447,7 +447,7 @@ export async function generateProposalDocx(
 
   /* ----------------------- investment summary table -------------------- */
 
-  const recurringItems = investment.recurringLines;
+  const recurringItems = investment.renewalLines;
 
   const y1SoftwareRows = investment.softwareLines.map((i) => ({
     label: i.label,

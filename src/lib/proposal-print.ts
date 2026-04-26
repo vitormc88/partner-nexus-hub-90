@@ -131,8 +131,9 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     ${totals.servicesDiscountAmount > 0 ? `<div class="row"><span>${esc(servicesDiscountSummary.mode === "uniform-section" ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0)) : s.servicesDiscountsTotalLabel)}</span><span>− ${formatEuro(totals.servicesDiscountAmount, lang)}</span></div>` : ""}
     <div class="row total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
     <div class="subsection">${esc(s.year2Onwards)}</div>
-    ${investment.recurringLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
-    <div class="row total"><span>${esc(s.totalPerYear)}</span><span>${formatEuro(totals.totalRecurring, lang)} / ${esc(s.perYear)}</span></div>
+    ${investment.renewalLines.map((line) => `<div class="row"><span>${esc(line.label)}${line.discounted ? ` <em style="color:#c00;font-size:9pt;">(${esc(s.renewalDiscountApplied)})</em>` : ""}</span><span>${esc(line.value)} ${esc(line.suffix)}</span></div>`).join("")}
+    <div class="row total"><span>${esc(s.totalPerYear)}</span><span>${formatEuro(totals.totalRecurring, lang)} ${esc(s.perYear)}</span></div>
+    ${totals.recurringDiscountAmount === 0 && totals.discountAmount > 0 ? `<p class="muted" style="margin-top:8px;font-style:italic;">${esc(s.discountsYear1OnlyNote)}</p>` : ""}
   </div>
 
   <div class="terms">

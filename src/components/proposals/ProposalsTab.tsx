@@ -30,6 +30,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const { data: proposals = [], isLoading } = useLeadProposals(leadId);
   const del = useDeleteProposal();
   const dup = useDuplicateProposal();
+  const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editingProposal, setEditingProposal] = useState<(Proposal & { items?: ProposalItem[] }) | null>(null);
 

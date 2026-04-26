@@ -702,8 +702,11 @@ export async function generateProposalDocx(
             italic: true,
             size: 18,
             color: MUTED,
-            spacing: { before: 120, after: 240 },
+            spacing: { before: 120, after: 80 },
           }),
+          ...(totals.recurringDiscountAmount === 0 && totals.discountAmount > 0
+            ? [p(s.discountsYear1OnlyNote, { italic: true, size: 18, color: MUTED, spacing: { after: 240 } })]
+            : []),
           ...billingBlock,
           ...otherBlock,
           ...saasBlock,

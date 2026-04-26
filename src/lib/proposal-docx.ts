@@ -426,9 +426,9 @@ export async function generateProposalDocx(
       tableHeader: true,
       children: [
         cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: COL_ITEM }),
-        cell("Gross", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
-        cell("Discount", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
-        cell("Net", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.colGross, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.discount, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.colNet, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
       ],
     });
 

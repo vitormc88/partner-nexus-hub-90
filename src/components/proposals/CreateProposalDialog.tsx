@@ -508,22 +508,36 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <p className="text-[11px] text-muted-foreground mt-1">20 € / user / month</p>
                 </div>
               </div>
-              <div className="bg-card border rounded-lg p-3">
+              <div className="bg-card border rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Professional plan discount %</Label>
                     <Input type="number" min={0} max={100} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={planDiscountRenews} onCheckedChange={setPlanDiscountRenews} disabled={planDiscountPct <= 0} />
+                    </div>
                   </div>
                   <div>
                     <Label className="text-xs">Requests Module discount %</Label>
                     <Input type="number" min={0} max={100} value={requestsDiscountPct} onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={requestsDiscountRenews} onCheckedChange={setRequestsDiscountRenews} disabled={requestsDiscountPct <= 0} />
+                    </div>
                   </div>
                   <div>
                     <Label className="text-xs">Web/Mobile users discount %</Label>
                     <Input type="number" min={0} max={100} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+                      <Switch checked={webUsersDiscountRenews} onCheckedChange={setWebUsersDiscountRenews} disabled={webUsersDiscountPct <= 0} />
+                    </div>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Each software line can be discounted independently; recurring totals use the discounted net values.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  By default, software discounts apply to <strong>Year 1 only</strong>. Toggle "Apply to renewals" to also discount Year 2 and following (e.g. negotiated volume discount on Web/Mobile users).
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).

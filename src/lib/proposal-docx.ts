@@ -17,8 +17,8 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getSectionDiscountSummary } from "@/lib/proposal-engine";
-import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
+import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "@/lib/proposal-engine";
+import { getCommercialIncludes, getCommercialItemLabel } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
 

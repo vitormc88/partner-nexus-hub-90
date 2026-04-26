@@ -17,8 +17,8 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getSectionDiscountSummary } from "@/lib/proposal-engine";
-import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
+import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "@/lib/proposal-engine";
+import { getCommercialIncludes, getCommercialItemLabel } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
 
@@ -181,7 +181,6 @@ export async function generateProposalDocx(
     proposal.services_discount_pct || 0,
   );
   const logoBytes = await loadLogo();
-  const investment = getInvestmentSummary(proposal, items, totals);
   const softwareDiscountSummary = getSectionDiscountSummary(items, "software", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
   const servicesDiscountSummary = getSectionDiscountSummary(items, "services", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
 
@@ -447,188 +446,191 @@ export async function generateProposalDocx(
 
   /* ----------------------- investment summary table -------------------- */
 
-  const recurringItems = investment.renewalLines;
+  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
+    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
+    : s.softwareDiscountsTotalLabel;
+  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
+    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
+    : s.servicesDiscountsTotalLabel;
 
-  const y1SoftwareRows = investment.softwareLines.map((i) => ({
-    label: i.label,
-    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
-  }));
-  const y1ServiceRows = investment.serviceLines.map((i) => ({
-    label: i.label,
-    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
-  }));
+  // ---- Detailed Year 1 table (Item | Gross | Discount | Net) ----
+  const Y1_COL_ITEM = 4200;
+  const Y1_COL_GROSS = 1800;
+  const Y1_COL_DISCOUNT = 1800;
+  const Y1_COL_NET = 1800;
+  const Y1_TABLE_WIDTH = Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT + Y1_COL_NET;
 
-  const tableRows: TableRow[] = [];
-
-  // Header
-  tableRows.push(
+  const detailHeaderRow = (sectionLabel: string) =>
     new TableRow({
       tableHeader: true,
       children: [
-        cell("", { bg: RED, width: 2200 }),
-        cell(s.colItem, { bold: true, bg: RED, color: "FFFFFF", width: 5000 }),
-        cell(s.colTotal, {
-          bold: true,
-          bg: RED,
-          color: "FFFFFF",
-          align: AlignmentType.RIGHT,
-          width: 2400,
+        cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: Y1_COL_ITEM }),
+        cell("Gross", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
+        cell("Discount", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT }),
+        cell("Net", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_NET }),
+      ],
+    });
+
+  const detailLineRow = (rawItem: ProposalItem) => {
+    const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const eff = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const discountText = eff.amount
+      ? `${eff.source === "section" ? `${s.sectionDiscountLabel(eff.value)} ` : eff.type === "percent" ? `${Number(eff.value || 0)}% ` : ""}-${formatEuro(eff.amount || 0, lang)}`
+      : "—";
+    return new TableRow({
+      children: [
+        cell(getCommercialItemLabel(it, proposal) + (it.qty > 1 ? `  (×${it.qty})` : ""), { width: Y1_COL_ITEM }),
+        cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_GROSS }),
+        cell(discountText, { align: AlignmentType.RIGHT, width: Y1_COL_DISCOUNT, color: eff.amount ? RED : MUTED, italic: Boolean(eff.amount) }),
+        cell(formatEuro(Number(it.net_total) || 0, lang), { align: AlignmentType.RIGHT, width: Y1_COL_NET, bold: true }),
+      ],
+    });
+  };
+
+  const subtotalRow = (label: string, value: string, opts: { strong?: boolean; discount?: boolean } = {}) =>
+    new TableRow({
+      children: [
+        cell(label, { bold: opts.strong, bg: GREY_BG, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT }),
+        cell(value, { bold: opts.strong, bg: GREY_BG, align: AlignmentType.RIGHT, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_NET }),
+      ],
+    });
+  // Need a 2-col-wide row helper (label spans 3 cols)
+  const wideSubtotalRow = (label: string, value: string, opts: { strong?: boolean; discount?: boolean } = {}) =>
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT, type: WidthType.DXA },
+          columnSpan: 3,
+          shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+          },
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              children: [
+                new TextRun({
+                  text: label,
+                  bold: opts.strong,
+                  italics: opts.discount,
+                  color: opts.discount ? RED : DARK,
+                  size: 20,
+                  font: "Calibri",
+                }),
+              ],
+            }),
+          ],
         }),
+        cell(value, { bold: opts.strong, bg: GREY_BG, align: AlignmentType.RIGHT, italic: opts.discount, color: opts.discount ? RED : undefined, width: Y1_COL_NET }),
+      ],
+    });
+
+  const year1TableRows: TableRow[] = [];
+
+  if (softwareItems.length > 0) {
+    year1TableRows.push(detailHeaderRow(s.software));
+    softwareItems.forEach((it) => year1TableRows.push(detailLineRow(it)));
+    year1TableRows.push(wideSubtotalRow(`${s.software} gross subtotal`, formatEuro(totals.softwareGrossSubtotal, lang)));
+    if (totals.softwareDiscountAmount > 0) {
+      year1TableRows.push(wideSubtotalRow(softwareUniformLabel, `- ${formatEuro(totals.softwareDiscountAmount, lang)}`, { discount: true }));
+    }
+    year1TableRows.push(wideSubtotalRow(`${s.software} net subtotal`, formatEuro(totals.softwareSubtotal, lang), { strong: true }));
+  }
+
+  if (serviceItems.length > 0 || customItems.length > 0) {
+    year1TableRows.push(detailHeaderRow(s.services));
+    [...serviceItems, ...customItems.filter((c) => !c.is_recurring)].forEach((it) => year1TableRows.push(detailLineRow(it)));
+    year1TableRows.push(wideSubtotalRow(`${s.services} gross subtotal`, formatEuro(totals.servicesGrossSubtotal, lang)));
+    if (totals.servicesDiscountAmount > 0) {
+      year1TableRows.push(wideSubtotalRow(servicesUniformLabel, `- ${formatEuro(totals.servicesDiscountAmount, lang)}`, { discount: true }));
+    }
+    year1TableRows.push(wideSubtotalRow(`${s.services} net subtotal`, formatEuro(totals.servicesSubtotal, lang), { strong: true }));
+  }
+
+  // Year 1 total bar
+  year1TableRows.push(
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: Y1_COL_ITEM + Y1_COL_GROSS + Y1_COL_DISCOUNT, type: WidthType.DXA },
+          columnSpan: 3,
+          shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
+          margins: { top: 100, bottom: 100, left: 120, right: 120 },
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
+          },
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.LEFT,
+              children: [new TextRun({ text: s.totalOfYear, bold: true, color: "FFFFFF", size: 24, font: "Calibri" })],
+            }),
+          ],
+        }),
+        cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y1_COL_NET, size: 24 }),
       ],
     }),
   );
 
-  // ---- Year 1 ----
-  const y1RowCount =
-    (y1SoftwareRows.length > 0 ? y1SoftwareRows.length + 1 : 0) +
-    (y1ServiceRows.length > 0 ? y1ServiceRows.length + 1 : 0) +
-    (totals.discountAmount > 0 ? 1 : 0) +
-    1; // total row
-
-  let y1FirstRow = true;
-  const pushY1Row = (children: TableCell[]) => {
-    const labelCell = y1FirstRow
-      ? new TableCell({
-          rowSpan: y1RowCount,
-          shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
-          margins: { top: 80, bottom: 80, left: 120, right: 120 },
-          borders: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-          },
-          verticalAlign: "center" as any,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [
-                new TextRun({
-                  text: s.year1,
-                  bold: true,
-                  color: "FFFFFF",
-                  size: 22,
-                  font: "Calibri",
-                }),
-              ],
-            }),
-          ],
-        })
-      : null;
-    y1FirstRow = false;
-    tableRows.push(
-      new TableRow({
-        children: [labelCell, ...children].filter(Boolean) as TableCell[],
-      }),
-    );
-  };
-
-  if (y1SoftwareRows.length > 0) {
-    pushY1Row([
-      cell(s.software, { bold: true, bg: GREY_BG }),
-      cell("", { bg: GREY_BG }),
-    ]);
-    y1SoftwareRows.forEach((r) =>
-      pushY1Row([cell(r.label), cell(r.value, { align: AlignmentType.RIGHT })]),
-    );
-  }
-  if (y1ServiceRows.length > 0) {
-    pushY1Row([
-      cell(s.services, { bold: true, bg: GREY_BG }),
-      cell("", { bg: GREY_BG }),
-    ]);
-    y1ServiceRows.forEach((r) =>
-      pushY1Row([cell(r.label), cell(r.value, { align: AlignmentType.RIGHT })]),
-    );
-  }
-  if (totals.discountAmount > 0) {
-    if (totals.softwareDiscountAmount > 0) {
-      pushY1Row([
-        cell(softwareDiscountSummary.mode === "uniform-section" ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0)) : s.softwareDiscountsTotalLabel, { italic: true }),
-        cell(`- ${formatEuro(totals.softwareDiscountAmount, lang)}`, {
-          align: AlignmentType.RIGHT,
-          italic: true,
-        }),
-      ]);
-    }
-    if (totals.servicesDiscountAmount > 0) {
-      pushY1Row([
-        cell(servicesDiscountSummary.mode === "uniform-section" ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0)) : s.servicesDiscountsTotalLabel, { italic: true }),
-        cell(`- ${formatEuro(totals.servicesDiscountAmount, lang)}`, {
-          align: AlignmentType.RIGHT,
-          italic: true,
-        }),
-      ]);
-    }
-  }
-  pushY1Row([
-    cell(s.totalOfYear, { bold: true, bg: GREY_BG }),
-    cell(formatEuro(totals.totalYear1, lang), {
-      bold: true,
-      bg: GREY_BG,
-      align: AlignmentType.RIGHT,
-    }),
-  ]);
-
-  // ---- Year 2+ : recurring only ----
-  const y2RowCount = recurringItems.length + 1;
-  let y2FirstRow = true;
-  const pushY2Row = (children: TableCell[]) => {
-    const labelCell = y2FirstRow
-      ? new TableCell({
-          rowSpan: y2RowCount,
-          shading: { fill: DARK, type: ShadingType.CLEAR, color: "auto" },
-          margins: { top: 80, bottom: 80, left: 120, right: 120 },
-          borders: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            left: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-            right: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
-          },
-          verticalAlign: "center" as any,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [
-                new TextRun({
-                  text: s.year2Onwards,
-                  bold: true,
-                  color: "FFFFFF",
-                  size: 22,
-                  font: "Calibri",
-                }),
-              ],
-            }),
-          ],
-        })
-      : null;
-    y2FirstRow = false;
-    tableRows.push(
-      new TableRow({
-        children: [labelCell, ...children].filter(Boolean) as TableCell[],
-      }),
-    );
-  };
-
-  recurringItems.forEach((r) =>
-    pushY2Row([
-      cell(r.discounted ? `${r.label}  (${s.renewalDiscountApplied})` : r.label),
-      cell(`${r.value} ${r.suffix}`, { align: AlignmentType.RIGHT }),
-    ]),
-  );
-  pushY2Row([
-    cell(s.totalPerYear, { bold: true, bg: GREY_BG }),
-    cell(`${formatEuro(totals.totalRecurring, lang)} ${s.perYear}`, {
-      bold: true,
-      bg: GREY_BG,
-      align: AlignmentType.RIGHT,
-    }),
-  ]);
-
   const investmentTable = new Table({
-    width: { size: 9600, type: WidthType.DXA },
-    columnWidths: [2200, 5000, 2400],
-    rows: tableRows,
+    width: { size: Y1_TABLE_WIDTH, type: WidthType.DXA },
+    columnWidths: [Y1_COL_ITEM, Y1_COL_GROSS, Y1_COL_DISCOUNT, Y1_COL_NET],
+    rows: year1TableRows,
+  });
+
+  // ---- Year 2+ renewal table ----
+  const recurringItems = items.filter((i) => i.is_recurring);
+  const Y2_COL_LABEL = 7800;
+  const Y2_COL_VALUE = 1800;
+  const Y2_TABLE_WIDTH = Y2_COL_LABEL + Y2_COL_VALUE;
+
+  const y2Rows: TableRow[] = [];
+  y2Rows.push(
+    new TableRow({
+      tableHeader: true,
+      children: [
+        cell(s.year2Onwards, { bold: true, bg: DARK, color: "FFFFFF", width: Y2_COL_LABEL }),
+        cell(s.colTotal, { bold: true, bg: DARK, color: "FFFFFF", align: AlignmentType.RIGHT, width: Y2_COL_VALUE }),
+      ],
+    }),
+  );
+
+  recurringItems.forEach((rawItem) => {
+    const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const renewal = getItemRenewalValue(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const discounted = Boolean(rawItem.apply_discount_to_renewal) && renewal < (Number(it.gross_total) || 0);
+    const label = discounted
+      ? `${getCommercialItemLabel(it, proposal)}  (${s.renewalDiscountApplied})`
+      : getCommercialItemLabel(it, proposal);
+    y2Rows.push(
+      new TableRow({
+        children: [
+          cell(label, { width: Y2_COL_LABEL, italic: discounted, color: discounted ? RED : undefined }),
+          cell(`${formatEuro(renewal, lang)} ${s.perYear}`, { align: AlignmentType.RIGHT, width: Y2_COL_VALUE, bold: true }),
+        ],
+      }),
+    );
+  });
+
+  y2Rows.push(
+    new TableRow({
+      children: [
+        cell(s.totalPerYear, { bold: true, bg: GREY_BG, width: Y2_COL_LABEL }),
+        cell(`${formatEuro(totals.totalRecurring, lang)} ${s.perYear}`, { bold: true, bg: GREY_BG, align: AlignmentType.RIGHT, width: Y2_COL_VALUE }),
+      ],
+    }),
+  );
+
+  const renewalTable = new Table({
+    width: { size: Y2_TABLE_WIDTH, type: WidthType.DXA },
+    columnWidths: [Y2_COL_LABEL, Y2_COL_VALUE],
+    rows: y2Rows,
   });
 
   /* ------------------------------ billing ------------------------------ */
@@ -678,7 +680,7 @@ export async function generateProposalDocx(
             margin: { top: 1440, right: 1080, bottom: 1080, left: 1080 },
           },
         },
-        footers: { default: footer },
+        // Cover has no footer to avoid duplicating the contact line on the last page
         children: cover,
       },
       // Inner pages with header + footer
@@ -697,13 +699,20 @@ export async function generateProposalDocx(
           ...softwareBlock,
           ...servicesBlock,
           sectionHeading(s.investmentInProject),
+          p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
           investmentTable,
-          p(s.assumingSameYear1, {
-            italic: true,
-            size: 18,
-            color: MUTED,
-            spacing: { before: 120, after: 80 },
-          }),
+          ...(recurringItems.length > 0
+            ? [
+                p(s.year2Onwards, { bold: true, size: 24, color: RED, spacing: { before: 240, after: 100 } }),
+                renewalTable,
+                p(s.assumingSameYear1, {
+                  italic: true,
+                  size: 18,
+                  color: MUTED,
+                  spacing: { before: 120, after: 80 },
+                }),
+              ]
+            : []),
           ...(totals.recurringDiscountAmount === 0 && totals.discountAmount > 0
             ? [p(s.discountsYear1OnlyNote, { italic: true, size: 18, color: MUTED, spacing: { after: 240 } })]
             : []),

@@ -619,12 +619,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         const effectiveDiscount = getItemEffectiveDiscount(it, softwareDiscountPct, servicesDiscountPct);
                         const hasSectionDiscount = effectiveDiscount.source === "section";
                         const hasNoDiscount = effectiveDiscount.amount === 0;
+                        const isSoftwareItem = it.category === "software" || it.category === "addon";
                         const discountSourceLabel = hasSectionDiscount
-                          ? `Section discount ${effectiveDiscount.value}%`
+                          ? `${isSoftwareItem ? "Software" : "Services"} section discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "percent"
-                          ? `Line discount % ${effectiveDiscount.value}`
+                          ? `Line discount ${effectiveDiscount.value}%`
                           : effectiveDiscount.type === "fixed"
-                          ? `Line discount € ${effectiveDiscount.value}`
+                          ? `Line discount ${effectiveDiscount.value} €`
                           : "—";
                         const grossYearly = it.gross_total || 0;
                         const netYearly = grossYearly - effectiveDiscount.amount;
@@ -670,18 +671,37 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </div>
                       <div className="col-span-2">
                         <Label className="text-[10px]">Discount</Label>
-                        <div className="grid grid-cols-2 gap-1">
-                          <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
-                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="percent">%</SelectItem>
-                              <SelectItem value="fixed">€</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
-                        </div>
-                        <p className={`mt-1 text-[10px] ${hasSectionDiscount ? "text-primary font-medium" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
+                        {hasSectionDiscount ? (
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1 h-8 rounded-md border border-primary/30 bg-primary/5 px-2 flex items-center">
+                              <span className="text-[11px] font-medium text-primary truncate">
+                                {it.is_recurring ? "Software" : "Services"} section {effectiveDiscount.value}%
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2 text-[10px]"
+                              onClick={() => updateItem(idx, { discount_type: "percent", discount_value: effectiveDiscount.value })}
+                              title="Override section discount on this line"
+                            >
+                              Override
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-1">
+                            <Select value={it.discount_type || "none"} onValueChange={(v) => updateItem(idx, { discount_type: v as ProposalLineDiscountType, discount_value: v === "none" ? 0 : it.discount_value || 0 })}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="percent">%</SelectItem>
+                                <SelectItem value="fixed">€</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
+                          </div>
+                        )}
+                        <p className={`mt-1 text-[10px] ${hasSectionDiscount ? "text-primary font-medium" : effectiveDiscount.source === "line" ? "text-foreground" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
                       </div>
                       <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Gross</Label>

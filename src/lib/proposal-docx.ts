@@ -680,7 +680,7 @@ export async function generateProposalDocx(
             margin: { top: 1440, right: 1080, bottom: 1080, left: 1080 },
           },
         },
-        footers: { default: footer },
+        // Cover has no footer to avoid duplicating the contact line on the last page
         children: cover,
       },
       // Inner pages with header + footer

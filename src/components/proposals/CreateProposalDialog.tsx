@@ -197,8 +197,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   }, [includeRequests]);
 
-  // Auto-rebuild items whenever plan/services/options change
+  // Auto-rebuild items whenever plan/services/options change (Professional only)
   useEffect(() => {
+    if (isBusiness) return;
     if (rules.length === 0) return;
     if (editingProposal?.items?.length && open) return;
     setItems(
@@ -212,7 +213,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusiness]);
+
+  // Keep Business config deployment field in sync with the wizard's deployment selector
+  useEffect(() => {
+    if (!isBusiness) return;
+    setBusinessConfig((prev) => (prev.deployment === deployment ? prev : { ...prev, deployment }));
+  }, [deployment, isBusiness]);
 
   // Propagate the per-step discount inputs as line-item discounts.
   // Services use the same model as Software: the wizard input becomes a

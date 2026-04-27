@@ -1971,6 +1971,7 @@ export type Database = {
       proposals: {
         Row: {
           backoffice_work_hours: number | null
+          business_config: Json | null
           client_name: string
           country: string | null
           created_at: string
@@ -2014,6 +2015,7 @@ export type Database = {
         }
         Insert: {
           backoffice_work_hours?: number | null
+          business_config?: Json | null
           client_name: string
           country?: string | null
           created_at?: string
@@ -2057,6 +2059,7 @@ export type Database = {
         }
         Update: {
           backoffice_work_hours?: number | null
+          business_config?: Json | null
           client_name?: string
           country?: string | null
           created_at?: string

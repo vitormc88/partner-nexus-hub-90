@@ -133,6 +133,28 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                   ? "UseIT"
                   : null
                 : null;
+
+              // Recompute Business totals from saved business_config so we can
+              // show both KeepIT and UseIT side by side in Compare mode.
+              let bizTotals: { keepitY1?: number; keepitY2?: number; useitY1?: number; useitY2?: number } | null = null;
+              if (isBusiness && rules.length > 0) {
+                const cfgRaw = (p as any).business_config;
+                if (cfgRaw && typeof cfgRaw === "object") {
+                  const cfg: BusinessConfig = {
+                    ...DEFAULT_BUSINESS_CONFIG,
+                    ...cfgRaw,
+                    implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw.implementation || {}) },
+                    discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw.discounts || {}) },
+                  };
+                  const out = computeBusinessOptions(rules, cfg, ["keepit", "useit"]);
+                  bizTotals = {
+                    keepitY1: out.keepit?.totalYear1,
+                    keepitY2: out.keepit?.totalYear2Plus,
+                    useitY1: out.useit?.totalYear1,
+                    useitY2: out.useit?.totalYear2Plus,
+                  };
+                }
+              }
               return (
               <div key={p.id} className="px-4 py-3 hover:bg-secondary/30 transition-colors group">
                 <div className="flex items-center justify-between gap-3">
@@ -158,11 +180,31 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                           <Badge variant="outline" className="text-[10px]">{modeLabel}</Badge>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {new Date(p.created_at).toLocaleDateString("en-GB")} · Year 1:{" "}
-                        <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong> · Recurring:{" "}
-                        {formatEuro(Number(p.total_recurring) || 0, p.language as any)} / yr
-                      </p>
+                      {isBusiness && bizTotals ? (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {new Date(p.created_at).toLocaleDateString("en-GB")}
+                          {proposalMode === "compare_keepit_useit" ? (
+                            <>
+                              {" · "}KeepIT Y1: <strong>{formatEuro(bizTotals.keepitY1 || 0, p.language as any)}</strong>
+                              {" · "}Y2+: {formatEuro(bizTotals.keepitY2 || 0, p.language as any)}
+                              {" · "}UseIT Y1: <strong>{formatEuro(bizTotals.useitY1 || 0, p.language as any)}</strong>
+                              {" · "}Y2+: {formatEuro(bizTotals.useitY2 || 0, p.language as any)}
+                            </>
+                          ) : (
+                            <>
+                              {" · "}Year 1:{" "}
+                              <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong>
+                              {" · "}Year 2+: {formatEuro(Number(p.total_recurring) || 0, p.language as any)} / yr
+                            </>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {new Date(p.created_at).toLocaleDateString("en-GB")} · Year 1:{" "}
+                          <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong> · Recurring:{" "}
+                          {formatEuro(Number(p.total_recurring) || 0, p.language as any)} / yr
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

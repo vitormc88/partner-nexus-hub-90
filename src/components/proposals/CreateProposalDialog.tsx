@@ -131,6 +131,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       setProposalMode((editingProposal.proposal_mode as ProposalMode) || "compare_keepit_useit");
       setDeployment((editingProposal.deployment as ProposalDeployment) || "saas");
       setHosting(editingProposal.deployment === "on_premise" ? "On-Premise" : "SaaS");
+      const savedCfg = (editingProposal as any).business_config;
+      if (savedCfg && typeof savedCfg === "object") {
+        // Merge with defaults so newly added fields (e.g. discounts) are present.
+        setBusinessConfig({
+          ...DEFAULT_BUSINESS_CONFIG,
+          ...savedCfg,
+          implementation: {
+            ...DEFAULT_BUSINESS_CONFIG.implementation,
+            ...(savedCfg.implementation || {}),
+          },
+          discounts: {
+            ...DEFAULT_BUSINESS_CONFIG.discounts,
+            ...(savedCfg.discounts || {}),
+          },
+        });
+      }
     } else {
       setHosting("SaaS"); // Professional plans are SaaS-only
     }
@@ -396,6 +412,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           : null,
         proposal_mode: isBusiness ? proposalMode : null,
         deployment: isBusiness ? deployment : null,
+        business_config: isBusiness ? (businessConfig as any) : null,
         client_name: clientName,
         project_name: projectName || null,
         country: country || null,

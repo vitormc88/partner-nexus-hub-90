@@ -619,7 +619,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className={`grid ${isBusiness ? "grid-cols-1" : "grid-cols-3"} gap-4`}>
                 <div>
                   <Label>Language</Label>
                   <Select value={language} onValueChange={(v) => setLanguage(v as ProposalLanguage)}>
@@ -638,27 +638,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     </p>
                   )}
                 </div>
-                <div>
-                  <Label>Plan</Label>
-                  <Select value={String(plan)} onValueChange={(v) => setPlan(Number(v) as ProposalPlan)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Plan 1 — Maintenance</SelectItem>
-                      <SelectItem value="2">Plan 2 — Maint + Stock + PO</SelectItem>
-                      <SelectItem value="3">Plan 3 — All modules + API</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Hosting</Label>
-                  <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SaaS">SaaS</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">Professional plans are SaaS-only. On-Premise will be available for Business proposals.</p>
-                </div>
+                {!isBusiness && (
+                  <>
+                    <div>
+                      <Label>Plan</Label>
+                      <Select value={String(plan)} onValueChange={(v) => setPlan(Number(v) as ProposalPlan)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Plan 1 — Maintenance</SelectItem>
+                          <SelectItem value="2">Plan 2 — Maint + Stock + PO</SelectItem>
+                          <SelectItem value="3">Plan 3 — All modules + API</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Hosting</Label>
+                      <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="SaaS">SaaS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">Professional plans are SaaS-only. On-Premise will be available for Business proposals.</p>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -33,8 +33,23 @@ import type {
   ProposalHosting,
   Proposal,
   ProposalLineDiscountType,
+  ProposalProductFamily,
+  ProposalLicenseModel,
+  ProposalMode,
+  ProposalDeployment,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  BusinessSoftwareStep,
+  BusinessServicesStep,
+  BusinessPreviewStep,
+} from "./BusinessSteps";
+import {
+  computeBusinessOption,
+  computeBusinessOptions,
+  DEFAULT_BUSINESS_CONFIG,
+  type BusinessConfig,
+} from "@/lib/proposal-business-engine";
 
 interface Props {
   open: boolean;
@@ -64,6 +79,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [proposalDate, setProposalDate] = useState(new Date().toISOString().split("T")[0]);
   const [validityDays, setValidityDays] = useState(60);
   const [country, setCountry] = useState(defaultCountry || "");
+
+  // Business product family fields
+  const [productFamily, setProductFamily] = useState<ProposalProductFamily>("Professional");
+  const [proposalMode, setProposalMode] = useState<ProposalMode>("compare_keepit_useit");
+  const [deployment, setDeployment] = useState<ProposalDeployment>("saas");
+  const [businessConfig, setBusinessConfig] = useState<BusinessConfig>(DEFAULT_BUSINESS_CONFIG);
+
+  const isBusiness = productFamily === "Business";
 
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
@@ -102,7 +125,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan(editingProposal.plan);
-    setHosting("SaaS"); // Professional plans are SaaS-only (Business not yet implemented)
+    const fam: ProposalProductFamily = (editingProposal.product_family as any) || "Professional";
+    setProductFamily(fam);
+    if (fam === "Business") {
+      setProposalMode((editingProposal.proposal_mode as ProposalMode) || "compare_keepit_useit");
+      setDeployment((editingProposal.deployment as ProposalDeployment) || "saas");
+      setHosting(editingProposal.deployment === "on_premise" ? "On-Premise" : "SaaS");
+    } else {
+      setHosting("SaaS"); // Professional plans are SaaS-only
+    }
     setClientName(editingProposal.client_name);
     setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
     setProposalDate(editingProposal.proposal_date);
@@ -166,8 +197,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   }, [includeRequests]);
 
-  // Auto-rebuild items whenever plan/services/options change
+  // Auto-rebuild items whenever plan/services/options change (Professional only)
   useEffect(() => {
+    if (isBusiness) return;
     if (rules.length === 0) return;
     if (editingProposal?.items?.length && open) return;
     setItems(
@@ -181,13 +213,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusiness]);
+
+  // Keep Business config deployment field in sync with the wizard's deployment selector
+  useEffect(() => {
+    if (!isBusiness) return;
+    setBusinessConfig((prev) => (prev.deployment === deployment ? prev : { ...prev, deployment }));
+  }, [deployment, isBusiness]);
 
   // Propagate the per-step discount inputs as line-item discounts.
   // Services use the same model as Software: the wizard input becomes a
   // normal % line discount on each service item (auto-managed, source = "auto").
   // The user can still override any line manually in the Preview step.
   useEffect(() => {
+    if (isBusiness) return;
     setItems((prev) =>
       prev.map((item) => {
         const isService = item.category === "service";
@@ -253,7 +292,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews, isBusiness]);
+
+  // ----- Business totals (in-memory only; not stored in proposal_items) -----
+  const businessResult = useMemo(() => {
+    if (!isBusiness) return null;
+    const models: ProposalLicenseModel[] =
+      proposalMode === "keepit_only"
+        ? ["keepit"]
+        : proposalMode === "useit_only"
+        ? ["useit"]
+        : ["keepit", "useit"];
+    return computeBusinessOptions(rules, businessConfig, models);
+  }, [isBusiness, rules, businessConfig, proposalMode]);
+
+  /** Pick the "headline" option for KPI/expected-value purposes (KeepIT preferred). */
+  const businessHeadline = useMemo(() => {
+    if (!businessResult) return null;
+    return businessResult.keepit || businessResult.useit;
+  }, [businessResult]);
 
   // We materialize Services discount % onto each service line (above), so we
   // pass 0 here to avoid double-applying. Software section discount has been
@@ -328,7 +385,17 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         language,
         plan,
         status,
-        hosting,
+        hosting: isBusiness ? (deployment === "saas" ? "SaaS" : "On-Premise") : hosting,
+        product_family: productFamily,
+        license_model: isBusiness
+          ? proposalMode === "keepit_only"
+            ? "keepit"
+            : proposalMode === "useit_only"
+            ? "useit"
+            : null
+          : null,
+        proposal_mode: isBusiness ? proposalMode : null,
+        deployment: isBusiness ? deployment : null,
         client_name: clientName,
         project_name: projectName || null,
         country: country || null,
@@ -336,23 +403,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         validity_days: validityDays,
         payment_terms: paymentTerms,
         notes: notes || null,
-        implementation_type: implType,
+        implementation_type: isBusiness ? "Online" : implType,
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
-        // Discounts are now materialized as line-item discounts. Section
-        // percentages are stored as 0 to prevent double-application by the
-        // render layer (DOCX/PDF) which receives proposal.*_discount_pct.
         software_discount_pct: 0,
         services_discount_pct: 0,
-        include_requests_module: includeRequests,
-        web_users: webUsers,
-        service_days: onsiteDays || null,
-        software_subtotal: totals.softwareSubtotal,
-        services_subtotal: totals.servicesSubtotal,
-        discount_amount: totals.discountAmount,
-        total_year_1: totals.totalYear1,
-        total_recurring: totals.totalRecurring,
+        include_requests_module: isBusiness ? businessConfig.includeRequests : includeRequests,
+        web_users: isBusiness ? businessConfig.additionalWebUsers : webUsers,
+        service_days: isBusiness ? null : onsiteDays || null,
+        software_subtotal: isBusiness ? businessHeadline?.licenseSubtotal || 0 : totals.softwareSubtotal,
+        services_subtotal: isBusiness
+          ? (businessHeadline?.services.reduce((s, l) => s + l.amount, 0) || 0)
+          : totals.servicesSubtotal,
+        discount_amount: isBusiness ? 0 : totals.discountAmount,
+        total_year_1: isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1,
+        total_recurring: isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring,
         created_by: user?.id || null,
       };
       const propResponse = editingProposal?.id
@@ -366,34 +432,68 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         if (deleteItemsError) throw deleteItemsError;
       }
 
-      // Insert items
-      const itemRows = items.map((it, idx) => {
-        const enriched = enrichProposalItem(it, 0, 0);
-        return {
-        proposal_id: prop.id,
-        category: it.category,
-        item_code: it.item_code,
-        item_name: it.item_name,
-        description: it.description,
-        qty: it.qty,
-        unit_price: it.unit_price,
-        frequency: it.frequency,
-        total: enriched.gross_total ?? getItemBaseTotal(it),
-        discount_type: it.discount_type || "none",
-        discount_value: Number(it.discount_value || 0),
-        gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
-        discount_amount: Number(enriched.discount_amount || 0),
-        net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
-        is_override: it.is_override,
-        is_recurring: it.is_recurring,
-        apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
-        sort_order: idx,
-      }});
+      // Build item rows. For Business, snapshot the headline option's lines so
+      // the proposal carries a persisted breakdown for the Proposals tab.
+      let itemRows: any[] = [];
+      if (isBusiness && businessHeadline) {
+        const lines = [
+          ...businessHeadline.software,
+          ...(businessHeadline.api ? [businessHeadline.api] : []),
+          ...businessHeadline.hosting,
+          ...(businessHeadline.sat ? [businessHeadline.sat] : []),
+          ...businessHeadline.services,
+        ];
+        itemRows = lines.map((l, idx) => ({
+          proposal_id: prop.id,
+          category: l.category === "service" ? "service" : l.category === "module" || l.category === "plugin" ? "software" : "addon",
+          item_code: l.code,
+          item_name: l.label,
+          description: null,
+          qty: l.qty,
+          unit_price: l.unitPrice,
+          frequency: l.frequency,
+          total: l.amount,
+          discount_type: "none",
+          discount_value: 0,
+          gross_total: l.amount,
+          discount_amount: 0,
+          net_total: l.amount,
+          is_override: false,
+          is_recurring: l.recurring,
+          apply_discount_to_renewal: false,
+          sort_order: idx,
+        }));
+      } else {
+        itemRows = items.map((it, idx) => {
+          const enriched = enrichProposalItem(it, 0, 0);
+          return {
+            proposal_id: prop.id,
+            category: it.category,
+            item_code: it.item_code,
+            item_name: it.item_name,
+            description: it.description,
+            qty: it.qty,
+            unit_price: it.unit_price,
+            frequency: it.frequency,
+            total: enriched.gross_total ?? getItemBaseTotal(it),
+            discount_type: it.discount_type || "none",
+            discount_value: Number(it.discount_value || 0),
+            gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
+            discount_amount: Number(enriched.discount_amount || 0),
+            net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
+            is_override: it.is_override,
+            is_recurring: it.is_recurring,
+            apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
+            sort_order: idx,
+          };
+        });
+      }
       if (itemRows.length > 0) {
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
-      await supabase.from("deals").update({ expected_value: totals.totalYear1 }).eq("id", leadId);
+      const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
+      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", leadId);
       qc.invalidateQueries({ queryKey: ["proposals"] });
       qc.invalidateQueries({ queryKey: ["deal", leadId] });
       qc.invalidateQueries({ queryKey: ["deals"] });
@@ -484,6 +584,43 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div>
+                  <Label>Product family</Label>
+                  <Select value={productFamily} onValueChange={(v) => setProductFamily(v as ProposalProductFamily)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Professional">Professional</SelectItem>
+                      <SelectItem value="Business">Business</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {isBusiness && (
+                  <>
+                    <div>
+                      <Label>Proposal mode</Label>
+                      <Select value={proposalMode} onValueChange={(v) => setProposalMode(v as ProposalMode)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="compare_keepit_useit">Compare KeepIT vs UseIT</SelectItem>
+                          <SelectItem value="keepit_only">KeepIT only</SelectItem>
+                          <SelectItem value="useit_only">UseIT only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Deployment</Label>
+                      <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="saas">SaaS</SelectItem>
+                          <SelectItem value="on_premise">On-Premise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
                   <Label>Language</Label>
                   <Select value={language} onValueChange={(v) => setLanguage(v as ProposalLanguage)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -551,7 +688,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           )}
 
           {/* STEP 1: Software */}
-          {step === 1 && (
+          {step === 1 && isBusiness && (
+            <BusinessSoftwareStep
+              rules={rules}
+              language={language}
+              config={businessConfig}
+              onChange={setBusinessConfig}
+              proposalMode={proposalMode}
+            />
+          )}
+          {step === 1 && !isBusiness && (
             <div className="space-y-4">
               <div className="bg-secondary/40 border rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-2">Plan {plan} — auto-included modules</h4>

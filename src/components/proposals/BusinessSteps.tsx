@@ -4,7 +4,7 @@
  * Renders Software/Services/Preview steps for Business proposals.
  * Independent from the Professional flow — does NOT touch Professional logic.
  */
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -14,9 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import {
   computeBusinessOptions,
+  ONSITE_RATES,
   type BusinessConfig,
   type BusinessOptionTotals,
   type BusinessLineItem,
+  type OnsiteRegion,
+  DEFAULT_BUSINESS_DISCOUNTS,
 } from "@/lib/proposal-business-engine";
 import type {
   PricingRule,
@@ -37,6 +40,10 @@ export interface BusinessStepsProps {
 export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
   const update = <K extends keyof BusinessConfig>(k: K, v: BusinessConfig[K]) =>
     onChange({ ...config, [k]: v });
+  const discounts = config.discounts || DEFAULT_BUSINESS_DISCOUNTS;
+  const updDisc = <K extends keyof typeof discounts>(k: K, v: (typeof discounts)[K]) =>
+    onChange({ ...config, discounts: { ...discounts, [k]: v } });
+  const clampPct = (n: number) => Math.max(0, Math.min(100, Number(n) || 0));
 
   return (
     <div className="space-y-4">
@@ -130,13 +137,68 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
           </p>
         </div>
       </div>
+
+      {/* Discounts */}
+      <div className="bg-card border rounded-lg p-3 space-y-3">
+        <p className="text-xs font-semibold text-foreground">Discounts</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs">Software discount %</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={discounts.softwarePct}
+              onChange={(e) => updDisc("softwarePct", clampPct(Number(e.target.value)))}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Applies to modules, plugins and additional BackOffice users.
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Web/Mobile users discount %</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={discounts.webUsersPct}
+              onChange={(e) => updDisc("webUsersPct", clampPct(Number(e.target.value)))}
+              disabled={config.additionalWebUsers <= 0}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
+              <Switch
+                checked={discounts.webUsersRenews}
+                onCheckedChange={(v) => updDisc("webUsersRenews", v)}
+                disabled={discounts.webUsersPct <= 0 || config.additionalWebUsers <= 0}
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">API discount %</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={discounts.apiPct}
+              onChange={(e) => updDisc("apiPct", clampPct(Number(e.target.value)))}
+              disabled={!config.api}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Optional. API recurs each year.</p>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          S&AT and SaaS hosting are <strong>never</strong> discounted. KeepIT S&AT is computed from
+          the original (gross) license amount.
+        </p>
+      </div>
     </div>
   );
 }
 
 export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
-  const update = <K extends keyof BusinessConfig>(k: K, v: BusinessConfig[K]) =>
-    onChange({ ...config, [k]: v });
+  const discounts = config.discounts || DEFAULT_BUSINESS_DISCOUNTS;
+  const clampPct = (n: number) => Math.max(0, Math.min(100, Number(n) || 0));
 
   const updImpl = <K extends keyof BusinessConfig["implementation"]>(
     k: K,
@@ -156,7 +218,7 @@ export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <Label>Implementation Type</Label>
           <Select
@@ -188,6 +250,24 @@ export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
           />
           <p className="text-[11px] text-muted-foreground mt-1">405 € each</p>
         </div>
+        <div>
+          <Label>Services discount %</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={discounts.servicesPct}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                discounts: { ...discounts, servicesPct: clampPct(Number(e.target.value)) },
+              })
+            }
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Applies to RCI, Onsite, and custom service lines.
+          </p>
+        </div>
       </div>
 
       {config.implementation.type === "Onsite" && (
@@ -212,14 +292,22 @@ export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
           </div>
           <div>
             <Label className="text-xs">Region</Label>
-            <Input
-              value={config.implementation.onsiteRegion || ""}
-              onChange={(e) => updImpl("onsiteRegion", e.target.value)}
-            />
+            <Select
+              value={(config.implementation.onsiteRegion as OnsiteRegion) || "Portugal"}
+              onValueChange={(v) => updImpl("onsiteRegion", v as OnsiteRegion)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Portugal">Portugal (695€ / 530€)</SelectItem>
+                <SelectItem value="International">International (840€ / 530€)</SelectItem>
+                <SelectItem value="Western Europe">Western Europe (1080€ / 790€)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <p className="col-span-3 text-[11px] text-muted-foreground italic">
-            Onsite pricing for Business is using simple day inputs in this MVP. Add line items
-            below as Custom services.
+            Rates: Client day / BackOffice day. Add custom service lines below for any extras.
           </p>
         </div>
       )}
@@ -328,7 +416,7 @@ export function BusinessPreviewStep({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="secondary">Business</Badge>
         <Badge variant="outline">
           Deployment: {config.deployment === "saas" ? "SaaS" : "On-Premise"}
@@ -336,6 +424,11 @@ export function BusinessPreviewStep({
         <Badge variant="outline">
           Mode: {proposalMode === "compare_keepit_useit" ? "Compare KeepIT vs UseIT" : proposalMode === "keepit_only" ? "KeepIT only" : "UseIT only"}
         </Badge>
+        {config.implementation.type === "Onsite" && (
+          <Badge variant="outline">
+            Onsite region: {config.implementation.onsiteRegion || "Portugal"}
+          </Badge>
+        )}
       </div>
 
       <div className={`grid ${isCompare ? "grid-cols-2" : "grid-cols-1"} gap-4`}>
@@ -379,15 +472,36 @@ function OptionCard({
   data: BusinessOptionTotals;
   fmt: (n: number) => string;
 }) {
-  const renderLine = (l: BusinessLineItem) => (
-    <div key={`${l.code}-${l.label}`} className="flex justify-between text-xs">
-      <span className="text-muted-foreground truncate pr-2">
-        {l.label}
-        {l.qty > 1 ? ` ×${l.qty}` : ""}
-      </span>
-      <span className="font-medium tabular-nums shrink-0">{fmt(l.amount)}</span>
-    </div>
-  );
+  const hasDiscounts = data.hasDiscounts;
+
+  const renderLine = (l: BusinessLineItem) => {
+    if (!hasDiscounts || l.discountAmount === 0) {
+      return (
+        <div key={`${l.code}-${l.label}`} className="flex justify-between text-xs">
+          <span className="text-muted-foreground truncate pr-2">
+            {l.label}
+            {l.qty > 1 ? ` ×${l.qty}` : ""}
+          </span>
+          <span className="font-medium tabular-nums shrink-0">{fmt(l.netAmount)}</span>
+        </div>
+      );
+    }
+    return (
+      <div key={`${l.code}-${l.label}`} className="grid grid-cols-12 gap-1 text-xs items-center">
+        <span className="text-muted-foreground truncate col-span-5">
+          {l.label}
+          {l.qty > 1 ? ` ×${l.qty}` : ""}
+        </span>
+        <span className="text-right tabular-nums col-span-3 text-muted-foreground line-through">
+          {fmt(l.amount)}
+        </span>
+        <span className="text-right tabular-nums col-span-2 text-amber-700">
+          -{l.discountPct}%
+        </span>
+        <span className="text-right tabular-nums col-span-2 font-medium">{fmt(l.netAmount)}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="border rounded-lg overflow-hidden bg-card">

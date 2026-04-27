@@ -102,7 +102,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan(editingProposal.plan);
-    setHosting(editingProposal.hosting);
+    setHosting("SaaS"); // Professional plans are SaaS-only (Business not yet implemented)
     setClientName(editingProposal.client_name);
     setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
     setProposalDate(editingProposal.proposal_date);

@@ -777,7 +777,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           )}
 
           {/* STEP 2: Services */}
-          {step === 2 && (
+          {step === 2 && isBusiness && (
+            <BusinessServicesStep
+              rules={rules}
+              language={language}
+              config={businessConfig}
+              onChange={setBusinessConfig}
+              proposalMode={proposalMode}
+            />
+          )}
+          {step === 2 && !isBusiness && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>

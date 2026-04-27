@@ -385,7 +385,17 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         language,
         plan,
         status,
-        hosting,
+        hosting: isBusiness ? (deployment === "saas" ? "SaaS" : "On-Premise") : hosting,
+        product_family: productFamily,
+        license_model: isBusiness
+          ? proposalMode === "keepit_only"
+            ? "keepit"
+            : proposalMode === "useit_only"
+            ? "useit"
+            : null
+          : null,
+        proposal_mode: isBusiness ? proposalMode : null,
+        deployment: isBusiness ? deployment : null,
         client_name: clientName,
         project_name: projectName || null,
         country: country || null,
@@ -393,23 +403,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         validity_days: validityDays,
         payment_terms: paymentTerms,
         notes: notes || null,
-        implementation_type: implType,
+        implementation_type: isBusiness ? "Online" : implType,
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
-        // Discounts are now materialized as line-item discounts. Section
-        // percentages are stored as 0 to prevent double-application by the
-        // render layer (DOCX/PDF) which receives proposal.*_discount_pct.
         software_discount_pct: 0,
         services_discount_pct: 0,
-        include_requests_module: includeRequests,
-        web_users: webUsers,
-        service_days: onsiteDays || null,
-        software_subtotal: totals.softwareSubtotal,
-        services_subtotal: totals.servicesSubtotal,
-        discount_amount: totals.discountAmount,
-        total_year_1: totals.totalYear1,
-        total_recurring: totals.totalRecurring,
+        include_requests_module: isBusiness ? businessConfig.includeRequests : includeRequests,
+        web_users: isBusiness ? businessConfig.additionalWebUsers : webUsers,
+        service_days: isBusiness ? null : onsiteDays || null,
+        software_subtotal: isBusiness ? businessHeadline?.licenseSubtotal || 0 : totals.softwareSubtotal,
+        services_subtotal: isBusiness
+          ? (businessHeadline?.services.reduce((s, l) => s + l.amount, 0) || 0)
+          : totals.servicesSubtotal,
+        discount_amount: isBusiness ? 0 : totals.discountAmount,
+        total_year_1: isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1,
+        total_recurring: isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring,
         created_by: user?.id || null,
       };
       const propResponse = editingProposal?.id

@@ -102,7 +102,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan(editingProposal.plan);
-    setHosting(editingProposal.hosting);
+    setHosting("SaaS"); // Professional plans are SaaS-only (Business not yet implemented)
     setClientName(editingProposal.client_name);
     setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
     setProposalDate(editingProposal.proposal_date);
@@ -514,13 +514,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 </div>
                 <div>
                   <Label>Hosting</Label>
-                  <Select value={hosting} onValueChange={(v) => setHosting(v as ProposalHosting)}>
+                  <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="SaaS">SaaS</SelectItem>
-                      <SelectItem value="On-Premise">On-Premise</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Professional plans are SaaS-only. On-Premise will be available for Business proposals.</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

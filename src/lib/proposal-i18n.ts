@@ -168,7 +168,7 @@ const EN: Strings = {
     "² The installation date is understood to be the date from which the software is available for access by users via login.",
   otherInfo: "OTHER RELEVANT INFORMATION",
   vatNote: "VAT at the legal rate in force is added to the values presented",
-  validityNote: (d) => `This proposal is valid for ${d} (${d}) days`,
+  validityNote: (d) => `This proposal is valid for ${d} days`,
   saasFeatures: "Features of the ManWinWin SaaS solution",
   saasFeaturesList: [
     "Remote access to the application via the Internet",
@@ -294,7 +294,7 @@ const PT: Strings = {
     "² Por data de instalação entende-se, data a partir da qual, o software fica disponível para acesso por parte dos utilizadores mediante login.",
   otherInfo: "OUTRAS INFORMAÇÕES RELEVANTES",
   vatNote: "Aos valores apresentados acresce IVA à taxa legal em vigor",
-  validityNote: (d) => `Esta proposta é válida por ${d} (${d}) dias`,
+  validityNote: (d) => `Esta proposta é válida por ${d} dias`,
   saasFeatures: "Características da solução ManWinWin SaaS",
   saasFeaturesList: [
     "Acesso remoto à aplicação via Internet",
@@ -421,7 +421,7 @@ const ES: Strings = {
     "² Por fecha de instalación se entiende la fecha a partir de la cual el software está disponible para que los usuarios puedan acceder mediante inicio de sesión.",
   otherInfo: "OTRA INFORMACIÓN RELEVANTE",
   vatNote: "A los valores presentados se añade el IVA a la tasa legal vigente",
-  validityNote: (d) => `Esta propuesta es válida por ${d} (${d}) días`,
+  validityNote: (d) => `Esta propuesta es válida por ${d} días`,
   saasFeatures: "Características de la solución ManWinWin SaaS",
   saasFeaturesList: [
     "Acceso remoto a la aplicación vía Internet",

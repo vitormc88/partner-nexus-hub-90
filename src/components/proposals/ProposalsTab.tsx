@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil } from "lucide-react";
-import { useLeadProposals, useDeleteProposal, useDuplicateProposal } from "@/hooks/useProposals";
+import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,11 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
+import {
+  computeBusinessOptions,
+  DEFAULT_BUSINESS_CONFIG,
+  type BusinessConfig,
+} from "@/lib/proposal-business-engine";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 
 interface Props {

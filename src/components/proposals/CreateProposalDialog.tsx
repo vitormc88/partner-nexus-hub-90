@@ -997,18 +997,47 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <FileText className="h-8 w-8 text-primary" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Ready to generate</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Plan {plan} · {hosting} · {language} · Year 1: <strong>{formatPrice(totals.totalYear1)}</strong>
-                </p>
-              </div>
-              <div className="flex justify-center gap-2">
-                <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                <Button onClick={handleGenerate} disabled={saving}>
-                  <Download className="h-4 w-4 mr-2" />Generate DOCX
-                </Button>
-              </div>
+              {isBusiness ? (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Save Business proposal</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {productFamily} · {deployment === "saas" ? "SaaS" : "On-Premise"} · {language}
+                    </p>
+                    {businessHeadline && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Year 1 (headline): <strong>{formatPrice(businessHeadline.totalYear1)}</strong>
+                        {" · "}Year 2+: <strong>{formatPrice(businessHeadline.totalYear2Plus)}/yr</strong>
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 max-w-md mx-auto">
+                    <p className="text-xs text-amber-900 dark:text-amber-200">
+                      <strong>Business document export coming soon.</strong> The proposal will be saved
+                      with its full breakdown and totals, but DOCX/PDF generation is not enabled yet for
+                      Business proposals.
+                    </p>
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <Button onClick={handleSaveDraft} disabled={saving}>Save proposal</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Ready to generate</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Plan {plan} · {hosting} · {language} · Year 1: <strong>{formatPrice(totals.totalYear1)}</strong>
+                    </p>
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button onClick={handleGenerate} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate DOCX
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

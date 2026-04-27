@@ -226,6 +226,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   // normal % line discount on each service item (auto-managed, source = "auto").
   // The user can still override any line manually in the Preview step.
   useEffect(() => {
+    if (isBusiness) return;
     setItems((prev) =>
       prev.map((item) => {
         const isService = item.category === "service";

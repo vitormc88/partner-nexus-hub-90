@@ -33,8 +33,23 @@ import type {
   ProposalHosting,
   Proposal,
   ProposalLineDiscountType,
+  ProposalProductFamily,
+  ProposalLicenseModel,
+  ProposalMode,
+  ProposalDeployment,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  BusinessSoftwareStep,
+  BusinessServicesStep,
+  BusinessPreviewStep,
+} from "./BusinessSteps";
+import {
+  computeBusinessOption,
+  computeBusinessOptions,
+  DEFAULT_BUSINESS_CONFIG,
+  type BusinessConfig,
+} from "@/lib/proposal-business-engine";
 
 interface Props {
   open: boolean;

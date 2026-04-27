@@ -2,6 +2,18 @@ export type ProposalLanguage = "EN" | "PT" | "ES" | "RO" | "TH";
 export type ProposalPlan = 1 | 2 | 3;
 export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Won" | "Lost";
 export type ProposalHosting = "SaaS" | "On-Premise";
+
+/** Product family — Professional (default) or Business (KeepIT/UseIT). */
+export type ProposalProductFamily = "Professional" | "Business";
+
+/** License model used by Business proposals. */
+export type ProposalLicenseModel = "keepit" | "useit";
+
+/** How a Business proposal is presented. */
+export type ProposalMode = "compare_keepit_useit" | "keepit_only" | "useit_only";
+
+/** Deployment target — Business proposals can be SaaS or On-Premise. */
+export type ProposalDeployment = "saas" | "on_premise";
 export type ProposalDiscountScope = "none" | "services" | "software" | "total";
 export type ProposalLineDiscountType = "none" | "percent" | "fixed";
 /**
@@ -72,6 +84,14 @@ export interface Proposal {
   plan: ProposalPlan;
   status: ProposalStatus;
   hosting: ProposalHosting;
+  /** Defaults to "Professional" for legacy rows. */
+  product_family?: ProposalProductFamily;
+  /** Business only — chosen license model (when not in compare mode). */
+  license_model?: ProposalLicenseModel | null;
+  /** Business only — proposal presentation mode. */
+  proposal_mode?: ProposalMode | null;
+  /** Business only — deployment target. */
+  deployment?: ProposalDeployment | null;
   client_name: string;
   project_name: string | null;
   country: string | null;

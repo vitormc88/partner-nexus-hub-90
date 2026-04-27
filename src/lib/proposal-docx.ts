@@ -295,7 +295,7 @@ export async function generateProposalDocx(
       children: [
         new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
         new TextRun({
-          text: `Professional (${proposal.hosting})`,
+          text: "Professional (SaaS)",
           bold: true,
           color: RED,
           size: 32,

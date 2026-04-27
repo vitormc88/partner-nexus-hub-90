@@ -205,7 +205,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   </div>
   <div class="cover hero">
     <h1>${esc(s.investmentProposal)}</h1>
-    <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (${esc(proposal.hosting)})</div>
+    <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (SaaS)</div>
   </div>
 
   <div class="meta">

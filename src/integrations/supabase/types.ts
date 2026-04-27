@@ -1975,6 +1975,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string | null
+          deployment: string | null
           discount_amount: number | null
           discount_pct: number | null
           discount_scope: string
@@ -1986,14 +1987,17 @@ export type Database = {
           include_requests_module: boolean
           language: string
           lead_id: string
+          license_model: string | null
           notes: string | null
           parent_proposal_id: string | null
           payment_terms: string | null
           pdf_url: string | null
           per_diem: number | null
           plan: number
+          product_family: string
           project_name: string | null
           proposal_date: string
+          proposal_mode: string | null
           service_days: number | null
           service_hours: number | null
           services_discount_pct: number
@@ -2014,6 +2018,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          deployment?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
           discount_scope?: string
@@ -2025,14 +2030,17 @@ export type Database = {
           include_requests_module?: boolean
           language?: string
           lead_id: string
+          license_model?: string | null
           notes?: string | null
           parent_proposal_id?: string | null
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
           plan?: number
+          product_family?: string
           project_name?: string | null
           proposal_date?: string
+          proposal_mode?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number
@@ -2053,6 +2061,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          deployment?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
           discount_scope?: string
@@ -2064,14 +2073,17 @@ export type Database = {
           include_requests_module?: boolean
           language?: string
           lead_id?: string
+          license_model?: string | null
           notes?: string | null
           parent_proposal_id?: string | null
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
           plan?: number
+          product_family?: string
           project_name?: string | null
           proposal_date?: string
+          proposal_mode?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number

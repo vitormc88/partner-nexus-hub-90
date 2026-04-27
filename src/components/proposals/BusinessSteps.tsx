@@ -318,10 +318,11 @@ export function BusinessPreviewStep({
 
   const fmt = (n: number) => formatEuro(n, language);
 
-  const options: Array<{ key: ProposalLicenseModel; data: BusinessOptionTotals | null; title: string }> = [
+  const allOptions: Array<{ key: ProposalLicenseModel; data: BusinessOptionTotals | null; title: string }> = [
     { key: "keepit", data: result.keepit, title: "KeepIT (lifetime license)" },
     { key: "useit", data: result.useit, title: "UseIT (annual license)" },
-  ].filter((o) => models.includes(o.key));
+  ];
+  const options = allOptions.filter((o) => models.includes(o.key));
 
   const isCompare = options.length > 1;
 

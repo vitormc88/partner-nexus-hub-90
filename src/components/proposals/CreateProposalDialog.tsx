@@ -80,6 +80,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [validityDays, setValidityDays] = useState(60);
   const [country, setCountry] = useState(defaultCountry || "");
 
+  // Business product family fields
+  const [productFamily, setProductFamily] = useState<ProposalProductFamily>("Professional");
+  const [proposalMode, setProposalMode] = useState<ProposalMode>("compare_keepit_useit");
+  const [deployment, setDeployment] = useState<ProposalDeployment>("saas");
+  const [businessConfig, setBusinessConfig] = useState<BusinessConfig>(DEFAULT_BUSINESS_CONFIG);
+
+  const isBusiness = productFamily === "Business";
+
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
   const [webUsers, setWebUsers] = useState(0);

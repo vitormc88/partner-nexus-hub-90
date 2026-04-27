@@ -33,6 +33,7 @@ const statusVariant = (s: string): any => {
 
 export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Props) {
   const { data: proposals = [], isLoading } = useLeadProposals(leadId);
+  const { data: rules = [] } = usePricingRules();
   const del = useDeleteProposal();
   const dup = useDuplicateProposal();
   const qc = useQueryClient();

@@ -584,6 +584,43 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div>
+                  <Label>Product family</Label>
+                  <Select value={productFamily} onValueChange={(v) => setProductFamily(v as ProposalProductFamily)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Professional">Professional</SelectItem>
+                      <SelectItem value="Business">Business</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {isBusiness && (
+                  <>
+                    <div>
+                      <Label>Proposal mode</Label>
+                      <Select value={proposalMode} onValueChange={(v) => setProposalMode(v as ProposalMode)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="compare_keepit_useit">Compare KeepIT vs UseIT</SelectItem>
+                          <SelectItem value="keepit_only">KeepIT only</SelectItem>
+                          <SelectItem value="useit_only">UseIT only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Deployment</Label>
+                      <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="saas">SaaS</SelectItem>
+                          <SelectItem value="on_premise">On-Premise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
                   <Label>Language</Label>
                   <Select value={language} onValueChange={(v) => setLanguage(v as ProposalLanguage)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>

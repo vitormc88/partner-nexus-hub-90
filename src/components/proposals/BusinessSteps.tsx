@@ -665,8 +665,18 @@ function CalculationBreakdown({
           />
           <Row label="  Recurring software portion" value={fmt(recurringSoftware)} />
           <Row label="  API recurring portion" value={fmt(apiRecurring)} />
-          <Row label="5-year license = Y1 + 4 × Y2+" value={fmt(data.totalFiveYears)} bold />
-          <Row label="5-year project total = same (services are one-time, included in Y1)" value={fmt(data.totalFiveYears)} />
+        </div>
+
+        <div className="space-y-0.5 border-t pt-2">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+            5-year verification (internal check)
+          </p>
+          <Row label="Year 1" value={fmt(data.totalYear1)} />
+          <Row label="Year 2" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 3" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 4" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 5" value={fmt(data.totalYear2Plus)} />
+          <Row label="5-year total = Y1 + 4 × Y2+" value={fmt(data.totalFiveYears)} bold />
         </div>
       </div>
     </details>

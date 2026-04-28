@@ -133,6 +133,8 @@ export interface BusinessOptionTotals {
   licenseSubtotal: number;
   /** Detailed S&AT breakdown for audit transparency. */
   satBreakdown: BusinessSatBreakdown;
+  /** UseIT only: derivation of the annual software/license base from KeepIT. Null on KeepIT. */
+  useItDerivation: UseItDerivation | null;
   /** Year 1 = software net + api net + hosting + sat + services net */
   totalYear1: number;
   /** Year 2+ recurring net total. */

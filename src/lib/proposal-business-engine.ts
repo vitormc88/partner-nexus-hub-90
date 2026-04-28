@@ -99,10 +99,26 @@ export interface BusinessSatBreakdown {
   satPct: number;
   /** KeepIT only: 17% × satBase. */
   satPercentageAmount: number;
-  /** Pre-contracted S&AT day (490 €) — KeepIT only, explicit. */
+  /** Pre-contracted S&AT day (490 €) — included in S&AT (KeepIT) or in derived UseIT base. */
   baseSatDay: number;
-  /** Default included Web/Mobile user (240 €) — KeepIT only, explicit. */
+  /** Default included Web/Mobile user (240 €) — included in S&AT (KeepIT) or in derived UseIT base. */
   baseDefaultWeb: number;
+}
+
+/** Detailed UseIT derivation breakdown (for audit). */
+export interface UseItDerivation {
+  /** KeepIT license base (modules + plugins + additional BackOffice, gross). */
+  keepitLicenseBase: number;
+  /** UseIT factor in %, e.g. 37. */
+  factorPct: number;
+  /** factorPct × keepitLicenseBase. */
+  factorAmount: number;
+  /** Pre-contracted S&AT day (490 €) included in the derived base. */
+  baseSatDay: number;
+  /** Default Web/Mobile user (240 €) included in the derived base. */
+  baseDefaultWeb: number;
+  /** UseIT annual software/license base = factorAmount + baseSatDay + baseDefaultWeb. */
+  annualBase: number;
 }
 
 export interface BusinessOptionTotals {
@@ -117,6 +133,8 @@ export interface BusinessOptionTotals {
   licenseSubtotal: number;
   /** Detailed S&AT breakdown for audit transparency. */
   satBreakdown: BusinessSatBreakdown;
+  /** UseIT only: derivation of the annual software/license base from KeepIT. Null on KeepIT. */
+  useItDerivation: UseItDerivation | null;
   /** Year 1 = software net + api net + hosting + sat + services net */
   totalYear1: number;
   /** Year 2+ recurring net total. */
@@ -192,50 +210,121 @@ export function computeBusinessOption(
   const isKeepIt = model === "keepit";
   const prefix = isKeepIt ? "BUS_KEEPIT_" : "BUS_USEIT_";
   // For KeepIT, modules are one-time (not recurring).
-  // For UseIT, modules are yearly (recurring).
+  // For UseIT, the per-module rules are no longer used directly — we derive a single
+  // annual software/license base from the KeepIT license base instead (Excel model).
   const modulesRecurring = !isKeepIt;
   const discounts = cfg.discounts || DEFAULT_BUSINESS_DISCOUNTS;
   const swPct = discounts.softwarePct || 0;
 
+  // ---- Always compute the KeepIT license base, regardless of selected model ----
+  // This base is used for:
+  //   - KeepIT 17% S&AT calculation
+  //   - UseIT derivation: 37% × KeepIT base + 490 + 240
+  const baseSatDay = findBusinessRule(rules, "BUS_BASE_SAT_DAY")?.unit_price ?? 490;
+  const baseDefaultWeb = findBusinessRule(rules, "BUS_BASE_DEFAULT_WEB")?.unit_price ?? 240;
+  const useItFactorPct =
+    findBusinessRule(rules, "BUS_USEIT_FACTOR")?.support_percentage ??
+    findBusinessRule(rules, "BUS_USEIT_FACTOR")?.unit_price ??
+    37;
+
+  const keepitMain = findBusinessRule(rules, "BUS_KEEPIT_MAINTENANCE_MODULE");
+  if (!keepitMain) return null;
+  let keepitLicenseBase = keepitMain.unit_price;
+  const addK = (code: string) => {
+    const r = findBusinessRule(rules, code);
+    if (r) keepitLicenseBase += r.unit_price;
+  };
+  if (cfg.includeRequests) addK("BUS_KEEPIT_REQUESTS_MODULE");
+  if (cfg.includeStock) addK("BUS_KEEPIT_STOCK_MODULE");
+  if (cfg.includePurchase) addK("BUS_KEEPIT_PURCHASE_MODULE");
+  if (cfg.pluginImport) addK("BUS_KEEPIT_PLUGIN_IMPORT");
+  if (cfg.pluginWorkflow) addK("BUS_KEEPIT_PLUGIN_WORKFLOW");
+  if (cfg.pluginAdvancedReports) addK("BUS_KEEPIT_PLUGIN_ADVANCED_REPORTS");
+  if (cfg.pluginSLA) addK("BUS_KEEPIT_PLUGIN_SLA");
+  if (cfg.additionalBackoffice > 0) {
+    const r = findBusinessRule(rules, "BUS_KEEPIT_ADDITIONAL_BACKOFFICE");
+    if (r) keepitLicenseBase += r.unit_price * cfg.additionalBackoffice;
+  }
+  keepitLicenseBase = +keepitLicenseBase.toFixed(2);
+
   const software: BusinessLineItem[] = [];
 
-  // Maintenance module — always required
-  const mainModule = findBusinessRule(rules, `${prefix}MAINTENANCE_MODULE`);
-  if (!mainModule) return null;
-  software.push(buildLine(mainModule, 1, "module", modulesRecurring, undefined, swPct)!);
+  if (isKeepIt) {
+    // KeepIT: list each license item explicitly.
+    const mainModule = keepitMain;
+    software.push(buildLine(mainModule, 1, "module", modulesRecurring, undefined, swPct)!);
 
-  if (cfg.includeRequests) {
-    const r = findBusinessRule(rules, `${prefix}REQUESTS_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.includeStock) {
-    const r = findBusinessRule(rules, `${prefix}STOCK_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.includePurchase) {
-    const r = findBusinessRule(rules, `${prefix}PURCHASE_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.pluginImport) {
-    const r = findBusinessRule(rules, `${prefix}PLUGIN_IMPORT`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.pluginWorkflow) {
-    const r = findBusinessRule(rules, `${prefix}PLUGIN_WORKFLOW`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.pluginAdvancedReports) {
-    const r = findBusinessRule(rules, `${prefix}PLUGIN_ADVANCED_REPORTS`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
-  }
-  if (cfg.pluginSLA) {
-    const r = findBusinessRule(rules, `${prefix}PLUGIN_SLA`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
+    if (cfg.includeRequests) {
+      const r = findBusinessRule(rules, `${prefix}REQUESTS_MODULE`);
+      if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.includeStock) {
+      const r = findBusinessRule(rules, `${prefix}STOCK_MODULE`);
+      if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.includePurchase) {
+      const r = findBusinessRule(rules, `${prefix}PURCHASE_MODULE`);
+      if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.pluginImport) {
+      const r = findBusinessRule(rules, `${prefix}PLUGIN_IMPORT`);
+      if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.pluginWorkflow) {
+      const r = findBusinessRule(rules, `${prefix}PLUGIN_WORKFLOW`);
+      if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.pluginAdvancedReports) {
+      const r = findBusinessRule(rules, `${prefix}PLUGIN_ADVANCED_REPORTS`);
+      if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
+    }
+    if (cfg.pluginSLA) {
+      const r = findBusinessRule(rules, `${prefix}PLUGIN_SLA`);
+      if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
+    }
+
+    if (cfg.additionalBackoffice > 0) {
+      const r = findBusinessRule(rules, `${prefix}ADDITIONAL_BACKOFFICE`);
+      if (r)
+        software.push(
+          buildLine(r, cfg.additionalBackoffice, "backoffice_user", modulesRecurring, undefined, swPct)!,
+        );
+    }
   }
 
-  if (cfg.additionalBackoffice > 0) {
-    const r = findBusinessRule(rules, `${prefix}ADDITIONAL_BACKOFFICE`);
-    if (r) software.push(buildLine(r, cfg.additionalBackoffice, "backoffice_user", modulesRecurring, undefined, swPct)!);
+  // ---- UseIT derivation (from KeepIT license base) ----
+  let useItDerivation: UseItDerivation | null = null;
+  if (!isKeepIt) {
+    const factorPct = Number(useItFactorPct) || 37;
+    const factorAmount = +(keepitLicenseBase * (factorPct / 100)).toFixed(2);
+    const annualBase = +(factorAmount + baseSatDay + baseDefaultWeb).toFixed(2);
+    useItDerivation = {
+      keepitLicenseBase,
+      factorPct,
+      factorAmount,
+      baseSatDay,
+      baseDefaultWeb,
+      annualBase,
+    };
+
+    // Build a single derived software line representing the UseIT annual license base.
+    const grossAnnual = annualBase;
+    const discPct = swPct;
+    const discAmount = +(grossAnnual * (discPct / 100)).toFixed(2);
+    software.push({
+      code: "BUS_USEIT_ANNUAL_LICENSE",
+      label: `Annual software/license (${factorPct}% of KeepIT base + included)`,
+      category: "module",
+      unitPrice: grossAnnual,
+      qty: 1,
+      amount: grossAnnual,
+      discountPct: discPct,
+      discountAmount: discAmount,
+      netAmount: +(grossAnnual - discAmount).toFixed(2),
+      recurring: true,
+      discountAppliesToRenewal: false,
+      frequency: "yearly",
+    });
   }
 
   // Web/Mobile users — always recurring (per-user-month -> yearly *12)
@@ -274,12 +363,8 @@ export function computeBusinessOption(
     }
   }
 
-  // S&AT base (KeepIT only):
-  // Sum of GROSS amounts for modules + plugins + additional BackOffice users.
-  // EXCLUDES additional Web/Mobile users, API, hosting and services.
-  const licenseSubtotal = software
-    .filter((l) => l.category === "module" || l.category === "plugin" || l.category === "backoffice_user")
-    .reduce((s, l) => s + l.amount, 0);
+  // S&AT base (KeepIT only): the KeepIT license base computed above.
+  const licenseSubtotal = keepitLicenseBase;
 
   // S&AT
   let sat: BusinessLineItem | null = null;
@@ -294,8 +379,6 @@ export function computeBusinessOption(
   if (satRule) {
     if (isKeepIt) {
       const pct = Number(satRule.support_percentage || 0);
-      const baseSatDay = findBusinessRule(rules, "BUS_BASE_SAT_DAY")?.unit_price ?? 490;
-      const baseDefaultWeb = findBusinessRule(rules, "BUS_BASE_DEFAULT_WEB")?.unit_price ?? 240;
       const satPercentageAmount = +(licenseSubtotal * (pct / 100)).toFixed(2);
       const amount = +(satPercentageAmount + baseSatDay + baseDefaultWeb).toFixed(2);
       sat = buildLine(satRule, 1, "support", true, amount);
@@ -454,6 +537,7 @@ export function computeBusinessOption(
     services,
     licenseSubtotal,
     satBreakdown,
+    useItDerivation,
     totalYear1,
     totalYear2Plus,
     totalFiveYears,

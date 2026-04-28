@@ -443,6 +443,43 @@ export function BusinessPreviewStep({
           ),
         )}
       </div>
+
+      {isCompare && result.keepit && result.useit && (
+        <FiveYearDelta keepit={result.keepit} useit={result.useit} fmt={fmt} />
+      )}
+    </div>
+  );
+}
+
+function FiveYearDelta({
+  keepit,
+  useit,
+  fmt,
+}: {
+  keepit: BusinessOptionTotals;
+  useit: BusinessOptionTotals;
+  fmt: (n: number) => string;
+}) {
+  const diff = +(keepit.totalFiveYears - useit.totalFiveYears).toFixed(2);
+  const absDiff = Math.abs(diff);
+  const ok = absDiff <= 1;
+  return (
+    <div className="border rounded-lg p-3 bg-secondary/30 text-xs space-y-1">
+      <p className="font-semibold text-foreground">5-year verification (KeepIT vs UseIT)</p>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">KeepIT 5-year total</span>
+        <span className="tabular-nums">{fmt(keepit.totalFiveYears)}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">UseIT 5-year total</span>
+        <span className="tabular-nums">{fmt(useit.totalFiveYears)}</span>
+      </div>
+      <div className="flex justify-between font-semibold">
+        <span>Difference (KeepIT − UseIT)</span>
+        <span className={`tabular-nums ${ok ? "text-emerald-700" : "text-amber-700"}`}>
+          {fmt(diff)} — {ok ? "OK (within 1 €)" : "Check pricing"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -610,14 +647,41 @@ function CalculationBreakdown({
                 S&AT base.
               </p>
             </>
-          ) : (
+          ) : data.useItDerivation ? (
             <>
-              <Row label="S&AT" value="included in UseIT subscription" />
+              <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
+                UseIT annual software/license base
+              </p>
+              <Row
+                label="KeepIT license base (modules + plugins + add. BackOffice)"
+                value={fmt(data.useItDerivation.keepitLicenseBase)}
+              />
+              <Row
+                label={`${data.useItDerivation.factorPct}% × KeepIT license base`}
+                value={fmt(data.useItDerivation.factorAmount)}
+              />
+              <Row
+                label="+ Included pre-contracted S&AT day"
+                value={fmt(data.useItDerivation.baseSatDay)}
+              />
+              <Row
+                label="+ Included default Web/Mobile user"
+                value={fmt(data.useItDerivation.baseDefaultWeb)}
+              />
+              <Row
+                label="UseIT annual software/license base"
+                value={fmt(data.useItDerivation.annualBase)}
+                bold
+              />
+              <Row label="S&AT line" value="included in UseIT subscription" />
               <p className="text-[10px] italic text-muted-foreground pt-1">
-                UseIT annual license values already include the base S&AT day and default
-                Web/Mobile user — they are not added as separate lines to avoid double counting.
+                The 490 € S&AT day and 240 € default Web/Mobile user are already inside the
+                derived annual base — they are NOT shown as separate customer-facing lines.
+                Additional Web/Mobile users, API, hosting and services remain separate.
               </p>
             </>
+          ) : (
+            <Row label="S&AT" value="included" />
           )}
         </div>
 

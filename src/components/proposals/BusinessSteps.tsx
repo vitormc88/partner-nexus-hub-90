@@ -610,14 +610,41 @@ function CalculationBreakdown({
                 S&AT base.
               </p>
             </>
-          ) : (
+          ) : data.useItDerivation ? (
             <>
-              <Row label="S&AT" value="included in UseIT subscription" />
+              <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
+                UseIT annual software/license base
+              </p>
+              <Row
+                label="KeepIT license base (modules + plugins + add. BackOffice)"
+                value={fmt(data.useItDerivation.keepitLicenseBase)}
+              />
+              <Row
+                label={`${data.useItDerivation.factorPct}% × KeepIT license base`}
+                value={fmt(data.useItDerivation.factorAmount)}
+              />
+              <Row
+                label="+ Included pre-contracted S&AT day"
+                value={fmt(data.useItDerivation.baseSatDay)}
+              />
+              <Row
+                label="+ Included default Web/Mobile user"
+                value={fmt(data.useItDerivation.baseDefaultWeb)}
+              />
+              <Row
+                label="UseIT annual software/license base"
+                value={fmt(data.useItDerivation.annualBase)}
+                bold
+              />
+              <Row label="S&AT line" value="included in UseIT subscription" />
               <p className="text-[10px] italic text-muted-foreground pt-1">
-                UseIT annual license values already include the base S&AT day and default
-                Web/Mobile user — they are not added as separate lines to avoid double counting.
+                The 490 € S&AT day and 240 € default Web/Mobile user are already inside the
+                derived annual base — they are NOT shown as separate customer-facing lines.
+                Additional Web/Mobile users, API, hosting and services remain separate.
               </p>
             </>
+          ) : (
+            <Row label="S&AT" value="included" />
           )}
         </div>
 

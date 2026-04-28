@@ -256,37 +256,40 @@ export function computeBusinessOption(
       );
   }
 
-  // S&AT base = sum of GROSS license amounts (S&AT is NEVER discounted).
-  const licenseSubtotal = software.reduce((s, l) => s + l.amount, 0);
+  // S&AT base (KeepIT only):
+  // Sum of GROSS amounts for modules + plugins + additional BackOffice users.
+  // EXCLUDES additional Web/Mobile users, API, hosting and services.
+  const licenseSubtotal = software
+    .filter((l) => l.category === "module" || l.category === "plugin" || l.category === "backoffice_user")
+    .reduce((s, l) => s + l.amount, 0);
 
-  // API
-  let api: BusinessLineItem | null = null;
-  if (cfg.api) {
-    const r = findBusinessRule(rules, "BUS_API");
-    if (r) api = buildLine(r, 1, "api", true, undefined, discounts.apiPct || 0, true);
-  }
-
-  // SaaS hosting — never discounted
-  const hosting: BusinessLineItem[] = [];
-  if (cfg.deployment === "saas") {
-    const base = findBusinessRule(rules, "BUS_SAAS_HOSTING_BASE");
-    if (base) hosting.push(buildLine(base, 1, "hosting", true)!);
-    if (cfg.additionalBackoffice > 0) {
-      const ext = findBusinessRule(rules, "BUS_SAAS_HOSTING_ADDITIONAL_BACKOFFICE");
-      if (ext) hosting.push(buildLine(ext, cfg.additionalBackoffice, "hosting", true)!);
-    }
-  }
-
-  // S&AT — calculated from the GROSS license subtotal (no discount on S&AT).
+  // S&AT
   let sat: BusinessLineItem | null = null;
+  let satBreakdown: BusinessSatBreakdown = {
+    satBase: 0,
+    satPct: 0,
+    satPercentageAmount: 0,
+    baseSatDay: 0,
+    baseDefaultWeb: 0,
+  };
   const satRule = findBusinessRule(rules, isKeepIt ? "BUS_KEEPIT_SAT" : "BUS_USEIT_SAT");
   if (satRule) {
     if (isKeepIt) {
-      const pct = Number(satRule.support_percentage || 0) / 100;
-      const amount = +(licenseSubtotal * pct).toFixed(2);
+      const pct = Number(satRule.support_percentage || 0);
+      const baseSatDay = findBusinessRule(rules, "BUS_BASE_SAT_DAY")?.unit_price ?? 490;
+      const baseDefaultWeb = findBusinessRule(rules, "BUS_BASE_DEFAULT_WEB")?.unit_price ?? 240;
+      const satPercentageAmount = +(licenseSubtotal * (pct / 100)).toFixed(2);
+      const amount = +(satPercentageAmount + baseSatDay + baseDefaultWeb).toFixed(2);
       sat = buildLine(satRule, 1, "support", true, amount);
+      satBreakdown = {
+        satBase: licenseSubtotal,
+        satPct: pct,
+        satPercentageAmount,
+        baseSatDay,
+        baseDefaultWeb,
+      };
     } else {
-      // included = 0
+      // included = 0 (UseIT annual license already includes base SAT day + default Web/Mobile user)
       sat = buildLine(satRule, 1, "support", true, 0);
     }
   }

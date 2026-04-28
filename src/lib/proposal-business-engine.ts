@@ -91,6 +91,20 @@ export interface BusinessLineItem {
   frequency: "one-time" | "yearly" | "per-user-month";
 }
 
+export interface BusinessSatBreakdown {
+  /** KeepIT only: gross license base used for the 17% S&AT calculation
+   * (modules + plugins + additional BackOffice — EXCLUDES web users, API, hosting, services). */
+  satBase: number;
+  /** KeepIT only: S&AT percentage (e.g. 17). */
+  satPct: number;
+  /** KeepIT only: 17% × satBase. */
+  satPercentageAmount: number;
+  /** Pre-contracted S&AT day (490 €) — KeepIT only, explicit. */
+  baseSatDay: number;
+  /** Default included Web/Mobile user (240 €) — KeepIT only, explicit. */
+  baseDefaultWeb: number;
+}
+
 export interface BusinessOptionTotals {
   model: ProposalLicenseModel;
   software: BusinessLineItem[];
@@ -98,8 +112,11 @@ export interface BusinessOptionTotals {
   hosting: BusinessLineItem[];
   sat: BusinessLineItem | null;
   services: BusinessLineItem[];
-  /** License gross subtotal (used for S&AT calculation, before discounts). */
+  /** License gross subtotal used for KeepIT S&AT (modules + plugins + additional BackOffice).
+   *  Excludes additional Web/Mobile users, API, hosting, services. */
   licenseSubtotal: number;
+  /** Detailed S&AT breakdown for audit transparency. */
+  satBreakdown: BusinessSatBreakdown;
   /** Year 1 = software net + api net + hosting + sat + services net */
   totalYear1: number;
   /** Year 2+ recurring net total. */
@@ -239,9 +256,6 @@ export function computeBusinessOption(
       );
   }
 
-  // S&AT base = sum of GROSS license amounts (S&AT is NEVER discounted).
-  const licenseSubtotal = software.reduce((s, l) => s + l.amount, 0);
-
   // API
   let api: BusinessLineItem | null = null;
   if (cfg.api) {
@@ -260,16 +274,40 @@ export function computeBusinessOption(
     }
   }
 
-  // S&AT — calculated from the GROSS license subtotal (no discount on S&AT).
+  // S&AT base (KeepIT only):
+  // Sum of GROSS amounts for modules + plugins + additional BackOffice users.
+  // EXCLUDES additional Web/Mobile users, API, hosting and services.
+  const licenseSubtotal = software
+    .filter((l) => l.category === "module" || l.category === "plugin" || l.category === "backoffice_user")
+    .reduce((s, l) => s + l.amount, 0);
+
+  // S&AT
   let sat: BusinessLineItem | null = null;
+  let satBreakdown: BusinessSatBreakdown = {
+    satBase: 0,
+    satPct: 0,
+    satPercentageAmount: 0,
+    baseSatDay: 0,
+    baseDefaultWeb: 0,
+  };
   const satRule = findBusinessRule(rules, isKeepIt ? "BUS_KEEPIT_SAT" : "BUS_USEIT_SAT");
   if (satRule) {
     if (isKeepIt) {
-      const pct = Number(satRule.support_percentage || 0) / 100;
-      const amount = +(licenseSubtotal * pct).toFixed(2);
+      const pct = Number(satRule.support_percentage || 0);
+      const baseSatDay = findBusinessRule(rules, "BUS_BASE_SAT_DAY")?.unit_price ?? 490;
+      const baseDefaultWeb = findBusinessRule(rules, "BUS_BASE_DEFAULT_WEB")?.unit_price ?? 240;
+      const satPercentageAmount = +(licenseSubtotal * (pct / 100)).toFixed(2);
+      const amount = +(satPercentageAmount + baseSatDay + baseDefaultWeb).toFixed(2);
       sat = buildLine(satRule, 1, "support", true, amount);
+      satBreakdown = {
+        satBase: licenseSubtotal,
+        satPct: pct,
+        satPercentageAmount,
+        baseSatDay,
+        baseDefaultWeb,
+      };
     } else {
-      // included = 0
+      // included = 0 (UseIT annual license already includes base SAT day + default Web/Mobile user)
       sat = buildLine(satRule, 1, "support", true, 0);
     }
   }
@@ -415,6 +453,7 @@ export function computeBusinessOption(
     sat,
     services,
     licenseSubtotal,
+    satBreakdown,
     totalYear1,
     totalYear2Plus,
     totalFiveYears,

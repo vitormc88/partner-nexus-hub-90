@@ -133,7 +133,8 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             }
           />
           <p className="text-[11px] text-muted-foreground mt-1">
-            20 € / user / month (billed yearly).
+            Business includes 1 Web/Mobile user by default. Add only the additional
+            Web/Mobile users (240 € / user / year).
           </p>
         </div>
       </div>
@@ -442,23 +443,6 @@ export function BusinessPreviewStep({
           ),
         )}
       </div>
-
-      {isCompare && result.keepit && result.useit && (
-        <div className="bg-card border rounded-lg p-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">5-year total — KeepIT</p>
-            <p className="text-2xl font-bold text-primary tabular-nums">{fmt(result.keepit.totalFiveYears)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">5-year total — UseIT</p>
-            <p className="text-2xl font-bold text-primary tabular-nums">{fmt(result.useit.totalFiveYears)}</p>
-          </div>
-          <p className="col-span-2 text-[11px] text-muted-foreground italic">
-            Validation check — with equivalent configuration, KeepIT generally becomes more
-            economically advantageous around year 5.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
@@ -543,10 +527,6 @@ function OptionCard({
             <span className="text-muted-foreground">Year 2+ per year</span>
             <span className="font-semibold tabular-nums">{fmt(data.totalYear2Plus)}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>5-year cumulative</span>
-            <span className="tabular-nums">{fmt(data.totalFiveYears)}</span>
-          </div>
         </div>
 
         <CalculationBreakdown data={data} fmt={fmt} />
@@ -614,15 +594,30 @@ function CalculationBreakdown({
           <p className="text-[10px] uppercase font-bold text-muted-foreground">S&AT</p>
           {isKeepIt ? (
             <>
-              <Row label="S&AT base = License gross subtotal" value={fmt(data.licenseSubtotal)} />
               <Row
-                label={`S&AT % = ${satRule ? Math.round((satAmount / Math.max(1, data.licenseSubtotal)) * 10000) / 100 : 0}%`}
-                value=""
+                label="License base for S&AT (modules + plugins + add. BackOffice)"
+                value={fmt(data.satBreakdown.satBase)}
               />
-              <Row label="S&AT amount" value={fmt(satAmount)} bold />
+              <Row
+                label={`${data.satBreakdown.satPct}% × License base`}
+                value={fmt(data.satBreakdown.satPercentageAmount)}
+              />
+              <Row label="+ Pre-contracted S&AT day" value={fmt(data.satBreakdown.baseSatDay)} />
+              <Row label="+ Default included Web/Mobile user" value={fmt(data.satBreakdown.baseDefaultWeb)} />
+              <Row label="Total S&AT" value={fmt(satAmount)} bold />
+              <p className="text-[10px] italic text-muted-foreground pt-1">
+                Note: additional Web/Mobile users, API, hosting and services are NOT part of the
+                S&AT base.
+              </p>
             </>
           ) : (
-            <Row label="S&AT" value="included in UseIT subscription" />
+            <>
+              <Row label="S&AT" value="included in UseIT subscription" />
+              <p className="text-[10px] italic text-muted-foreground pt-1">
+                UseIT annual license values already include the base S&AT day and default
+                Web/Mobile user — they are not added as separate lines to avoid double counting.
+              </p>
+            </>
           )}
         </div>
 
@@ -670,8 +665,18 @@ function CalculationBreakdown({
           />
           <Row label="  Recurring software portion" value={fmt(recurringSoftware)} />
           <Row label="  API recurring portion" value={fmt(apiRecurring)} />
-          <Row label="5-year license = Y1 + 4 × Y2+" value={fmt(data.totalFiveYears)} bold />
-          <Row label="5-year project total = same (services are one-time, included in Y1)" value={fmt(data.totalFiveYears)} />
+        </div>
+
+        <div className="space-y-0.5 border-t pt-2">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+            5-year verification (internal check)
+          </p>
+          <Row label="Year 1" value={fmt(data.totalYear1)} />
+          <Row label="Year 2" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 3" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 4" value={fmt(data.totalYear2Plus)} />
+          <Row label="Year 5" value={fmt(data.totalYear2Plus)} />
+          <Row label="5-year total = Y1 + 4 × Y2+" value={fmt(data.totalFiveYears)} bold />
         </div>
       </div>
     </details>

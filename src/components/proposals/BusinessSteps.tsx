@@ -464,32 +464,96 @@ function FiveYearDelta({
   const absDiff = Math.abs(diff);
   const ok = absDiff <= 1;
   const hasDiscounts = keepit.hasDiscounts || useit.hasDiscounts;
-  const label = ok
-    ? "OK (within 1 €)"
-    : hasDiscounts
-    ? "Check pricing / discounts"
-    : "Check pricing";
+
+  // Per-channel discount totals (sum of line discountAmount).
+  const sumDisc = (
+    o: BusinessOptionTotals,
+    pred: (l: BusinessLineItem) => boolean,
+  ) => +o.software.filter(pred).reduce((s, l) => s + l.discountAmount, 0).toFixed(2);
+
+  const kSoft = sumDisc(keepit, (l) => l.category !== "web_user");
+  const uSoft = sumDisc(useit, (l) => l.category !== "web_user");
+  const kWeb = sumDisc(keepit, (l) => l.category === "web_user");
+  const uWeb = sumDisc(useit, (l) => l.category === "web_user");
+  const kApi = +(keepit.api?.discountAmount || 0).toFixed(2);
+  const uApi = +(useit.api?.discountAmount || 0).toFixed(2);
+  const kSvc = +keepit.services.reduce((s, l) => s + l.discountAmount, 0).toFixed(2);
+  const uSvc = +useit.services.reduce((s, l) => s + l.discountAmount, 0).toFixed(2);
+
+  // Delta = KeepIT discount − UseIT discount (signed; how much more KeepIT was discounted).
+  // Expressed as impact on (KeepIT − UseIT) totals: KeepIT discount reduces KeepIT more,
+  // so a larger KeepIT discount makes (KeepIT − UseIT) smaller, i.e. delta sign = −(kDisc − uDisc).
+  const dSoft = +(uSoft - kSoft).toFixed(2);
+  const dWeb = +(uWeb - kWeb).toFixed(2);
+  const dApi = +(uApi - kApi).toFixed(2);
+  const dSvc = +(uSvc - kSvc).toFixed(2);
+  const dTotal = +(dSoft + dWeb + dApi + dSvc).toFixed(2);
+
+  const explained = hasDiscounts && Math.abs(diff - dTotal) <= 1;
+
+  let label: string;
+  let tone: "ok" | "warn";
+  if (ok) {
+    label = "OK (within 1 €)";
+    tone = "ok";
+  } else if (explained) {
+    label = "OK — difference explained by discounts";
+    tone = "ok";
+  } else if (hasDiscounts) {
+    label = "Check pricing — unexplained difference";
+    tone = "warn";
+  } else {
+    label = "Check pricing";
+    tone = "warn";
+  }
+
+  const Row = ({ k, v, bold }: { k: string; v: string; bold?: boolean }) => (
+    <div className={`flex justify-between ${bold ? "font-semibold" : ""}`}>
+      <span className={bold ? "" : "text-muted-foreground"}>{k}</span>
+      <span className="tabular-nums">{v}</span>
+    </div>
+  );
+
   return (
     <div className="border rounded-lg p-3 bg-secondary/30 text-xs space-y-1">
       <p className="font-semibold text-foreground">5-year verification (KeepIT vs UseIT)</p>
-      <div className="flex justify-between">
-        <span className="text-muted-foreground">KeepIT 5-year total</span>
-        <span className="tabular-nums">{fmt(keepit.totalFiveYears)}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-muted-foreground">UseIT 5-year total</span>
-        <span className="tabular-nums">{fmt(useit.totalFiveYears)}</span>
-      </div>
+      <Row k="KeepIT 5-year total" v={fmt(keepit.totalFiveYears)} />
+      <Row k="UseIT 5-year total" v={fmt(useit.totalFiveYears)} />
       <div className="flex justify-between font-semibold">
         <span>Difference (KeepIT − UseIT)</span>
-        <span className={`tabular-nums ${ok ? "text-emerald-700" : "text-amber-700"}`}>
+        <span className={`tabular-nums ${tone === "ok" ? "text-emerald-700" : "text-amber-700"}`}>
           {fmt(diff)} — {label}
         </span>
       </div>
+
       {hasDiscounts && (
-        <p className="text-[10px] italic text-muted-foreground pt-1">
-          Discounts can affect the 5-year equivalence check.
-        </p>
+        <>
+          <p className="pt-2 text-[11px] italic text-muted-foreground">
+            Difference caused by discounts. Percentage discounts apply to different KeepIT and UseIT bases.
+          </p>
+          <div className="mt-1 pt-2 border-t space-y-0.5">
+            <p className="font-semibold text-foreground">Discount delta breakdown</p>
+            <Row k="KeepIT software discount" v={`-${fmt(kSoft)}`} />
+            <Row k="UseIT software discount" v={`-${fmt(uSoft)}`} />
+            <Row k="Software discount delta" v={fmt(dSoft)} bold />
+
+            <Row k="KeepIT web discount" v={`-${fmt(kWeb)}`} />
+            <Row k="UseIT web discount" v={`-${fmt(uWeb)}`} />
+            <Row k="Web discount delta" v={fmt(dWeb)} bold />
+
+            <Row k="KeepIT API discount" v={`-${fmt(kApi)}`} />
+            <Row k="UseIT API discount" v={`-${fmt(uApi)}`} />
+            <Row k="API discount delta" v={fmt(dApi)} bold />
+
+            <Row k="KeepIT services discount" v={`-${fmt(kSvc)}`} />
+            <Row k="UseIT services discount" v={`-${fmt(uSvc)}`} />
+            <Row k="Services discount delta" v={fmt(dSvc)} bold />
+
+            <div className="pt-1 mt-1 border-t">
+              <Row k="Total discount delta" v={fmt(dTotal)} bold />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

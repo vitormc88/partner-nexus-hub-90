@@ -133,7 +133,8 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             }
           />
           <p className="text-[11px] text-muted-foreground mt-1">
-            20 € / user / month (billed yearly).
+            Business includes 1 Web/Mobile user by default. Add only the additional
+            Web/Mobile users (240 € / user / year).
           </p>
         </div>
       </div>

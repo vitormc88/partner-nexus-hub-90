@@ -594,15 +594,30 @@ function CalculationBreakdown({
           <p className="text-[10px] uppercase font-bold text-muted-foreground">S&AT</p>
           {isKeepIt ? (
             <>
-              <Row label="S&AT base = License gross subtotal" value={fmt(data.licenseSubtotal)} />
               <Row
-                label={`S&AT % = ${satRule ? Math.round((satAmount / Math.max(1, data.licenseSubtotal)) * 10000) / 100 : 0}%`}
-                value=""
+                label="License base for S&AT (modules + plugins + add. BackOffice)"
+                value={fmt(data.satBreakdown.satBase)}
               />
-              <Row label="S&AT amount" value={fmt(satAmount)} bold />
+              <Row
+                label={`${data.satBreakdown.satPct}% × License base`}
+                value={fmt(data.satBreakdown.satPercentageAmount)}
+              />
+              <Row label="+ Pre-contracted S&AT day" value={fmt(data.satBreakdown.baseSatDay)} />
+              <Row label="+ Default included Web/Mobile user" value={fmt(data.satBreakdown.baseDefaultWeb)} />
+              <Row label="Total S&AT" value={fmt(satAmount)} bold />
+              <p className="text-[10px] italic text-muted-foreground pt-1">
+                Note: additional Web/Mobile users, API, hosting and services are NOT part of the
+                S&AT base.
+              </p>
             </>
           ) : (
-            <Row label="S&AT" value="included in UseIT subscription" />
+            <>
+              <Row label="S&AT" value="included in UseIT subscription" />
+              <p className="text-[10px] italic text-muted-foreground pt-1">
+                UseIT annual license values already include the base S&AT day and default
+                Web/Mobile user — they are not added as separate lines to avoid double counting.
+              </p>
+            </>
           )}
         </div>
 

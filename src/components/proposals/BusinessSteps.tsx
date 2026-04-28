@@ -119,7 +119,7 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             }
           />
           <p className="text-[11px] text-muted-foreground mt-1">
-            Beyond the 3 included. Triggers extra SaaS hosting if deployment = SaaS.
+            Beyond the 3 included. Triggers extra SaaS hosting if hosting = SaaS.
           </p>
         </div>
         <div className="bg-card border rounded-lg p-3">
@@ -419,7 +419,7 @@ export function BusinessPreviewStep({
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="secondary">Business</Badge>
         <Badge variant="outline">
-          Deployment: {config.deployment === "saas" ? "SaaS" : "On-Premise"}
+          Hosting: {config.deployment === "saas" ? "SaaS" : "On-Premise"}
         </Badge>
         <Badge variant="outline">
           Mode: {proposalMode === "compare_keepit_useit" ? "Compare KeepIT vs UseIT" : proposalMode === "keepit_only" ? "KeepIT only" : "UseIT only"}

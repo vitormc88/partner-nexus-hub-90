@@ -203,7 +203,8 @@ function softwareDescription(
   }
 
   if (cfg.api) out.push(bullet(s.apiManwinwin));
-  out.push(bullet(cfg.deployment === "saas" ? s.hostingSaas : s.hostingClientServer));
+  // Hosting is intentionally NOT listed under modules/plugins.
+  // It appears in Commercial Licensing Options and Investment Summary.
 
   const optional: string[] = [];
   if (!cfg.includeRequests) optional.push(s.requestsModule);
@@ -216,7 +217,18 @@ function softwareDescription(
   if (!cfg.api) optional.push(s.apiManwinwin);
   if (optional.length > 0) {
     out.push(subHeading(s.optionalNotIncluded));
-    optional.forEach((l) => out.push(bullet(l)));
+    optional.forEach((l) =>
+      out.push(
+        new Paragraph({
+          spacing: { after: 40 },
+          indent: { left: 360, hanging: 200 },
+          children: [
+            new TextRun({ text: "•  ", color: SUBTLE, size: 20, font: "Calibri" }),
+            new TextRun({ text: l, color: SUBTLE, size: 20, italics: true, font: "Calibri" }),
+          ],
+        }),
+      ),
+    );
   }
   return out;
 }
@@ -597,11 +609,9 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
 
   if (cfg.deployment === "saas") {
     body.push(sectionHeading(s.featuresSaasTitle));
-    body.push(p(s.saasFeaturesIntro));
     s.saasFeatures.forEach((f) => body.push(bullet(f)));
   } else {
     body.push(sectionHeading(s.featuresClientServerTitle));
-    body.push(p(s.clientServerFeaturesIntro));
     s.clientServerFeatures.forEach((f) => body.push(bullet(f)));
   }
 

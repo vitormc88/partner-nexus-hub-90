@@ -225,9 +225,10 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   table.summary thead th { background:#c00; color:#fff; text-align:left; font-weight: 700; }
   table.summary thead th.num { text-align:right; }
   table.summary td.num, table.summary th.num { text-align:right; white-space: nowrap; }
-  table.summary tr.header-row td { background:#fafafa; padding: 8px; }
-  table.summary tr.total-row td { background:#f5f5f5; font-weight: 700; border-top: 1px solid #ccc; }
-  table.summary td.disc, table.summary tr td.disc { color:#c00; }
+  table.summary tr.header-row td { background:#2C3E50; color:#fff; padding: 8px; font-size: 10.5pt; letter-spacing: .5px; }
+  table.summary tr.total-row td { background:#c00; color:#fff; font-weight: 700; border-top: 1px solid #c00; }
+  table.summary tr.total-row td.disc, table.summary tr.total-row td.num.disc { color:#fff; }
+  table.summary td.disc, table.summary tr td.disc { color:#c00; font-style: italic; }
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }

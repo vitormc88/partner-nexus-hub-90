@@ -599,7 +599,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           {/* STEP 0: Basic */}
           {step === 0 && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              {/* Row 1: Product family + Language */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Product family</Label>
                   <Select value={productFamily} onValueChange={(v) => setProductFamily(v as ProposalProductFamily)}>
@@ -610,33 +611,6 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     </SelectContent>
                   </Select>
                 </div>
-                {isBusiness && (
-                  <>
-                    <div>
-                      <Label>Proposal mode</Label>
-                      <Select value={proposalMode} onValueChange={(v) => setProposalMode(v as ProposalMode)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="compare_keepit_useit">Compare KeepIT vs UseIT</SelectItem>
-                          <SelectItem value="keepit_only">KeepIT only</SelectItem>
-                          <SelectItem value="useit_only">UseIT only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Hosting</Label>
-                      <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="saas">SaaS</SelectItem>
-                          <SelectItem value="on_premise">On-Premise</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className={`grid ${isBusiness ? "grid-cols-1" : "grid-cols-3"} gap-4`}>
                 <div>
                   <Label>Language</Label>
                   <Select value={language} onValueChange={(v) => setLanguage(v as ProposalLanguage)}>
@@ -655,32 +629,61 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     </p>
                   )}
                 </div>
-                {!isBusiness && (
-                  <>
-                    <div>
-                      <Label>Plan</Label>
-                      <Select value={String(plan)} onValueChange={(v) => setPlan(Number(v) as ProposalPlan)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Plan 1 — Maintenance</SelectItem>
-                          <SelectItem value="2">Plan 2 — Maint + Stock + PO</SelectItem>
-                          <SelectItem value="3">Plan 3 — All modules + API</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Hosting</Label>
-                      <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SaaS">SaaS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">Professional plans are SaaS-only. On-Premise will be available for Business proposals.</p>
-                    </div>
-                  </>
+              </div>
+
+              {/* Row 2: Plan/Proposal mode + Hosting */}
+              <div className="grid grid-cols-2 gap-4">
+                {isBusiness ? (
+                  <div>
+                    <Label>Proposal mode</Label>
+                    <Select value={proposalMode} onValueChange={(v) => setProposalMode(v as ProposalMode)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="compare_keepit_useit">Compare KeepIT vs UseIT</SelectItem>
+                        <SelectItem value="keepit_only">KeepIT only</SelectItem>
+                        <SelectItem value="useit_only">UseIT only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label>Plan</Label>
+                    <Select value={String(plan)} onValueChange={(v) => setPlan(Number(v) as ProposalPlan)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Plan 1 — Maintenance</SelectItem>
+                        <SelectItem value="2">Plan 2 — Maint + Stock + PO</SelectItem>
+                        <SelectItem value="3">Plan 3 — All modules + API</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {isBusiness ? (
+                  <div>
+                    <Label>Hosting</Label>
+                    <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="saas">SaaS</SelectItem>
+                        <SelectItem value="on_premise">On-Premise</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label>Hosting</Label>
+                    <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SaaS">SaaS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground mt-1">Professional is SaaS-only.</p>
+                  </div>
                 )}
               </div>
+
+              {/* Row 3: Client + Project */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Client Name *</Label>
@@ -691,6 +694,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} />
                 </div>
               </div>
+
+              {/* Row 4: Date + Validity + Country */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Proposal Date</Label>

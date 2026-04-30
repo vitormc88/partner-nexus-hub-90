@@ -461,6 +461,9 @@ const buildAuditSheet = (
 ): XLSX.WorkSheet => {
   const rows: SheetRow[] = [];
   rows.push(["Business Proposal — Calculation Audit"]);
+  rows.push([
+    "Note: Values in this workbook are generated from the PartnerOS Business pricing engine. Calculation Trace shows the formulas used for validation.",
+  ]);
   rows.push([]);
   if (keepit) rows.push(...buildAuditBlock("KeepIT", keepit));
   if (useit) rows.push(...buildAuditBlock("UseIT", useit));

@@ -286,7 +286,6 @@ ${servicesHtml}
 </ul>
 
 <h2>${esc(cfg.deployment === "saas" ? s.featuresSaasTitle : s.featuresClientServerTitle)}</h2>
-<p>${esc(cfg.deployment === "saas" ? s.saasFeaturesIntro : s.clientServerFeaturesIntro)}</p>
 <ul>${(cfg.deployment === "saas" ? s.saasFeatures : s.clientServerFeatures).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 
 <h2>${esc(s.satTitle)}</h2>

@@ -609,11 +609,9 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
 
   if (cfg.deployment === "saas") {
     body.push(sectionHeading(s.featuresSaasTitle));
-    body.push(p(s.saasFeaturesIntro));
     s.saasFeatures.forEach((f) => body.push(bullet(f)));
   } else {
     body.push(sectionHeading(s.featuresClientServerTitle));
-    body.push(p(s.clientServerFeaturesIntro));
     s.clientServerFeatures.forEach((f) => body.push(bullet(f)));
   }
 

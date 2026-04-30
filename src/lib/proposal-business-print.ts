@@ -249,7 +249,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 ${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
-${optional.length ? `<p><strong>${esc(s.optionalNotIncluded)}</strong></p><ul>${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncluded)}</strong></p><ul class="muted small">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
 ${optionsHtml}

@@ -99,28 +99,78 @@ export function buildInvestmentSummaryRows({
     useitY1: useit ? fnU(useit) : null,
   });
 
+  // Per-channel discount values
+  const swDiscK = keepit ? sumDisc(keepit.software.filter((l) => l.category !== "web_user")) : 0;
+  const swDiscU = useit ? sumDisc(useit.software.filter((l) => l.category !== "web_user")) : 0;
+  const webDiscK = keepit ? sumDisc(keepit.software.filter((l) => l.category === "web_user")) : 0;
+  const webDiscU = useit ? sumDisc(useit.software.filter((l) => l.category === "web_user")) : 0;
+  const apiDiscK = keepit?.api?.discountAmount || 0;
+  const apiDiscU = useit?.api?.discountAmount || 0;
+  const svcDiscK = keepit ? sumDisc(keepit.services) : 0;
+  const svcDiscU = useit ? sumDisc(useit.services) : 0;
+
+  // Software license label: in single-mode use the precise label;
+  // in compare mode use the neutral "Software license".
+  const onlyKeepit = !!keepit && !useit;
+  const onlyUseit = !!useit && !keepit;
+  const softwareLicenseLabel = onlyKeepit
+    ? s.keepItLicenseAmount // "Permanent software license"
+    : onlyUseit
+    ? s.useItAnnualLicenseAmount // "Annual software license"
+    : s.software; // "Software license"
+
   /* ------------------------------ YEAR 1 ------------------------------- */
   rows.push({ label: s.year1, isHeader: true });
-  rows.push({ label: s.software, isHeader: true, indent: 0 });
 
+  // Software license + discount
   rows.push({
-    label: s.keepItLicenseAmount + " / " + s.useItAnnualLicenseAmount,
+    label: softwareLicenseLabel,
     indent: 1,
     ...pickY1(softwareCoreY1, softwareCoreY1),
   });
+  if (swDiscK > 0 || swDiscU > 0) {
+    rows.push({
+      label: s.softwareDiscount,
+      indent: 2,
+      isDiscount: true,
+      keepitY1: keepit ? -swDiscK : null,
+      useitY1: useit ? -swDiscU : null,
+    });
+  }
 
+  // Web/Mobile + discount
   if (cfg.additionalWebUsers > 0) {
     rows.push({
       label: s.webMobileAdditional,
       indent: 1,
       ...pickY1(webUsersY1, webUsersY1),
     });
+    if (webDiscK > 0 || webDiscU > 0) {
+      rows.push({
+        label: s.webMobileDiscount,
+        indent: 2,
+        isDiscount: true,
+        keepitY1: keepit ? -webDiscK : null,
+        useitY1: useit ? -webDiscU : null,
+      });
+    }
   }
 
+  // API + discount
   if (cfg.api) {
     rows.push({ label: s.apiRow, indent: 1, ...pickY1(apiY1, apiY1) });
+    if (apiDiscK > 0 || apiDiscU > 0) {
+      rows.push({
+        label: s.apiDiscount,
+        indent: 2,
+        isDiscount: true,
+        keepitY1: keepit ? -apiDiscK : null,
+        useitY1: useit ? -apiDiscU : null,
+      });
+    }
   }
 
+  // SaaS Hosting (never discounted)
   if (cfg.deployment === "saas") {
     rows.push({ label: s.saasHostingRow, indent: 1, ...pickY1(hostingTotal, hostingTotal) });
   }
@@ -134,64 +184,26 @@ export function buildInvestmentSummaryRows({
     asIncluded: { useit: !!useit },
   });
 
-  // Services
+  // Implementation services + discount
   const svcY1K = keepit ? sumNet(keepit.services) : null;
   const svcY1U = useit ? sumNet(useit.services) : null;
   const hasServices = (svcY1K || 0) > 0 || (svcY1U || 0) > 0;
   if (hasServices) {
-    rows.push({ label: s.services, isHeader: true });
     rows.push({
-      label: s.servicesTitle,
+      label: s.services, // "Implementation services"
       indent: 1,
       keepitY1: svcY1K,
       useitY1: svcY1U,
     });
-  }
-
-  // Discount commercial rows (only if any side has them)
-  const swDiscK = keepit ? sumDisc(keepit.software.filter((l) => l.category !== "web_user")) : 0;
-  const swDiscU = useit ? sumDisc(useit.software.filter((l) => l.category !== "web_user")) : 0;
-  if (swDiscK > 0 || swDiscU > 0) {
-    rows.push({
-      label: s.softwareDiscount,
-      indent: 1,
-      isDiscount: true,
-      keepitY1: keepit ? -swDiscK : null,
-      useitY1: useit ? -swDiscU : null,
-    });
-  }
-  const webDiscK = keepit ? sumDisc(keepit.software.filter((l) => l.category === "web_user")) : 0;
-  const webDiscU = useit ? sumDisc(useit.software.filter((l) => l.category === "web_user")) : 0;
-  if (webDiscK > 0 || webDiscU > 0) {
-    rows.push({
-      label: s.webMobileDiscount,
-      indent: 1,
-      isDiscount: true,
-      keepitY1: keepit ? -webDiscK : null,
-      useitY1: useit ? -webDiscU : null,
-    });
-  }
-  const apiDiscK = keepit?.api?.discountAmount || 0;
-  const apiDiscU = useit?.api?.discountAmount || 0;
-  if (apiDiscK > 0 || apiDiscU > 0) {
-    rows.push({
-      label: s.apiDiscount,
-      indent: 1,
-      isDiscount: true,
-      keepitY1: keepit ? -apiDiscK : null,
-      useitY1: useit ? -apiDiscU : null,
-    });
-  }
-  const svcDiscK = keepit ? sumDisc(keepit.services) : 0;
-  const svcDiscU = useit ? sumDisc(useit.services) : 0;
-  if (svcDiscK > 0 || svcDiscU > 0) {
-    rows.push({
-      label: s.servicesDiscount,
-      indent: 1,
-      isDiscount: true,
-      keepitY1: keepit ? -svcDiscK : null,
-      useitY1: useit ? -svcDiscU : null,
-    });
+    if (svcDiscK > 0 || svcDiscU > 0) {
+      rows.push({
+        label: s.servicesDiscount,
+        indent: 2,
+        isDiscount: true,
+        keepitY1: keepit ? -svcDiscK : null,
+        useitY1: useit ? -svcDiscU : null,
+      });
+    }
   }
 
   rows.push({
@@ -204,13 +216,11 @@ export function buildInvestmentSummaryRows({
   /* ---------------------------- YEAR 2 + ------------------------------ */
   rows.push({ label: s.year2Onwards, isHeader: true });
 
-  // Software / annual license
-  // KeepIT: software is one-time → show "—". UseIT: annual recurring license.
   rows.push({
-    label: s.software,
+    label: softwareLicenseLabel,
     indent: 1,
-    keepitY1: keepit ? softwareCoreY2Plus(keepit) : null, // typically 0
-    useitY1: useit ? softwareCoreY2Plus(useit) : null, // = annual license recurring
+    keepitY1: keepit ? softwareCoreY2Plus(keepit) : null,
+    useitY1: useit ? softwareCoreY2Plus(useit) : null,
   });
 
   if (cfg.additionalWebUsers > 0) {

@@ -99,6 +99,13 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
   };
 
+  const buildBusinessCfg = (cfgRaw: any): BusinessConfig => ({
+    ...DEFAULT_BUSINESS_CONFIG,
+    ...cfgRaw,
+    implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw?.implementation || {}) },
+    discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw?.discounts || {}) },
+  });
+
   const exportBusinessExcel = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
@@ -107,17 +114,68 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       toast.error("This proposal has no Business configuration");
       return;
     }
-    const cfg: BusinessConfig = {
-      ...DEFAULT_BUSINESS_CONFIG,
-      ...cfgRaw,
-      implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw.implementation || {}) },
-      discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw.discounts || {}) },
-    };
+    const cfg = buildBusinessCfg(cfgRaw);
     try {
       downloadBusinessXlsx({ proposal: res.prop as Proposal, cfg, rules });
       toast.success("Excel exported");
     } catch (e: any) {
       toast.error("Excel export failed: " + (e?.message || ""));
+    }
+  };
+
+  const downloadBusinessDocxFor = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg = buildBusinessCfg(cfgRaw);
+    try {
+      const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: res.prop as Proposal, cfg, rules });
+      // Upload to storage and update proposal record
+      try {
+        const path = `${res.prop.lead_id}/${res.prop.id}/${fileName}`;
+        const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          upsert: true,
+        });
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
+          await supabase
+            .from("proposals")
+            .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+            .eq("id", res.prop.id);
+          qc.invalidateQueries({ queryKey: ["proposals"] });
+        }
+      } catch {
+        /* upload best-effort */
+      }
+      toast.success("Business DOCX downloaded");
+    } catch (e: any) {
+      toast.error("DOCX generation failed: " + (e?.message || ""));
+    }
+  };
+
+  const printBusinessPdfFor = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg = buildBusinessCfg(cfgRaw);
+    try {
+      printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", res.prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+    } catch (e: any) {
+      toast.error("PDF generation failed: " + (e?.message || ""));
     }
   };
 

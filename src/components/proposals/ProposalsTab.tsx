@@ -4,6 +4,8 @@ import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpr
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
+import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
+import { printBusinessProposal } from "@/lib/proposal-business-print";
 import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";

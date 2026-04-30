@@ -470,6 +470,9 @@ const buildAuditSheet = (
 
   if (keepit && useit) {
     rows.push(["Compare mode — 5-year reconciliation"]);
+    rows.push(["  Formula: KeepIT 5-year total = Year 1 + 4 × Year 2+"]);
+    rows.push(["  Formula: UseIT 5-year total  = Year 1 + 4 × Year 2+"]);
+    rows.push(["  Formula: Difference = UseIT 5-year total − KeepIT 5-year total"]);
     rows.push(["  KeepIT 5-year total", fmtEur(keepit.totalFiveYears)]);
     rows.push(["  UseIT 5-year total", fmtEur(useit.totalFiveYears)]);
     const diff = +(useit.totalFiveYears - keepit.totalFiveYears).toFixed(2);

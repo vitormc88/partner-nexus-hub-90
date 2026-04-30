@@ -386,7 +386,7 @@ function investmentSummaryTable(
     isTotal: boolean | undefined,
   ): TableCell => {
     if (val === null || val === undefined) {
-      return cell("", { width: valCol, align: AlignmentType.RIGHT });
+      return cell("", { width: valCol, align: AlignmentType.RIGHT, bg: isTotal ? RED : undefined });
     }
     if (asIncluded) {
       return cell(s.satIncludedShort, {
@@ -401,8 +401,8 @@ function investmentSummaryTable(
       width: valCol,
       align: AlignmentType.RIGHT,
       bold: isTotal,
-      color: isDiscount ? RED : DARK,
-      bg: isTotal ? GREY_BG : undefined,
+      color: isTotal ? "FFFFFF" : isDiscount ? RED : DARK,
+      bg: isTotal ? RED : undefined,
     });
   };
 
@@ -410,19 +410,20 @@ function investmentSummaryTable(
   rows.forEach((r) => {
     if (r.isHeader) {
       const headCells: TableCell[] = [
-        cell(r.label, { bold: true, bg: GREY_BG, width: itemCol }),
+        cell(r.label, { bold: true, bg: DARK, color: "FFFFFF", width: itemCol }),
       ];
-      if (showKeepit) headCells.push(cell("", { bg: GREY_BG, width: valCol }));
-      if (showUseit) headCells.push(cell("", { bg: GREY_BG, width: valCol }));
+      if (showKeepit) headCells.push(cell("", { bg: DARK, width: valCol }));
+      if (showUseit) headCells.push(cell("", { bg: DARK, width: valCol }));
       trs.push(new TableRow({ children: headCells }));
       return;
     }
     const labelCell = cell(r.label, {
       bold: r.isTotal,
-      bg: r.isTotal ? GREY_BG : undefined,
+      bg: r.isTotal ? RED : undefined,
       width: itemCol,
       indentLeft: r.indent ? r.indent * 220 : 0,
-      color: r.isDiscount ? RED : DARK,
+      color: r.isTotal ? "FFFFFF" : r.isDiscount ? RED : DARK,
+      italic: r.isDiscount,
     });
     const cells: TableCell[] = [labelCell];
     if (showKeepit)

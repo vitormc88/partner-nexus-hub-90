@@ -549,68 +549,84 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
 
   const body: (Paragraph | Table)[] = [];
 
+  // ---- Cover (mirrors Professional layout) ----
+  body.push(
+    new Paragraph({ spacing: { before: 1400 }, children: [new TextRun({ text: "" })] }),
+  );
+
   if (logoBytes) {
     body.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 600, after: 200 },
+        spacing: { after: 800 },
         children: [
           new ImageRun({
             type: "png",
             data: logoBytes,
-            transformation: { width: 220, height: 80 },
-            altText: { title: "ManWinWin", description: "Logo", name: "ManWinWin" },
+            transformation: { width: 360, height: 110 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
           }),
         ],
       }),
     );
+  } else {
+    body.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "MANWINWIN", bold: true, color: RED, size: 64, font: "Calibri" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 800 },
+        children: [new TextRun({ text: "S O F T W A R E", color: DARK, size: 22, font: "Calibri" })],
+      }),
+    );
   }
+
   body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 800, after: 200 },
+      spacing: { before: 400, after: 200 },
       children: [
         new TextRun({
           text: s.investmentProposal,
           bold: true,
+          color: RED,
           size: 56,
-          color: DARK,
           font: "Calibri",
         }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 600 },
       children: [
-        new TextRun({ text: s.businessSubtitle, bold: true, size: 32, color: RED, font: "Calibri" }),
+        new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
+        new TextRun({ text: "Business", bold: true, color: RED, size: 32, font: "Calibri" }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
+      spacing: { before: 1200 },
       children: [
-        new TextRun({ text: proposal.client_name, bold: true, size: 32, color: DARK, font: "Calibri" }),
+        new TextRun({
+          text: proposal.client_name.toUpperCase(),
+          bold: true,
+          color: DARK,
+          size: 28,
+          font: "Calibri",
+        }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
       children: [new TextRun({ text: dateStr, color: SUBTLE, size: 22, font: "Calibri" })],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 400 },
       children: [
-        new TextRun({ text: s.restricted, bold: true, color: RED, size: 20, font: "Calibri" }),
+        new TextRun({ text: s.restricted, bold: true, color: RED, size: 18, font: "Calibri" }),
       ],
     }),
   );
@@ -621,7 +637,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   body.push(p(s.forImplementation(proposal.client_name), { bold: true, size: 22 }));
   body.push(p(s.businessSubtitle, { bold: true, size: 22, color: RED, spacing: { before: 80, after: 120 } }));
 
-  body.push(sectionHeading(s.softwareDescription));
+  body.push(sectionHeading(s.softwareConfigHeading));
   softwareDescription(cfg, s).forEach((par) => body.push(par));
 
   body.push(sectionHeading(s.optionsTitle));

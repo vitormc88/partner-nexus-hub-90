@@ -1090,14 +1090,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </p>
                     )}
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 max-w-md mx-auto">
-                    <p className="text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Business DOCX/PDF export is coming soon.</strong> Excel export is
-                      available for validation.
-                    </p>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <Button onClick={handleSaveDraft} disabled={saving}>Save proposal</Button>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button onClick={handleGenerateBusinessDocx} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate DOCX
+                    </Button>
+                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate PDF
+                    </Button>
                     <Button
                       variant="outline"
                       disabled={saving}

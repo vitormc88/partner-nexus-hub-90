@@ -312,6 +312,11 @@ function servicesSection(
       : s.customServicesTitle;
   out.push(subHeading(title));
 
+  const grossSvc = primary.services.reduce((a, l) => a + l.amount, 0);
+  const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
+  const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
+  const hasDisc = discSvc > 0;
+
   if (implType === "Onsite") {
     out.push(bullet(`${s.region}: ${cfg.implementation.onsiteRegion || "Portugal"}`));
     const region = cfg.implementation.onsiteRegion || "Portugal";
@@ -321,15 +326,24 @@ function servicesSection(
     if (cd > 0) out.push(bullet(`${s.clientDays}: ${cd} × ${fmt(lang, rates.client)} = ${fmt(lang, cd * rates.client)}`));
     if (bd > 0)
       out.push(bullet(`${s.backofficeDays}: ${bd} × ${fmt(lang, rates.backoffice)} = ${fmt(lang, bd * rates.backoffice)}`));
-    const totalSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
-    out.push(bullet(`${s.totalOnsite}: ${fmt(lang, totalSvc)}`));
+    if (hasDisc) {
+      out.push(bullet(`${s.servicesGrossTotal}: ${fmt(lang, grossSvc)}`));
+      out.push(p(`${s.servicesDiscount}: -${fmt(lang, discSvc)}`, { color: RED, indent: { left: 360 }, spacing: { after: 60 } }));
+    }
+    out.push(p(`${s.totalOnsite}: ${fmt(lang, netSvc)}`, { bold: true, indent: { left: 360 }, spacing: { after: 60 } }));
     out.push(p(s.travelNote, { italic: true, color: SUBTLE, size: 20, spacing: { before: 100 } }));
   } else {
     primary.services.forEach((l) => {
-      out.push(bullet(`${l.label} — ${fmt(lang, l.netAmount)}`));
+      out.push(bullet(`${l.label} — ${fmt(lang, l.amount)}`));
     });
     if (primary.services.length === 0) {
       out.push(p("—", { color: SUBTLE }));
+    } else {
+      if (hasDisc) {
+        out.push(bullet(`${s.servicesGrossTotal}: ${fmt(lang, grossSvc)}`));
+        out.push(p(`${s.servicesDiscount}: -${fmt(lang, discSvc)}`, { color: RED, indent: { left: 360 }, spacing: { after: 60 } }));
+      }
+      out.push(p(`${s.servicesNetTotal}: ${fmt(lang, netSvc)}`, { bold: true, indent: { left: 360 }, spacing: { after: 60 } }));
     }
   }
   return out;

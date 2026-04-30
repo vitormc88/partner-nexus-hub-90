@@ -26,6 +26,8 @@ import {
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
+import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
+import { printBusinessProposal } from "@/lib/proposal-business-print";
 import type {
   ProposalLanguage,
   ProposalPlan,
@@ -564,6 +566,56 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   };
 
+  /** Upload a Business DOCX blob to storage and persist URL on the proposal. */
+  const uploadBusinessDocx = async (prop: Proposal, blob: Blob, fileName: string) => {
+    try {
+      const path = `${leadId}/${prop.id}/${fileName}`;
+      const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: true,
+      });
+      if (upErr) return;
+      const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
+      await supabase
+        .from("proposals")
+        .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+    } catch {
+      /* upload best-effort */
+    }
+  };
+
+  const handleGenerateBusinessDocx = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules });
+      await uploadBusinessDocx(prop, blob, fileName);
+      toast.success("Business DOCX generated");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("DOCX generation failed: " + (e?.message || ""));
+    }
+  };
+
+  const handleGenerateBusinessPdf = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      printBusinessProposal({ proposal: prop, cfg: businessConfig, rules });
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("PDF preview opened — use the print dialog to save as PDF");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("PDF generation failed: " + (e?.message || ""));
+    }
+  };
+
   const formatPrice = (n: number) => formatEuro(n, language);
 
   return (
@@ -1038,14 +1090,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </p>
                     )}
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 max-w-md mx-auto">
-                    <p className="text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Business DOCX/PDF export is coming soon.</strong> Excel export is
-                      available for validation.
-                    </p>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <Button onClick={handleSaveDraft} disabled={saving}>Save proposal</Button>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button onClick={handleGenerateBusinessDocx} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate DOCX
+                    </Button>
+                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate PDF
+                    </Button>
                     <Button
                       variant="outline"
                       disabled={saving}

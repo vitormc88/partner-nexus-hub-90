@@ -4,6 +4,8 @@ import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpr
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
+import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
+import { printBusinessProposal } from "@/lib/proposal-business-print";
 import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
@@ -97,6 +99,13 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
   };
 
+  const buildBusinessCfg = (cfgRaw: any): BusinessConfig => ({
+    ...DEFAULT_BUSINESS_CONFIG,
+    ...cfgRaw,
+    implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw?.implementation || {}) },
+    discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw?.discounts || {}) },
+  });
+
   const exportBusinessExcel = async (id: string) => {
     const res = await loadProposalAndItems(id);
     if (!res) return;
@@ -105,17 +114,68 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       toast.error("This proposal has no Business configuration");
       return;
     }
-    const cfg: BusinessConfig = {
-      ...DEFAULT_BUSINESS_CONFIG,
-      ...cfgRaw,
-      implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw.implementation || {}) },
-      discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw.discounts || {}) },
-    };
+    const cfg = buildBusinessCfg(cfgRaw);
     try {
       downloadBusinessXlsx({ proposal: res.prop as Proposal, cfg, rules });
       toast.success("Excel exported");
     } catch (e: any) {
       toast.error("Excel export failed: " + (e?.message || ""));
+    }
+  };
+
+  const downloadBusinessDocxFor = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg = buildBusinessCfg(cfgRaw);
+    try {
+      const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: res.prop as Proposal, cfg, rules });
+      // Upload to storage and update proposal record
+      try {
+        const path = `${res.prop.lead_id}/${res.prop.id}/${fileName}`;
+        const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          upsert: true,
+        });
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
+          await supabase
+            .from("proposals")
+            .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+            .eq("id", res.prop.id);
+          qc.invalidateQueries({ queryKey: ["proposals"] });
+        }
+      } catch {
+        /* upload best-effort */
+      }
+      toast.success("Business DOCX downloaded");
+    } catch (e: any) {
+      toast.error("DOCX generation failed: " + (e?.message || ""));
+    }
+  };
+
+  const printBusinessPdfFor = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg = buildBusinessCfg(cfgRaw);
+    try {
+      printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", res.prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+    } catch (e: any) {
+      toast.error("PDF generation failed: " + (e?.message || ""));
     }
   };
 
@@ -245,6 +305,12 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     )}
                     {isBusiness && (
                       <>
+                        <Button size="sm" variant="ghost" onClick={() => printBusinessPdfFor(p.id)} title="Print / Save as PDF">
+                          <Printer className="h-3.5 w-3.5 mr-1" />PDF
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => downloadBusinessDocxFor(p.id)} title="Download DOCX">
+                          <Download className="h-3.5 w-3.5 mr-1" />DOCX
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -253,9 +319,6 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                         >
                           <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />Excel
                         </Button>
-                        <span className="text-[10px] text-muted-foreground italic px-2">
-                          DOCX/PDF coming soon
-                        </span>
                       </>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">

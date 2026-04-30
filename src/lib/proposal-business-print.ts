@@ -207,13 +207,15 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .cover { min-height: 240mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; page-break-after: always; }
-  .cover img { max-width: 240px; height: auto; }
-  .cover h1 { font-size: 30pt; margin: 14px 0 4px; color:#1a1a1a; }
-  .cover .sub { color:#c00; font-weight: 700; font-size: 14pt; }
-  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 18px; }
-  .cover .meta { color: #555; font-size: 11pt; }
-  .cover .restricted { color:#c00; font-weight: 700; font-size: 10pt; letter-spacing: 1px; text-transform: uppercase; margin-top: 18px; }
+  .cover { min-height: 240mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px; page-break-after: always; }
+  .cover img { max-width: 320px; height: auto; margin-bottom: 18px; }
+  .cover h1 { font-size: 36pt; margin: 8px 0 4px; color:#c00; font-weight: 700; letter-spacing: .5px; }
+  .cover .sub { font-size: 18pt; font-weight: 700; margin-bottom: 24px; }
+  .cover .sub .red { color:#c00; }
+  .cover .sub .dark { color:#2C3E50; }
+  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 32px; color:#2C3E50; letter-spacing: .5px; text-transform: uppercase; }
+  .cover .meta { color: #555; font-size: 11pt; margin-top: 6px; }
+  .cover .restricted { color:#c00; font-weight: 700; font-size: 9.5pt; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 28px; }
   .header { display:flex; justify-content:space-between; gap:12px; padding-bottom:6px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
   .header .restricted { color:#c00; font-weight: 700; }
   h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 22px 0 10px; }

@@ -18,6 +18,10 @@ export interface BusinessStrings {
 
   // Sections
   softwareDescription: string;
+  softwareConfigHeading: string;
+  optionalNotIncludedFull: string;
+  servicesGrossTotal: string;
+  servicesNetTotal: string;
   optionsTitle: string;
   servicesTitle: string;
   investmentSummaryTitle: string;

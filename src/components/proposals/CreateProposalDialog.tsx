@@ -25,6 +25,7 @@ import {
 } from "@/lib/proposal-engine";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import type {
   ProposalLanguage,
   ProposalPlan,

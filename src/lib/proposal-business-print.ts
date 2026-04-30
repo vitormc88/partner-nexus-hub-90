@@ -258,13 +258,13 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <p><strong>${esc(s.forImplementation(proposal.client_name))}</strong></p>
 <p style="color:#c00;font-weight:700">${esc(s.businessSubtitle)}</p>
 
-<h2>${esc(s.softwareDescription)}</h2>
+<h2>${esc(s.softwareConfigHeading)}</h2>
 <ul>${swDescItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 <p><strong>${esc(s.modulesIncludedHeading)}</strong></p>
 <ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 ${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
-${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncluded)}</strong></p><ul class="muted small">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+${optional.length ? `<p class="muted small" style="font-style:italic;margin-top:14px"><strong>${esc(s.optionalNotIncludedFull)}</strong></p><ul class="muted small" style="font-style:italic">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
 ${optionsHtml}

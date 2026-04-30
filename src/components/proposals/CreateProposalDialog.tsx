@@ -566,7 +566,55 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   };
 
-  const formatPrice = (n: number) => formatEuro(n, language);
+  /** Upload a Business DOCX blob to storage and persist URL on the proposal. */
+  const uploadBusinessDocx = async (prop: Proposal, blob: Blob, fileName: string) => {
+    try {
+      const path = `${leadId}/${prop.id}/${fileName}`;
+      const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: true,
+      });
+      if (upErr) return;
+      const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
+      await supabase
+        .from("proposals")
+        .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+    } catch {
+      /* upload best-effort */
+    }
+  };
+
+  const handleGenerateBusinessDocx = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules });
+      await uploadBusinessDocx(prop, blob, fileName);
+      toast.success("Business DOCX generated");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("DOCX generation failed: " + (e?.message || ""));
+    }
+  };
+
+  const handleGenerateBusinessPdf = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      printBusinessProposal({ proposal: prop, cfg: businessConfig, rules });
+      await supabase
+        .from("proposals")
+        .update({ status: "Ready", generated_at: new Date().toISOString() })
+        .eq("id", prop.id);
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("PDF preview opened — use the print dialog to save as PDF");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("PDF generation failed: " + (e?.message || ""));
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

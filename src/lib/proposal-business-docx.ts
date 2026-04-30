@@ -216,15 +216,29 @@ function softwareDescription(
   if (!cfg.pluginSLA) optional.push(s.pluginSLA);
   if (!cfg.api) optional.push(s.apiManwinwin);
   if (optional.length > 0) {
-    out.push(subHeading(s.optionalNotIncluded));
+    out.push(
+      new Paragraph({
+        spacing: { before: 200, after: 60 },
+        children: [
+          new TextRun({
+            text: s.optionalNotIncludedFull,
+            bold: true,
+            italics: true,
+            color: SUBTLE,
+            size: 20,
+            font: "Calibri",
+          }),
+        ],
+      }),
+    );
     optional.forEach((l) =>
       out.push(
         new Paragraph({
           spacing: { after: 40 },
           indent: { left: 360, hanging: 200 },
           children: [
-            new TextRun({ text: "•  ", color: SUBTLE, size: 20, font: "Calibri" }),
-            new TextRun({ text: l, color: SUBTLE, size: 20, italics: true, font: "Calibri" }),
+            new TextRun({ text: "•  ", color: SUBTLE, size: 18, font: "Calibri" }),
+            new TextRun({ text: l, color: SUBTLE, size: 18, italics: true, font: "Calibri" }),
           ],
         }),
       ),

@@ -490,36 +490,42 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const dateStr = formatDateLocale(proposal.proposal_date, lang);
 
   const headerChildren: Paragraph[] = [];
+  if (logoBytes) {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+          new ImageRun({
+            type: "png",
+            data: logoBytes,
+            transformation: { width: 90, height: 28 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
+          }),
+        ],
+      }),
+    );
+  }
   headerChildren.push(
     new Paragraph({
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 80 },
+      alignment: AlignmentType.RIGHT,
       children: [
         new TextRun({
-          text: `${s.client}: ${proposal.client_name}`,
+          text: `${proposal.client_name} | ${proposal.project_name || s.businessSubtitle}`,
+          bold: true,
           color: DARK,
           size: 18,
           font: "Calibri",
         }),
-        new TextRun({
-          text: `   |   ${s.project}: ${proposal.project_name || "—"}`,
-          color: SUBTLE,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: `   |   ${s.date}: ${dateStr}`,
-          color: SUBTLE,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: `   |   ${s.restricted}`,
-          bold: true,
-          color: RED,
-          size: 18,
-          font: "Calibri",
-        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: dateStr, color: SUBTLE, size: 18, font: "Calibri" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [
+        new TextRun({ text: s.restricted, bold: true, color: RED, size: 18, font: "Calibri" }),
       ],
     }),
   );
@@ -527,6 +533,9 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const footerChildren: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      border: {
+        top: { style: BorderStyle.SINGLE, size: 6, color: RED, space: 4 },
+      },
       children: [
         new TextRun({
           text: s.footerLine,

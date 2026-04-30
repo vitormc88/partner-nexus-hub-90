@@ -248,10 +248,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <p><strong>${esc(s.modulesIncludedHeading)}</strong></p>
 <ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 ${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-<ul>
-${cfg.api ? `<li>${esc(s.apiManwinwin)}</li>` : ""}
-<li>${esc(cfg.deployment === "saas" ? s.hostingSaas : s.hostingClientServer)}</li>
-</ul>
+${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
 ${optional.length ? `<p><strong>${esc(s.optionalNotIncluded)}</strong></p><ul>${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>

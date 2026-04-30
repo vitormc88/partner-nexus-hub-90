@@ -244,9 +244,19 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                       </>
                     )}
                     {isBusiness && (
-                      <span className="text-[10px] text-muted-foreground italic px-2">
-                        Document export coming soon
-                      </span>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => exportBusinessExcel(p.id)}
+                          title="Export Excel"
+                        >
+                          <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />Excel
+                        </Button>
+                        <span className="text-[10px] text-muted-foreground italic px-2">
+                          DOCX/PDF coming soon
+                        </span>
+                      </>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">
                       <Pencil className="h-3.5 w-3.5 mr-1" />Edit

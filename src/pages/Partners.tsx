@@ -24,24 +24,38 @@ export default function Partners() {
   const createPartner = useCreatePartner();
   const archivePartner = useArchivePartner();
   const restorePartner = useRestorePartner();
+  const { data: partnershipLevels = [] } = usePartnershipLevels();
   const { isAdmin, isHQ, profile } = useAuth();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ company_name: "", partner_code: "", country: "", partnership_level: "Reseller", status: "Active", primary_contact_name: "", primary_contact_email: "", notes: "" });
+  const initialForm = { company_name: "", country: "", partnership_level: "", status: "Active", first_name: "", last_name: "", primary_contact_email: "", notes: "" };
+  const [form, setForm] = useState(initialForm);
 
   const filtered = partners
     .filter(p => showArchived ? p.status === "Archived" : p.status !== "Archived")
     .filter(p => p.company_name.toLowerCase().includes(search.toLowerCase()) || (p.country || "").toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = async () => {
-    if (!form.company_name || !form.partner_code) { toast.error("Company name and partner code are required"); return; }
+    if (!form.company_name.trim()) { toast.error("Company name is required"); return; }
+    if (!form.country) { toast.error("Country is required"); return; }
     if (form.primary_contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.primary_contact_email)) { toast.error("Please enter a valid email"); return; }
+    const dup = partners.some(p => p.company_name.trim().toLowerCase() === form.company_name.trim().toLowerCase());
+    if (dup) { toast.error("A partner with this company name already exists"); return; }
+    const primary_contact_name = [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || null;
     try {
-      await createPartner.mutateAsync(form);
+      await createPartner.mutateAsync({
+        company_name: form.company_name.trim(),
+        country: form.country,
+        partnership_level: form.partnership_level || null,
+        status: form.status,
+        primary_contact_name,
+        primary_contact_email: form.primary_contact_email || null,
+        notes: form.notes || null,
+      } as any);
       toast.success("Partner created successfully");
       setShowCreate(false);
-      setForm({ company_name: "", partner_code: "", country: "", partnership_level: "Reseller", status: "Active", primary_contact_name: "", primary_contact_email: "", notes: "" });
+      setForm(initialForm);
     } catch (e: any) { toast.error(e?.message || "Failed to create partner"); }
   };
 

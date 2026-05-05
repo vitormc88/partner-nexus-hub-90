@@ -6,10 +6,10 @@ import { Link } from "react-router-dom";
 
 export function PartnerHealthList() {
   const { data: partners = [], isLoading } = usePartners();
+  const { data: metrics = {} } = usePartnerMetrics();
 
-  const sorted = [...partners]
-    .sort((a, b) => (a.health_score ?? 50) - (b.health_score ?? 50))
-    .slice(0, 5);
+  const withScores = partners.map(p => ({ p, score: metrics[p.id]?.health_score ?? 0 }));
+  const sorted = [...withScores].sort((a, b) => a.score - b.score).slice(0, 5);
 
   const getVariant = (score: number) => {
     if (score >= 80) return "success" as const;

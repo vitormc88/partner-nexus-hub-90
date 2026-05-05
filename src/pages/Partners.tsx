@@ -157,33 +157,55 @@ export default function Partners() {
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Create New Partner</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6 mt-2">
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Partner Information</h3>
               <div><Label>Company Name *</Label><Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} /></div>
-              <div><Label>Partner Code *</Label><Input value={form.partner_code} onChange={e => setForm(f => ({ ...f, partner_code: e.target.value }))} placeholder="e.g. PT-IBS" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} /></div>
-              <div>
-                <Label>Partnership Level</Label>
-                <Select value={form.partnership_level} onValueChange={v => setForm(f => ({ ...f, partnership_level: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Reseller">Reseller</SelectItem>
-                    <SelectItem value="Implementer">Implementer</SelectItem>
-                    <SelectItem value="Strategic Connector">Strategic Connector</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Country *</Label>
+                  <CountryCodeCombobox value={form.country} onChange={v => setForm(f => ({ ...f, country: v }))} />
+                </div>
+                <div>
+                  <Label>Partnership Level</Label>
+                  <Select value={form.partnership_level} onValueChange={v => setForm(f => ({ ...f, partnership_level: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select level..." /></SelectTrigger>
+                    <SelectContent>
+                      {partnershipLevels.map(l => (
+                        <SelectItem key={l.id} value={l.name}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Primary Contact</Label><Input value={form.primary_contact_name} onChange={e => setForm(f => ({ ...f, primary_contact_name: e.target.value }))} /></div>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Contact Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>First Name</Label><Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
+                <div><Label>Last Name</Label><Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
+              </div>
               <div><Label>Contact Email</Label><Input type="email" value={form.primary_contact_email} onChange={e => setForm(f => ({ ...f, primary_contact_email: e.target.value }))} /></div>
-            </div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
-            <div className="flex justify-end gap-2">
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">System</h3>
+              <div>
+                <Label>Partner Code</Label>
+                <Input value="Auto-generated on save" readOnly disabled className="bg-muted/50 text-muted-foreground" />
+                <p className="text-[11px] text-muted-foreground mt-1">Format: [COUNTRY]-[SHORTNAME]-[SEQ] · e.g. PT-DAS-001</p>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Notes</h3>
+              <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} placeholder="Optional notes..." />
+            </section>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
               <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button onClick={handleCreate} disabled={createPartner.isPending}>{createPartner.isPending ? "Creating..." : "Create Partner"}</Button>
             </div>

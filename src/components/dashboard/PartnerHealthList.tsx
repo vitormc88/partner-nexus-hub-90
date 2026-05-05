@@ -36,7 +36,7 @@ export function PartnerHealthList() {
           <div className="p-5 text-center text-sm text-muted-foreground">Loading...</div>
         ) : sorted.length === 0 ? (
           <div className="p-5 text-center text-sm text-muted-foreground">No partners found</div>
-        ) : sorted.map((p) => (
+        ) : sorted.map(({ p, score }) => (
           <Link
             key={p.id}
             to={`/partners/${p.id}`}
@@ -44,11 +44,11 @@ export function PartnerHealthList() {
           >
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{p.company_name}</p>
-              <p className="text-xs text-muted-foreground">{p.country} · {p.partnership_level}</p>
+              <p className="text-xs text-muted-foreground">{(p.country ? COUNTRY_NAME_BY_CODE[p.country] ?? p.country : "")} · {p.partnership_level}</p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-sm font-semibold tabular-nums text-foreground">{p.health_score ?? 50}</span>
-              <Badge variant={getVariant(p.health_score ?? 50)}>{getLabel(p.health_score ?? 50)}</Badge>
+              <span className="text-sm font-semibold tabular-nums text-foreground">{score}</span>
+              <Badge variant={getVariant(score)}>{getLabel(score)}</Badge>
             </div>
           </Link>
         ))}

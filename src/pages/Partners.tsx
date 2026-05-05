@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { CountryCodeCombobox } from "@/components/partners/CountryCodeCombobox";
+import { usePartnershipLevels } from "@/hooks/usePartners";
 
 const statusVariant: Record<string, "success" | "secondary" | "warning" | "destructive"> = {
   Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",

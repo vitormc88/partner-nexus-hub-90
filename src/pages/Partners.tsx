@@ -23,6 +23,7 @@ const statusVariant: Record<string, "success" | "secondary" | "warning" | "destr
 
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
+  const { data: metrics = {} } = usePartnerMetrics();
   const createPartner = useCreatePartner();
   const archivePartner = useArchivePartner();
   const restorePartner = useRestorePartner();

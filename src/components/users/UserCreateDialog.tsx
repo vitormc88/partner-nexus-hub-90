@@ -150,6 +150,9 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
                   ))}
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Type: {roleType(role) === "hq" ? "HQ" : "Partner"} (auto-derived)
+              </p>
             </div>
             {isPartnerRole && (
               <div>
@@ -166,6 +169,8 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
               </div>
             )}
           </div>
+
+          <RolePreview role={role} />
 
           {/* Password fields for manual mode */}
           {manualMode && (

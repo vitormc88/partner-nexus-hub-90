@@ -175,13 +175,18 @@ export default function PartnerDetail() {
   };
 
   const handleAddNote = async () => {
-    if (!noteText.trim()) return;
+    if (!noteForm.content.trim()) return;
     try {
-      await addNote.mutateAsync({ partner_id: partner.id, content: noteText.trim() });
-      setNoteText("");
+      await addNote.mutateAsync({
+        partner_id: partner.id,
+        content: noteForm.content.trim(),
+        note_type: noteForm.note_type,
+        next_actions: noteForm.next_actions.trim() || null,
+      });
+      setNoteForm({ content: "", note_type: "Meeting", next_actions: "" });
       setShowAddNote(false);
-      toast.success("Note added");
-    } catch (e: any) { toast.error(e?.message || "Failed to add note"); }
+      toast.success("Entry saved");
+    } catch (e: any) { toast.error(e?.message || "Failed to save entry"); }
   };
 
   const handleAddCert = async () => {

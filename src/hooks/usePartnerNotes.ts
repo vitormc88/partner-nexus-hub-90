@@ -34,7 +34,7 @@ export function usePartnerNotes(partnerId: string | undefined) {
 export function useAddPartnerNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ partner_id, content }: { partner_id: string; content: string }) => {
+    mutationFn: async ({ partner_id, content, note_type, next_actions }: { partner_id: string; content: string; note_type?: PartnerNoteType; next_actions?: string | null }) => {
       const { data: { user } } = await supabase.auth.getUser();
       let authorName: string | null = null;
       if (user?.id) {
@@ -43,7 +43,7 @@ export function useAddPartnerNote() {
       }
       const { data, error } = await supabase
         .from("partner_notes" as any)
-        .insert({ partner_id, content, author_id: user?.id ?? null, author_name: authorName })
+        .insert({ partner_id, content, author_id: user?.id ?? null, author_name: authorName, note_type: note_type || "Internal Note", next_actions: next_actions || null })
         .select()
         .single();
       if (error) throw error;

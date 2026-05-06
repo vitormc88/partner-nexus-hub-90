@@ -54,7 +54,6 @@ export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = 
 export const INTERNAL_ONLY_MODULES = new Set<string>([
   "partners",
   "analytics",
-  "notifications",
   "tiers",
   "performance",
   "settings",

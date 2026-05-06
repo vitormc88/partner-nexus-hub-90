@@ -64,7 +64,7 @@ export default function PartnerDetail() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [showCreateLead, setShowCreateLead] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
-  const [noteText, setNoteText] = useState("");
+  const [noteForm, setNoteForm] = useState<{ content: string; note_type: "Meeting" | "Internal Note" | "Follow-up"; next_actions: string }>({ content: "", note_type: "Meeting", next_actions: "" });
   const [showAddCert, setShowAddCert] = useState(false);
   const [certForm, setCertForm] = useState({ user_name: "", certification_name: "", certification_type: "Sales", certification_level: 1, issue_date: "", expiry_date: "", file_url: "" });
   const [showAddRenewal, setShowAddRenewal] = useState(false);
@@ -112,10 +112,6 @@ export default function PartnerDetail() {
       status: partner.status || "Active",
       alert_notice_days: partner.alert_notice_days ?? 60,
       onboarding_status: partner.onboarding_status || "Not Started",
-      account_owner_id: (partner as any).account_owner_id || "",
-      last_meeting_date: (partner as any).last_meeting_date || "",
-      next_meeting_date: (partner as any).next_meeting_date || "",
-      meeting_cadence: (partner as any).meeting_cadence || "",
       uses_own_database: !!(partner as any).uses_own_database,
       uses_manwinwin_database: !!(partner as any).uses_manwinwin_database,
     });
@@ -130,10 +126,6 @@ export default function PartnerDetail() {
         id: partner.id,
         ...rest,
         primary_contact_name,
-        account_owner_id: rest.account_owner_id || null,
-        last_meeting_date: rest.last_meeting_date || null,
-        next_meeting_date: rest.next_meeting_date || null,
-        meeting_cadence: rest.meeting_cadence || null,
       } as any);
       toast.success("Partner updated successfully");
       setEditing(false);
@@ -175,13 +167,18 @@ export default function PartnerDetail() {
   };
 
   const handleAddNote = async () => {
-    if (!noteText.trim()) return;
+    if (!noteForm.content.trim()) return;
     try {
-      await addNote.mutateAsync({ partner_id: partner.id, content: noteText.trim() });
-      setNoteText("");
+      await addNote.mutateAsync({
+        partner_id: partner.id,
+        content: noteForm.content.trim(),
+        note_type: noteForm.note_type,
+        next_actions: noteForm.next_actions.trim() || null,
+      });
+      setNoteForm({ content: "", note_type: "Meeting", next_actions: "" });
       setShowAddNote(false);
-      toast.success("Note added");
-    } catch (e: any) { toast.error(e?.message || "Failed to add note"); }
+      toast.success("Entry saved");
+    } catch (e: any) { toast.error(e?.message || "Failed to save entry"); }
   };
 
   const handleAddCert = async () => {
@@ -259,6 +256,19 @@ export default function PartnerDetail() {
   const lostDeals = deals.filter(d => d.status === "Lost");
   const accountOwner = hqUsers.find((u: any) => u.id === (partner as any).account_owner_id);
   const countryName = partner.country ? (COUNTRY_NAME_BY_CODE[partner.country] ?? partner.country) : "—";
+  const relStatus = (partner as any).relationship_status || "Healthy";
+  const daysUntilMeeting = (partner as any).next_meeting_date
+    ? Math.ceil((new Date((partner as any).next_meeting_date).getTime() - Date.now()) / 86400000)
+    : null;
+  const expiringCertCount = certs.filter((c: any) => {
+    if (!c.expiry_date) return false;
+    const days = (new Date(c.expiry_date).getTime() - Date.now()) / 86400000;
+    return days >= 0 && days <= 30;
+  }).length;
+  const expiredRenewalsCount = partnerRenewals.filter((r: any) => {
+    if (r.status === "Completed") return false;
+    return r.renewal_date && new Date(r.renewal_date).getTime() < Date.now();
+  }).length;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -306,7 +316,7 @@ export default function PartnerDetail() {
       <Tabs defaultValue="overview" className="animate-reveal-up stagger-2">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="activity">Activity ({notes.length})</TabsTrigger>
+          <TabsTrigger value="relationship">Relationship ({notes.length})</TabsTrigger>
           <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
           <TabsTrigger value="leads">Leads ({deals.length})</TabsTrigger>
           <TabsTrigger value="renewals">Renewals ({partnerRenewals.length})</TabsTrigger>
@@ -326,7 +336,6 @@ export default function PartnerDetail() {
                 ["Region", partner.region],
                 ["Country", countryName],
                 ["Onboarding", partner.onboarding_status],
-                ["Meeting Cadence", (partner as any).meeting_cadence || "—"],
                 ["Uses Own Database", (partner as any).uses_own_database ? "Yes" : "No"],
                 ["Uses ManWinWin Database", (partner as any).uses_manwinwin_database ? "Yes" : "No"],
               ].map(([label, value]) => (
@@ -362,47 +371,115 @@ export default function PartnerDetail() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
-                <h3 className="font-semibold text-foreground text-sm">Relationship</h3>
-                {[
-                  ["Account Owner", accountOwner ? (accountOwner as any).full_name || (accountOwner as any).email : "—"],
-                  ["Last Activity", lastActivity ? fmtDateTime(lastActivity) : "—"],
-                  ["Last Meeting", fmt((partner as any).last_meeting_date)],
-                  ["Next Meeting", fmt((partner as any).next_meeting_date)],
-                ].map(([label, value]) => (
-                  <div key={label as string} className="flex items-start gap-3 py-1 border-b border-border/40 last:border-0">
-                    <span className="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
-                    <span className="text-sm text-foreground">{value}</span>
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground text-sm">Relationship</h3>
+                  <Badge variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"}>{relStatus}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
+                    <Select value={(partner as any).account_owner_id || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, account_owner_id: v || null } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                      <SelectContent>
+                        {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Meeting Cadence</Label>
+                    <Select value={(partner as any).meeting_cadence || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, meeting_cadence: v || null } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Quarterly">Quarterly</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
+                    <Input type="date" className="h-8 mt-1" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
+                    <Input type="date" className="h-8 mt-1" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
+                    <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Healthy">Healthy</SelectItem>
+                        <SelectItem value="Growing">Growing</SelectItem>
+                        <SelectItem value="Silent">Silent</SelectItem>
+                        <SelectItem value="At Risk">At Risk</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {daysUntilMeeting !== null && (
+                  <div className={`text-xs rounded-md px-3 py-2 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
+                    {daysUntilMeeting < 0 ? `Next meeting was ${Math.abs(daysUntilMeeting)} day${Math.abs(daysUntilMeeting) === 1 ? "" : "s"} ago — reschedule needed` : daysUntilMeeting === 0 ? "Next meeting is today" : `Next meeting in ${daysUntilMeeting} day${daysUntilMeeting === 1 ? "" : "s"}`}
+                  </div>
+                )}
+                {expiringCertCount > 0 && (
+                  <div className="text-xs rounded-md px-3 py-2 border bg-warning/10 text-warning-foreground border-warning/30">
+                    {expiringCertCount} certification{expiringCertCount > 1 ? "s" : ""} expiring within 30 days
+                  </div>
+                )}
+                {expiredRenewalsCount > 0 && (
+                  <div className="text-xs rounded-md px-3 py-2 border bg-destructive/10 text-destructive border-destructive/30">
+                    {expiredRenewalsCount} renewal{expiredRenewalsCount > 1 ? "s" : ""} expired
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="activity" className="mt-5 space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Note</Button>
+        <TabsContent value="relationship" className="mt-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Meeting notes, follow-ups, and relationship history.</p>
+            <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> New Entry</Button>
           </div>
           {notes.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
-              No activity yet. <button onClick={() => setShowAddNote(true)} className="text-primary hover:underline">Add a note</button>
+            <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
+              <p className="text-sm text-foreground font-medium">Start building the relationship history</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">Add a meeting note or follow-up to keep context about this partner organised and shared with the team.</p>
+              <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> Add first entry</Button>
             </div>
           ) : (
-            <div className="bg-card rounded-xl border shadow-sm divide-y">
-              {notes.map(n => (
-                <div key={n.id} className="p-4 flex items-start gap-3">
-                  <div className="flex-1">
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDateTime(n.created_at)} — <span className="font-medium text-foreground">{n.author_name || "Unknown"}</span>
+            <div className="relative space-y-4 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border">
+              {notes.map(n => {
+                const typeColor = n.note_type === "Meeting" ? "bg-primary" : n.note_type === "Follow-up" ? "bg-warning" : "bg-muted-foreground";
+                const badgeVariant: any = n.note_type === "Meeting" ? "default" : n.note_type === "Follow-up" ? "warning" : "secondary";
+                return (
+                  <div key={n.id} className="relative pl-9">
+                    <span className={`absolute left-2 top-3 h-3 w-3 rounded-full ring-4 ring-background ${typeColor}`} />
+                    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground tabular-nums">{fmtDateTime(n.created_at)}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs font-medium text-foreground">{n.author_name || "Unknown"}</span>
+                          <Badge variant={badgeVariant} className="text-[10px]">{n.note_type}</Badge>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{n.content}</p>
+                      {n.next_actions && (
+                        <div className="mt-2 rounded-md bg-secondary/50 border p-2.5">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Next actions</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{n.next_actions}</p>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{n.content}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -481,47 +558,62 @@ export default function PartnerDetail() {
         </TabsContent>
 
         <TabsContent value="renewals" className="mt-5 space-y-3">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{partnerRenewals.length} renewal{partnerRenewals.length === 1 ? "" : "s"} {expiredRenewalsCount > 0 && <span className="text-destructive font-medium">· {expiredRenewalsCount} expired</span>}</p>
             <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
           </div>
           {partnerRenewals.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No renewals yet.</div>
+            <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
+              <p className="text-sm text-foreground font-medium">No renewals tracked yet</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">Add upcoming license, SAT or contract renewals to monitor expirations and never miss a deadline.</p>
+              <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add first renewal</Button>
+            </div>
           ) : (
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b bg-secondary/50">
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-right px-5 py-3 font-medium text-muted-foreground">Value</th>
-                  <th className="text-right px-5 py-3 font-medium text-muted-foreground"></th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {partnerRenewals.map((r: any) => (
-                    <tr key={r.id} className="hover:bg-secondary/30">
-                      <td className="px-5 py-3"><Badge variant="outline">{r.renewal_type}</Badge></td>
-                      <td className="px-5 py-3 tabular-nums">{r.renewal_date}</td>
-                      <td className="px-5 py-3">
-                        <Select value={r.status} onValueChange={(v) => updateRenewalStatus(r.id, v)}>
-                          <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Upcoming">Upcoming</SelectItem>
-                            <SelectItem value="In Progress">In Progress</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Lost">Lost</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">€{Number(r.estimated_value || 0).toLocaleString()}</td>
-                      <td className="px-5 py-3 text-right">
-                        {r.status !== "Completed" && (
-                          <Button variant="ghost" size="sm" onClick={() => updateRenewalStatus(r.id, "Completed")}>Mark Completed</Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {partnerRenewals.map((r: any) => {
+                const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - Date.now()) / 86400000) : null;
+                const isExpired = days !== null && days < 0 && r.status !== "Completed";
+                const isCompleted = r.status === "Completed";
+                const accent = isCompleted ? "border-l-success bg-success/5" : isExpired ? "border-l-destructive bg-destructive/5" : "border-l-info bg-info/5";
+                const statusBadge: any = isCompleted ? "success" : isExpired ? "destructive" : r.status === "In Progress" ? "warning" : "default";
+                const cl = clients.find(c => c.id === r.client_id);
+                return (
+                  <div key={r.id} className={`bg-card rounded-xl border border-l-4 shadow-sm p-4 space-y-3 ${accent}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline">{r.renewal_type}</Badge>
+                          <Badge variant={statusBadge}>{isExpired ? "Expired" : r.status}</Badge>
+                        </div>
+                        <p className="text-sm font-medium mt-1.5 truncate">{cl?.commercial_name || "Client"}</p>
+                      </div>
+                      <span className="text-base font-bold tabular-nums shrink-0">€{Number(r.estimated_value || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground tabular-nums">{r.renewal_date}</span>
+                      {days !== null && !isCompleted && (
+                        <span className={`tabular-nums font-medium ${days < 0 ? "text-destructive" : days <= 30 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+                          {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Select value={r.status} onValueChange={(v) => updateRenewalStatus(r.id, v)}>
+                        <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Upcoming">Upcoming</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Lost">Lost</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!isCompleted && (
+                        <Button size="sm" variant="default" onClick={() => updateRenewalStatus(r.id, "Completed")}>Mark Completed</Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -614,17 +706,6 @@ export default function PartnerDetail() {
                   <Switch checked={!!editForm.uses_manwinwin_database} onCheckedChange={v => setEditForm(f => ({ ...f, uses_manwinwin_database: v }))} />
                 </label>
               </div>
-              <div>
-                <Label>Meeting Cadence</Label>
-                <Select value={editForm.meeting_cadence || ""} onValueChange={v => setEditForm(f => ({ ...f, meeting_cadence: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Monthly">Monthly</SelectItem>
-                    <SelectItem value="Quarterly">Quarterly</SelectItem>
-                    <SelectItem value="None">None</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </section>
 
             <section className="space-y-3">
@@ -641,20 +722,7 @@ export default function PartnerDetail() {
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Relationship</h3>
-              <div>
-                <Label>Account Owner</Label>
-                <Select value={editForm.account_owner_id || ""} onValueChange={v => setEditForm(f => ({ ...f, account_owner_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select owner..." /></SelectTrigger>
-                  <SelectContent>
-                    {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Last Meeting Date</Label><Input type="date" value={editForm.last_meeting_date || ""} onChange={e => setEditForm(f => ({ ...f, last_meeting_date: e.target.value }))} /></div>
-                <div><Label>Next Meeting Date</Label><Input type="date" value={editForm.next_meeting_date || ""} onChange={e => setEditForm(f => ({ ...f, next_meeting_date: e.target.value }))} /></div>
-              </div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Onboarding Settings</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Alert Notice Days</Label><Input type="number" value={editForm.alert_notice_days ?? 60} onChange={e => setEditForm(f => ({ ...f, alert_notice_days: parseInt(e.target.value) || 60 }))} /></div>
                 <div>
@@ -679,15 +747,34 @@ export default function PartnerDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Note Dialog */}
+      {/* Add Relationship Entry Dialog */}
       <Dialog open={showAddNote} onOpenChange={setShowAddNote}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Note</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Textarea rows={5} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Write a note..." autoFocus />
-            <div className="flex justify-end gap-2">
+          <DialogHeader><DialogTitle>New Relationship Entry</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Type</Label>
+              <Select value={noteForm.note_type} onValueChange={(v: any) => setNoteForm(f => ({ ...f, note_type: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Meeting">Meeting</SelectItem>
+                  <SelectItem value="Internal Note">Internal Note</SelectItem>
+                  <SelectItem value="Follow-up">Follow-up</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Content</Label>
+              <Textarea rows={4} value={noteForm.content} onChange={e => setNoteForm(f => ({ ...f, content: e.target.value }))} placeholder="What was discussed or noted..." autoFocus />
+            </div>
+            <div>
+              <Label>Next Actions <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea rows={2} value={noteForm.next_actions} onChange={e => setNoteForm(f => ({ ...f, next_actions: e.target.value }))} placeholder="• Send updated proposal&#10;• Review training voucher" />
+            </div>
+            <p className="text-[11px] text-muted-foreground">Author and timestamp are added automatically.</p>
+            <div className="flex justify-end gap-2 pt-1 border-t">
               <Button variant="outline" onClick={() => setShowAddNote(false)}>Cancel</Button>
-              <Button onClick={handleAddNote} disabled={addNote.isPending || !noteText.trim()}>{addNote.isPending ? "Saving..." : "Add Note"}</Button>
+              <Button onClick={handleAddNote} disabled={addNote.isPending || !noteForm.content.trim()}>{addNote.isPending ? "Saving..." : "Save Entry"}</Button>
             </div>
           </div>
         </DialogContent>

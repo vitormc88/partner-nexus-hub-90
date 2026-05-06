@@ -46,6 +46,8 @@ export function NotificationBell() {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   };
 
+  if (!allowed) return null;
+
   return (
     <div className="relative" ref={ref}>
       <button

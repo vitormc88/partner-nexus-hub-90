@@ -303,7 +303,7 @@ export default function PartnerDetail() {
       <Tabs defaultValue="overview" className="animate-reveal-up stagger-2">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="activity">Activity ({notes.length})</TabsTrigger>
+          <TabsTrigger value="relationship">Relationship ({notes.length})</TabsTrigger>
           <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
           <TabsTrigger value="leads">Leads ({deals.length})</TabsTrigger>
           <TabsTrigger value="renewals">Renewals ({partnerRenewals.length})</TabsTrigger>
@@ -323,7 +323,6 @@ export default function PartnerDetail() {
                 ["Region", partner.region],
                 ["Country", countryName],
                 ["Onboarding", partner.onboarding_status],
-                ["Meeting Cadence", (partner as any).meeting_cadence || "—"],
                 ["Uses Own Database", (partner as any).uses_own_database ? "Yes" : "No"],
                 ["Uses ManWinWin Database", (partner as any).uses_manwinwin_database ? "Yes" : "No"],
               ].map(([label, value]) => (
@@ -359,47 +358,115 @@ export default function PartnerDetail() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
-                <h3 className="font-semibold text-foreground text-sm">Relationship</h3>
-                {[
-                  ["Account Owner", accountOwner ? (accountOwner as any).full_name || (accountOwner as any).email : "—"],
-                  ["Last Activity", lastActivity ? fmtDateTime(lastActivity) : "—"],
-                  ["Last Meeting", fmt((partner as any).last_meeting_date)],
-                  ["Next Meeting", fmt((partner as any).next_meeting_date)],
-                ].map(([label, value]) => (
-                  <div key={label as string} className="flex items-start gap-3 py-1 border-b border-border/40 last:border-0">
-                    <span className="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
-                    <span className="text-sm text-foreground">{value}</span>
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground text-sm">Relationship</h3>
+                  <Badge variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"}>{relStatus}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
+                    <Select value={(partner as any).account_owner_id || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, account_owner_id: v || null } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                      <SelectContent>
+                        {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Meeting Cadence</Label>
+                    <Select value={(partner as any).meeting_cadence || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, meeting_cadence: v || null } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Quarterly">Quarterly</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
+                    <Input type="date" className="h-8 mt-1" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
+                    <Input type="date" className="h-8 mt-1" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
+                    <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
+                      <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Healthy">Healthy</SelectItem>
+                        <SelectItem value="Growing">Growing</SelectItem>
+                        <SelectItem value="Silent">Silent</SelectItem>
+                        <SelectItem value="At Risk">At Risk</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {daysUntilMeeting !== null && (
+                  <div className={`text-xs rounded-md px-3 py-2 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
+                    {daysUntilMeeting < 0 ? `Next meeting was ${Math.abs(daysUntilMeeting)} day${Math.abs(daysUntilMeeting) === 1 ? "" : "s"} ago — reschedule needed` : daysUntilMeeting === 0 ? "Next meeting is today" : `Next meeting in ${daysUntilMeeting} day${daysUntilMeeting === 1 ? "" : "s"}`}
+                  </div>
+                )}
+                {expiringCertCount > 0 && (
+                  <div className="text-xs rounded-md px-3 py-2 border bg-warning/10 text-warning-foreground border-warning/30">
+                    {expiringCertCount} certification{expiringCertCount > 1 ? "s" : ""} expiring within 30 days
+                  </div>
+                )}
+                {expiredRenewalsCount > 0 && (
+                  <div className="text-xs rounded-md px-3 py-2 border bg-destructive/10 text-destructive border-destructive/30">
+                    {expiredRenewalsCount} renewal{expiredRenewalsCount > 1 ? "s" : ""} expired
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="activity" className="mt-5 space-y-3">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Note</Button>
+        <TabsContent value="relationship" className="mt-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Meeting notes, follow-ups, and relationship history.</p>
+            <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> New Entry</Button>
           </div>
           {notes.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
-              No activity yet. <button onClick={() => setShowAddNote(true)} className="text-primary hover:underline">Add a note</button>
+            <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
+              <p className="text-sm text-foreground font-medium">Start building the relationship history</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">Add a meeting note or follow-up to keep context about this partner organised and shared with the team.</p>
+              <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> Add first entry</Button>
             </div>
           ) : (
-            <div className="bg-card rounded-xl border shadow-sm divide-y">
-              {notes.map(n => (
-                <div key={n.id} className="p-4 flex items-start gap-3">
-                  <div className="flex-1">
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDateTime(n.created_at)} — <span className="font-medium text-foreground">{n.author_name || "Unknown"}</span>
+            <div className="relative space-y-4 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border">
+              {notes.map(n => {
+                const typeColor = n.note_type === "Meeting" ? "bg-primary" : n.note_type === "Follow-up" ? "bg-warning" : "bg-muted-foreground";
+                const badgeVariant: any = n.note_type === "Meeting" ? "default" : n.note_type === "Follow-up" ? "warning" : "secondary";
+                return (
+                  <div key={n.id} className="relative pl-9">
+                    <span className={`absolute left-2 top-3 h-3 w-3 rounded-full ring-4 ring-background ${typeColor}`} />
+                    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground tabular-nums">{fmtDateTime(n.created_at)}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs font-medium text-foreground">{n.author_name || "Unknown"}</span>
+                          <Badge variant={badgeVariant} className="text-[10px]">{n.note_type}</Badge>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{n.content}</p>
+                      {n.next_actions && (
+                        <div className="mt-2 rounded-md bg-secondary/50 border p-2.5">
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Next actions</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{n.next_actions}</p>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{n.content}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

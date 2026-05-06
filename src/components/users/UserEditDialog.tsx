@@ -104,12 +104,16 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
   };
 
   const handleSavePermissions = async () => {
+    if (!user) return;
     setSaving(true);
     try {
-      const permissions: ModulePermission[] = MODULE_KEYS_LIST.map(k => ({
-        module_key: k,
-        access_level: perms[k] || "no_access",
-      }));
+      // Only persist values that differ from the inherited template — those become overrides
+      const permissions: ModulePermission[] = MODULE_KEYS_LIST.flatMap(k => {
+        const inherited = effective?.find(e => e.module_key === k)?.template_level ?? "no_access";
+        const current = perms[k] ?? inherited;
+        if (current === inherited) return [];
+        return [{ module_key: k, access_level: current }];
+      });
       await savePerms.mutateAsync({ userId: user.id, permissions });
     } finally {
       setSaving(false);

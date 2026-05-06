@@ -36,7 +36,9 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
   const updateUser = useUpdateUser();
   const updateRole = useUpdateUserRole();
   const savePerms = useSavePermissions();
+  const resetTemplate = useResetUserToTemplate();
   const { data: existingPerms } = useUserPermissions(open ? user?.id : undefined);
+  const { data: effective } = useEffectivePermissions(open ? user?.id : undefined);
   const { data: partners } = useQuery({
     queryKey: ["partners-select"],
     queryFn: async () => {

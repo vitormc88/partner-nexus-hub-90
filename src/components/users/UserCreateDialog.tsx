@@ -10,14 +10,11 @@ import { Switch } from "@/components/ui/switch";
 import { UserPlus, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
-const ROLES = [
-  { value: "hq_admin", label: "HQ Admin" },
-  { value: "hq_standard", label: "HQ Standard" },
-  { value: "partner_manager", label: "Partner Manager" },
-  { value: "partner_admin", label: "Partner Admin" },
-  { value: "partner_sales", label: "Partner Sales" },
-  { value: "partner_restricted", label: "Partner Read Only" },
-];
+import { ROLE_OPTIONS, roleType } from "@/lib/permissions";
+import { useRoleTemplates } from "@/hooks/useRoleTemplates";
+import { MODULE_LABELS } from "@/lib/module-access";
+
+const ROLES = ROLE_OPTIONS;
 
 export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [fullName, setFullName] = useState("");

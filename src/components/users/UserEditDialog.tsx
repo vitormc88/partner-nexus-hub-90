@@ -9,17 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Shield, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { ROLE_OPTIONS, roleType } from "@/lib/permissions";
+import { useEffectivePermissions, useResetUserToTemplate } from "@/hooks/useRoleTemplates";
 
-const ROLES = [
-  { value: "hq_admin", label: "HQ Admin" },
-  { value: "hq_standard", label: "HQ Standard" },
-  { value: "partner_manager", label: "Partner Manager" },
-  { value: "partner_admin", label: "Partner Admin" },
-  { value: "partner_sales", label: "Partner Sales" },
-  { value: "partner_restricted", label: "Partner Read Only" },
-];
+const ROLES = ROLE_OPTIONS;
 
 const ACCESS_LEVELS = [
   { value: "no_access", label: "No Access" },

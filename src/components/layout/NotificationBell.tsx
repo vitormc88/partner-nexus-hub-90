@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useNotifications } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMyPermissions } from "@/hooks/useUsers";
+import { canView } from "@/lib/permissions";
 
 const typeIcons: Record<string, typeof Info> = {
   warning: AlertTriangle,

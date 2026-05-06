@@ -239,3 +239,28 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
     </Dialog>
   );
 }
+
+function RolePreview({ role }: { role: string }) {
+  const { data: templates } = useRoleTemplates();
+  const rows = (templates ?? []).filter((t) => t.role === role && t.access_level !== "no_access");
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        This role currently has no module access in the template.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-md border bg-muted/30 p-3">
+      <p className="text-xs font-medium mb-2">Role permissions preview</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        {rows.map((r) => (
+          <div key={r.module_key} className="flex items-center justify-between">
+            <span className="text-muted-foreground">{MODULE_LABELS[r.module_key as keyof typeof MODULE_LABELS] ?? r.module_key}</span>
+            <span className="font-medium capitalize">{r.access_level.replace("_", " ")}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

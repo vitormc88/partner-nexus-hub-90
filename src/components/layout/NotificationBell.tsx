@@ -16,7 +16,9 @@ const typeIcons: Record<string, typeof Info> = {
 };
 
 export function NotificationBell() {
-  const { data: notifications = [] } = useNotifications();
+  const { data: perms } = useMyPermissions();
+  const allowed = canView(perms as any, "notifications");
+  const { data: notifications = [] } = useNotifications(allowed);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();

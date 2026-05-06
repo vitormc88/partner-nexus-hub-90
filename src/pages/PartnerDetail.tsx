@@ -256,6 +256,19 @@ export default function PartnerDetail() {
   const lostDeals = deals.filter(d => d.status === "Lost");
   const accountOwner = hqUsers.find((u: any) => u.id === (partner as any).account_owner_id);
   const countryName = partner.country ? (COUNTRY_NAME_BY_CODE[partner.country] ?? partner.country) : "—";
+  const relStatus = (partner as any).relationship_status || "Healthy";
+  const daysUntilMeeting = (partner as any).next_meeting_date
+    ? Math.ceil((new Date((partner as any).next_meeting_date).getTime() - Date.now()) / 86400000)
+    : null;
+  const expiringCertCount = certs.filter((c: any) => {
+    if (!c.expiry_date) return false;
+    const days = (new Date(c.expiry_date).getTime() - Date.now()) / 86400000;
+    return days >= 0 && days <= 30;
+  }).length;
+  const expiredRenewalsCount = partnerRenewals.filter((r: any) => {
+    if (r.status === "Completed") return false;
+    return r.renewal_date && new Date(r.renewal_date).getTime() < Date.now();
+  }).length;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

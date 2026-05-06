@@ -156,24 +156,26 @@ export function useSavePermissions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: ModulePermission[] }) => {
-      // Delete all existing
+      // Replace all overrides for this user
       const { error: delErr } = await supabase.from("user_module_permissions").delete().eq("user_id", userId);
       if (delErr) throw delErr;
-      // Insert new ones (skip no_access)
-      const toInsert = permissions
-        .filter(p => p.access_level !== "no_access")
-        .map(p => ({ user_id: userId, module_key: p.module_key, access_level: p.access_level }));
+      // Persist all rows passed in (caller decides which are overrides — including no_access)
+      const toInsert = permissions.map(p => ({
+        user_id: userId,
+        module_key: p.module_key,
+        access_level: p.access_level,
+        is_override: true,
+      } as any));
       if (toInsert.length > 0) {
         const { error: insErr } = await supabase.from("user_module_permissions").insert(toInsert);
         if (insErr) throw insErr;
       }
     },
     onSuccess: (_data, variables) => {
-      // Invalidate the specific user's permissions cache
       qc.invalidateQueries({ queryKey: ["user-permissions", variables.userId] });
-      // Invalidate my-permissions only if the edited user is the current user
-      // (this is safe — if it's a different user, the invalidation just triggers a no-op refetch)
+      qc.invalidateQueries({ queryKey: ["effective-permissions", variables.userId] });
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
+      qc.invalidateQueries({ queryKey: ["my-effective-permissions"] });
       toast.success("Permissions saved");
     },
     onError: (e: any) => toast.error(mapUserError(e, "Failed to save permissions")),

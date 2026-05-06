@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Confirm your email – ManWinWin PartnerOS',
+  invite: "You've been invited to ManWinWin PartnerOS",
+  magiclink: 'Your secure login link – PartnerOS',
+  recovery: 'Reset your PartnerOS password',
+  email_change: 'Confirm your new email – PartnerOS',
+  reauthentication: 'Your verification code – PartnerOS',
 }
 
 // Template mapping
@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "partner-nexus-hub-90"
+const SITE_NAME = "ManWinWin PartnerOS"
 const SENDER_DOMAIN = "notify.partneros.manwinwin.com"
 const ROOT_DOMAIN = "partneros.manwinwin.com"
 const FROM_DOMAIN = "partneros.manwinwin.com" // Domain shown in From address (may be root or sender subdomain)

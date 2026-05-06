@@ -558,47 +558,62 @@ export default function PartnerDetail() {
         </TabsContent>
 
         <TabsContent value="renewals" className="mt-5 space-y-3">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{partnerRenewals.length} renewal{partnerRenewals.length === 1 ? "" : "s"} {expiredRenewalsCount > 0 && <span className="text-destructive font-medium">· {expiredRenewalsCount} expired</span>}</p>
             <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
           </div>
           {partnerRenewals.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No renewals yet.</div>
+            <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
+              <p className="text-sm text-foreground font-medium">No renewals tracked yet</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">Add upcoming license, SAT or contract renewals to monitor expirations and never miss a deadline.</p>
+              <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add first renewal</Button>
+            </div>
           ) : (
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b bg-secondary/50">
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-right px-5 py-3 font-medium text-muted-foreground">Value</th>
-                  <th className="text-right px-5 py-3 font-medium text-muted-foreground"></th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {partnerRenewals.map((r: any) => (
-                    <tr key={r.id} className="hover:bg-secondary/30">
-                      <td className="px-5 py-3"><Badge variant="outline">{r.renewal_type}</Badge></td>
-                      <td className="px-5 py-3 tabular-nums">{r.renewal_date}</td>
-                      <td className="px-5 py-3">
-                        <Select value={r.status} onValueChange={(v) => updateRenewalStatus(r.id, v)}>
-                          <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Upcoming">Upcoming</SelectItem>
-                            <SelectItem value="In Progress">In Progress</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Lost">Lost</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">€{Number(r.estimated_value || 0).toLocaleString()}</td>
-                      <td className="px-5 py-3 text-right">
-                        {r.status !== "Completed" && (
-                          <Button variant="ghost" size="sm" onClick={() => updateRenewalStatus(r.id, "Completed")}>Mark Completed</Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {partnerRenewals.map((r: any) => {
+                const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - Date.now()) / 86400000) : null;
+                const isExpired = days !== null && days < 0 && r.status !== "Completed";
+                const isCompleted = r.status === "Completed";
+                const accent = isCompleted ? "border-l-success bg-success/5" : isExpired ? "border-l-destructive bg-destructive/5" : "border-l-info bg-info/5";
+                const statusBadge: any = isCompleted ? "success" : isExpired ? "destructive" : r.status === "In Progress" ? "warning" : "default";
+                const cl = clients.find(c => c.id === r.client_id);
+                return (
+                  <div key={r.id} className={`bg-card rounded-xl border border-l-4 shadow-sm p-4 space-y-3 ${accent}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline">{r.renewal_type}</Badge>
+                          <Badge variant={statusBadge}>{isExpired ? "Expired" : r.status}</Badge>
+                        </div>
+                        <p className="text-sm font-medium mt-1.5 truncate">{cl?.commercial_name || "Client"}</p>
+                      </div>
+                      <span className="text-base font-bold tabular-nums shrink-0">€{Number(r.estimated_value || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground tabular-nums">{r.renewal_date}</span>
+                      {days !== null && !isCompleted && (
+                        <span className={`tabular-nums font-medium ${days < 0 ? "text-destructive" : days <= 30 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+                          {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Select value={r.status} onValueChange={(v) => updateRenewalStatus(r.id, v)}>
+                        <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Upcoming">Upcoming</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Lost">Lost</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!isCompleted && (
+                        <Button size="sm" variant="default" onClick={() => updateRenewalStatus(r.id, "Completed")}>Mark Completed</Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>

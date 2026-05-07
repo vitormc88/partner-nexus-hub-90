@@ -176,6 +176,7 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           license_type: licenseType,
           license_model: licenseModel,
           product_family: form.product_family,
+          plan: isProfessional ? form.plan : null,
           proposal_mode: isBusiness ? form.proposal_mode : null,
           hosting: form.hosting,
           contract_start_date: form.contract_start_date,
@@ -188,7 +189,7 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           is_draft: mode === "draft",
           source_proposal_id: form.source_proposal_id || null,
           included_backoffice: form.included_backoffice,
-          additional_backoffice: form.additional_backoffice,
+          additional_backoffice: isProfessional ? 0 : form.additional_backoffice,
           included_web: form.included_web,
           additional_web: form.additional_web,
           api_enabled: form.api_enabled,
@@ -355,26 +356,30 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
 
           <div>
             <Label>Included BackOffice</Label>
-            <Input type="number" min={0} value={form.included_backoffice}
+            <Input type="number" min={0} value={form.included_backoffice} disabled={isProfessional}
               onChange={(e) => setForm((f) => ({ ...f, included_backoffice: parseInt(e.target.value) || 0 }))} />
-            <p className="text-[10px] text-muted-foreground mt-1">Default included by license.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{isProfessional ? "Professional includes 1 BackOffice (fixed)." : "Default included by license."}</p>
           </div>
-          <div>
-            <Label>Additional BackOffice</Label>
-            <Input type="number" min={0} value={form.additional_backoffice}
-              onChange={(e) => setForm((f) => ({ ...f, additional_backoffice: parseInt(e.target.value) || 0 }))} />
-            <p className="text-[10px] text-muted-foreground mt-1">Purchased extras.</p>
-          </div>
+          {!isProfessional && (
+            <div>
+              <Label>Additional BackOffice</Label>
+              <Input type="number" min={0} value={form.additional_backoffice}
+                onChange={(e) => setForm((f) => ({ ...f, additional_backoffice: parseInt(e.target.value) || 0 }))} />
+              <p className="text-[10px] text-muted-foreground mt-1">Purchased extras.</p>
+            </div>
+          )}
 
           <div>
             <Label>Included Web/Mobile</Label>
-            <Input type="number" min={0} value={form.included_web}
+            <Input type="number" min={0} value={form.included_web} disabled={isProfessional}
               onChange={(e) => setForm((f) => ({ ...f, included_web: parseInt(e.target.value) || 0 }))} />
+            {isProfessional && <p className="text-[10px] text-muted-foreground mt-1">Professional includes 1 Web/Mobile (fixed).</p>}
           </div>
           <div>
             <Label>Additional Web/Mobile</Label>
             <Input type="number" min={0} value={form.additional_web}
               onChange={(e) => setForm((f) => ({ ...f, additional_web: parseInt(e.target.value) || 0 }))} />
+            <p className="text-[10px] text-muted-foreground mt-1">Purchased extras.</p>
           </div>
 
           <div className="col-span-2 flex items-center justify-between rounded-md border p-2">

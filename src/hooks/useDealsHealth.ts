@@ -77,11 +77,17 @@ export function useDealsHealth(deals: Deal[]) {
         const stageEnteredAt = (d as any).stage_entered_at ? new Date((d as any).stage_entered_at) : null;
         const createdAt = new Date(d.created_at);
         const activityDate = lastActivity.get(d.id) ? new Date(lastActivity.get(d.id)!) : null;
-        // last activity also includes implicit "stage changed" via stage_entered_at
+        const humanDate = lastHumanActivity.get(d.id) ? new Date(lastHumanActivity.get(d.id)!) : null;
+        // Effective activity prefers HUMAN comms (counts strongly), falling back
+        // to system logs / stage transitions / created_at. System-only motion
+        // counts but with reduced weight (handled implicitly: human comm wins
+        // when present, so noisy system logs can't fake "freshness").
         const effectiveActivity =
-          activityDate && stageEnteredAt
-            ? new Date(Math.max(activityDate.getTime(), stageEnteredAt.getTime()))
-            : (activityDate || stageEnteredAt || createdAt);
+          humanDate
+            ? humanDate
+            : activityDate && stageEnteredAt
+              ? new Date(Math.max(activityDate.getTime(), stageEnteredAt.getTime()))
+              : (activityDate || stageEnteredAt || createdAt);
 
         const followUpStr = nextFollowUp.get(d.id);
         const proposalStr = latestProposal.get(d.id);

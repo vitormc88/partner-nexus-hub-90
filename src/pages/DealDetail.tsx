@@ -27,6 +27,9 @@ import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } f
 import { cn } from "@/lib/utils";
 import { logSystemActivity, ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
+import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
+import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
+import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",

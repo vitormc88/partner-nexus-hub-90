@@ -50,6 +50,7 @@ export function useDealTasksEnhanced(dealId: string | undefined) {
         ...t,
         status: (t as any).status || (t.is_completed ? "Done" : "To Do"),
         priority: (t as any).priority || "Medium",
+        category: (t as any).category || null,
         assigned_user_id: (t as any).assigned_user_id || null,
         assigned_user: (t as any).assigned_user_id ? userMap.get((t as any).assigned_user_id) || null : null,
       })) as DealTask[];

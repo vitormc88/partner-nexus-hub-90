@@ -77,6 +77,8 @@ export interface CreateLicensePayload {
   api_enabled?: boolean | null;
   /** Canonical module names (e.g. "Stock Management", "SLA", "API"). */
   modules?: string[] | null;
+  /** Professional plan number (1/2/3) — used for commercial renewal naming. */
+  plan?: number | null;
 }
 
 export interface ProposalDefaults {

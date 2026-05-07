@@ -370,6 +370,13 @@ export async function createLicenseAndRenewal(
   const initialValue = payload.initial_contract_value ?? payload.contract_value ?? null;
   const hosting: Hosting = payload.hosting || (payload.license_model === "Perpetual" ? "On-Premise" : "SaaS");
 
+  const includedBO = Number(payload.included_backoffice ?? 0);
+  const addBO = Number(payload.additional_backoffice ?? 0);
+  const includedWeb = Number(payload.included_web ?? 0);
+  const addWeb = Number(payload.additional_web ?? 0);
+  const totalBO = includedBO + addBO;
+  const totalWeb = includedWeb + addWeb;
+
   const { data: license, error: licErr } = await supabase
     .from("licenses")
     .insert({
@@ -383,7 +390,12 @@ export async function createLicenseAndRenewal(
       contract_value: initialValue,
       initial_contract_value: initialValue,
       recurring_contract_value: recurringValue,
-      num_users: payload.num_users ?? null,
+      num_users: payload.num_users ?? (totalBO + totalWeb || null),
+      backoffice_users: totalBO || null,
+      backoffice_employee_users: includedBO || null,
+      web_accesses: totalWeb || null,
+      mobile_users: addWeb || null,
+      api_access: !!payload.api_enabled,
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
       source_proposal_id: payload.source_proposal_id ?? null,
@@ -392,6 +404,18 @@ export async function createLicenseAndRenewal(
     .select()
     .single();
   if (licErr) throw licErr;
+
+  // Persist enabled modules (idempotent — replace any existing rows for this license)
+  if (payload.modules && payload.modules.length > 0) {
+    await supabase.from("licensed_modules").delete().eq("license_id", license.id);
+    const rows = payload.modules.map((m) => ({
+      license_id: license.id,
+      module_name: m,
+      enabled: true,
+      license_type: payload.license_type,
+    }));
+    await supabase.from("licensed_modules").insert(rows);
+  }
 
   // Sync client-level license_type & hosting so list views show correct badges.
   if (!payload.is_draft) {

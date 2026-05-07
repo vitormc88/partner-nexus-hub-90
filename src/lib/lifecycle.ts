@@ -1,28 +1,40 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logSystemActivity } from "@/lib/activity-log";
 
-export type LicenseModel = "SaaS / UseIT" | "Perpetual / KeepIT";
+/**
+ * License model — used internally for renewal/billing logic.
+ * Mirrors Proposal Generator semantics:
+ *  - "SaaS"      → Professional (always) OR Business UseIT
+ *  - "Perpetual" → Business KeepIT (with optional S&AT renewal)
+ */
+export type LicenseModel = "SaaS" | "Perpetual";
 export type BillingFrequency = "Annual" | "Monthly" | "One-time";
+export type Hosting = "SaaS" | "On-Premise";
+export type ProductFamily = "Professional" | "Business" | "START" | "Express";
+export type BusinessProposalMode = "UseIT" | "KeepIT";
+
 export const LICENSE_TYPE_OPTIONS = [
   "Express",
   "START",
   "Professional 1",
   "Professional 2",
   "Professional 3",
-  "Business",
+  "Business UseIT",
+  "Business KeepIT",
 ] as const;
 
 export interface CreateLicensePayload {
   client_id: string;
+  /** Concrete license_type stored on the license & client (e.g. "Professional 2", "Business UseIT"). */
   license_type: string;
   license_model: LicenseModel;
+  product_family?: ProductFamily;
+  proposal_mode?: BusinessProposalMode | null;
+  hosting?: Hosting;
   contract_start_date: string;
   renewal_date?: string | null;
-  /** Legacy aggregate (kept for backwards compat). Prefer initial/recurring split. */
   contract_value?: number | null;
-  /** Year-1 invoice = recurring + one-time (services / setup). */
   initial_contract_value?: number | null;
-  /** Year-2+ recurring (used for ARR & renewals). */
   recurring_contract_value?: number | null;
   billing_frequency: BillingFrequency;
   num_users?: number | null;
@@ -31,8 +43,11 @@ export interface CreateLicensePayload {
   source_proposal_id?: string | null;
 }
 
-/** Inherit operational license defaults from an approved proposal. */
-export function proposalToLicenseDefaults(proposal: any): {
+export interface ProposalDefaults {
+  product_family: ProductFamily;
+  plan: number | null;
+  proposal_mode: BusinessProposalMode | null;
+  hosting: Hosting;
   license_type: string;
   license_model: LicenseModel;
   billing_frequency: BillingFrequency;
@@ -41,24 +56,53 @@ export function proposalToLicenseDefaults(proposal: any): {
   num_users: number | null;
   notes: string;
   source_proposal_id: string;
-} {
-  const family = proposal?.product_family || "Professional";
-  const model: LicenseModel =
-    family === "Business" && proposal?.license_model === "keepit"
-      ? "Perpetual / KeepIT"
-      : "SaaS / UseIT";
-  const license_type =
-    family === "Business" ? "Business" : `Professional ${proposal?.plan ?? 1}`;
-  const initial = Number(proposal?.total_year_1 || 0);
-  const recurring = Number(proposal?.total_recurring || 0);
-  const users = Number(proposal?.web_users || 0) || null;
+}
+
+/** Inherit operational license defaults from an approved proposal — mirrors Proposal Generator structure. */
+export function proposalToLicenseDefaults(proposal: any): ProposalDefaults {
+  const family: ProductFamily =
+    (proposal?.product_family as ProductFamily) || "Professional";
+
+  // Professional → SaaS only, never UseIT/KeepIT
+  // Business     → proposal_mode (UseIT/KeepIT) + hosting (SaaS/On-Premise)
+  let proposal_mode: BusinessProposalMode | null = null;
+  let hosting: Hosting = "SaaS";
+  let license_type = "";
+  let license_model: LicenseModel = "SaaS";
+
+  if (family === "Business") {
+    proposal_mode = proposal?.license_model === "keepit" ? "KeepIT" : "UseIT";
+    // Business hosting may come from `deployment` (saas/on_premise) or `hosting`
+    const dep = (proposal?.deployment || "").toString().toLowerCase();
+    const host = (proposal?.hosting || "").toString().toLowerCase();
+    hosting =
+      dep === "on_premise" || host === "on-premise" || host === "on_premise"
+        ? "On-Premise"
+        : "SaaS";
+    license_type = `Business ${proposal_mode}`;
+    license_model = proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+  } else if (family === "Professional") {
+    hosting = "SaaS";
+    license_type = `Professional ${proposal?.plan ?? 1}`;
+    license_model = "SaaS";
+  } else {
+    // START / Express
+    hosting = "SaaS";
+    license_type = family;
+    license_model = "SaaS";
+  }
+
   return {
+    product_family: family,
+    plan: family === "Professional" ? Number(proposal?.plan ?? 1) : null,
+    proposal_mode,
+    hosting,
     license_type,
-    license_model: model,
+    license_model,
     billing_frequency: "Annual",
-    initial_contract_value: initial,
-    recurring_contract_value: recurring,
-    num_users: users,
+    initial_contract_value: Number(proposal?.total_year_1 || 0),
+    recurring_contract_value: Number(proposal?.total_recurring || 0),
+    num_users: Number(proposal?.web_users || 0) || null,
     notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}.`,
     source_proposal_id: proposal?.id,
   };
@@ -72,14 +116,8 @@ export function computeRenewalDate(
   if (!startDate) return null;
   const d = new Date(startDate);
   if (isNaN(d.getTime())) return null;
-  if (frequency === "One-time" && model === "Perpetual / KeepIT") {
-    // Perpetual: support renewal default 1 year
-    d.setFullYear(d.getFullYear() + 1);
-  } else if (frequency === "Monthly") {
-    d.setMonth(d.getMonth() + 1);
-  } else {
-    d.setFullYear(d.getFullYear() + 1);
-  }
+  if (frequency === "Monthly") d.setMonth(d.getMonth() + 1);
+  else d.setFullYear(d.getFullYear() + 1);
   return d.toISOString().slice(0, 10);
 }
 
@@ -88,6 +126,38 @@ export function computeRenewalStatus(renewalDate: string): string {
   if (days < 0) return "Overdue";
   if (days <= 30) return "Due Soon";
   return "Active";
+}
+
+/** Renewal naming aligned with Proposal Generator structure. */
+export function computeRenewalType(payload: {
+  license_type: string;
+  product_family?: ProductFamily;
+  proposal_mode?: BusinessProposalMode | null;
+  hosting?: Hosting;
+  license_model: LicenseModel;
+}): string {
+  const family = payload.product_family;
+  if (family === "Business") {
+    if (payload.proposal_mode === "KeepIT") return "Business KeepIT S&AT Renewal";
+    return "Business UseIT Renewal";
+  }
+  if (family === "Professional") return "Professional SaaS Renewal";
+  if (family === "START") return "START S&AT Renewal";
+  if (family === "Express") return "Express Renewal";
+  // Fallback derived from license_type
+  if (payload.license_type?.startsWith("Business KeepIT")) return "Business KeepIT S&AT Renewal";
+  if (payload.license_type?.startsWith("Business")) return "Business UseIT Renewal";
+  if (payload.license_type?.startsWith("Professional")) return "Professional SaaS Renewal";
+  return payload.license_model === "Perpetual" ? "Support Renewal" : "License Renewal";
+}
+
+/** Whether this license should auto-create a recurring renewal. */
+export function shouldCreateRenewal(family: ProductFamily | undefined, mode: BusinessProposalMode | null | undefined): boolean {
+  if (!family) return true;
+  if (family === "Express") return false; // no renewal by default
+  if (family === "START") return true; // S&AT renewal
+  if (family === "Business" && mode === "KeepIT") return true; // S&AT renewal
+  return true;
 }
 
 interface Deal {
@@ -110,13 +180,11 @@ interface Deal {
 export async function findOrCreateClientFromDeal(
   deal: Deal
 ): Promise<{ client: any; created: boolean }> {
-  // 1. If deal already linked, reuse
   if (deal.client_id) {
     const { data } = await supabase.from("clients").select("*").eq("id", deal.client_id).maybeSingle();
     if (data) return { client: data, created: false };
   }
 
-  // 2. Match by name + partner
   const name = (deal.company_name || "").trim();
   if (!name) throw new Error("Deal has no company name");
 
@@ -126,12 +194,10 @@ export async function findOrCreateClientFromDeal(
   const { data: matches } = await q.limit(1);
   if (matches && matches.length > 0) {
     const existing = matches[0];
-    // link deal -> client
     await supabase.from("deals").update({ client_id: existing.id }).eq("id", deal.id);
     return { client: existing, created: false };
   }
 
-  // 3. Generate client code
   const country = (deal.country || "XX").slice(0, 2).toUpperCase();
   const slug = name.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() || "CLI";
   const suffix = Math.floor(Math.random() * 9000 + 1000);
@@ -160,7 +226,6 @@ export async function findOrCreateClientFromDeal(
     .single();
   if (error) throw error;
 
-  // Auto-create primary contact if we have one
   if (deal.contact_person_name) {
     await supabase.from("client_contacts").insert({
       client_id: created.id,
@@ -170,10 +235,8 @@ export async function findOrCreateClientFromDeal(
     });
   }
 
-  // Link deal -> client
   await supabase.from("deals").update({ client_id: created.id }).eq("id", deal.id);
 
-  // Log on deal
   await logSystemActivity(
     deal.id,
     "Client created",
@@ -191,10 +254,9 @@ export async function createLicenseAndRenewal(
     payload.renewal_date ||
     computeRenewalDate(payload.contract_start_date, payload.license_model, payload.billing_frequency);
 
-  const recurringValue =
-    payload.recurring_contract_value ?? payload.contract_value ?? null;
-  const initialValue =
-    payload.initial_contract_value ?? payload.contract_value ?? null;
+  const recurringValue = payload.recurring_contract_value ?? payload.contract_value ?? null;
+  const initialValue = payload.initial_contract_value ?? payload.contract_value ?? null;
+  const hosting: Hosting = payload.hosting || (payload.license_model === "Perpetual" ? "On-Premise" : "SaaS");
 
   const { data: license, error: licErr } = await supabase
     .from("licenses")
@@ -213,21 +275,32 @@ export async function createLicenseAndRenewal(
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
       source_proposal_id: payload.source_proposal_id ?? null,
+      database_type: hosting,
     } as any)
     .select()
     .single();
   if (licErr) throw licErr;
 
+  // Sync client-level license_type & hosting so list views show correct badges.
+  if (!payload.is_draft) {
+    await supabase
+      .from("clients")
+      .update({
+        license_type: payload.license_type,
+        cloud_onpremise: hosting === "On-Premise" ? "On-premise" : "SaaS",
+      })
+      .eq("id", payload.client_id);
+  }
+
   let renewal: any = null;
-  if (opts.createRenewal && renewalDate) {
+  if (opts.createRenewal && renewalDate && shouldCreateRenewal(payload.product_family, payload.proposal_mode ?? null)) {
     const { data: client } = await supabase
       .from("clients")
       .select("partner_id")
       .eq("id", payload.client_id)
       .maybeSingle();
 
-    const renewalType =
-      payload.license_model === "Perpetual / KeepIT" ? "Support" : "License";
+    const renewalType = computeRenewalType(payload);
 
     const { data: ren, error: renErr } = await supabase
       .from("renewals")
@@ -237,7 +310,7 @@ export async function createLicenseAndRenewal(
         partner_id: (client as any)?.partner_id || null,
         renewal_type: renewalType,
         renewal_date: renewalDate,
-        // ARR / renewals always use recurring values only
+        // ARR / renewals always use recurring values only (Year 2+)
         estimated_value: recurringValue ?? 0,
         billing_frequency: payload.billing_frequency,
         status: computeRenewalStatus(renewalDate),
@@ -254,7 +327,7 @@ export async function createLicenseAndRenewal(
     await logSystemActivity(
       opts.dealId,
       "License operationalized",
-      `License "${payload.license_type}" (${payload.license_model}) operationalized${
+      `License "${payload.license_type}" (${hosting}) operationalized${
         payload.source_proposal_id ? " from approved proposal" : ""
       }${renewal ? ` — renewal scheduled for ${renewalDate} at ${recurringValue ?? 0}€/yr recurring` : ""}.`
     );

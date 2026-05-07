@@ -27,7 +27,7 @@ export function useDealsHealth(deals: Deal[]) {
       const [activitiesRes, tasksRes, proposalsRes] = await Promise.all([
         supabase
           .from("deal_activities")
-          .select("deal_id, created_at")
+          .select("deal_id, created_at, activity_type, activity_date")
           .in("deal_id", dealIds)
           .order("created_at", { ascending: false }),
         supabase

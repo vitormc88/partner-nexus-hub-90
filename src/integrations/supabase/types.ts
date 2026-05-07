@@ -739,31 +739,46 @@ export type Database = {
       }
       deal_activities: {
         Row: {
+          activity_date: string | null
           activity_type: string
           created_at: string
           deal_id: string
           description: string | null
           id: string
+          linked_proposal_id: string | null
+          linked_task_id: string | null
+          participants: string[] | null
           performed_by: string | null
           subject: string | null
+          tags: string[] | null
         }
         Insert: {
+          activity_date?: string | null
           activity_type?: string
           created_at?: string
           deal_id: string
           description?: string | null
           id?: string
+          linked_proposal_id?: string | null
+          linked_task_id?: string | null
+          participants?: string[] | null
           performed_by?: string | null
           subject?: string | null
+          tags?: string[] | null
         }
         Update: {
+          activity_date?: string | null
           activity_type?: string
           created_at?: string
           deal_id?: string
           description?: string | null
           id?: string
+          linked_proposal_id?: string | null
+          linked_task_id?: string | null
+          participants?: string[] | null
           performed_by?: string | null
           subject?: string | null
+          tags?: string[] | null
         }
         Relationships: [
           {

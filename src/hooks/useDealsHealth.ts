@@ -27,7 +27,7 @@ export function useDealsHealth(deals: Deal[]) {
       const [activitiesRes, tasksRes, proposalsRes] = await Promise.all([
         supabase
           .from("deal_activities")
-          .select("deal_id, created_at")
+          .select("deal_id, created_at, activity_type, activity_date")
           .in("deal_id", dealIds)
           .order("created_at", { ascending: false }),
         supabase
@@ -41,9 +41,16 @@ export function useDealsHealth(deals: Deal[]) {
           .order("created_at", { ascending: false }),
       ]);
 
+      // Track ANY last activity (incl system) AND last meaningful human comm separately.
+      // Human comms get priority — they are the real signal of relationship momentum.
       const lastActivity = new Map<string, string>();
+      const lastHumanActivity = new Map<string, string>();
       (activitiesRes.data || []).forEach((a: any) => {
-        if (!lastActivity.has(a.deal_id)) lastActivity.set(a.deal_id, a.created_at);
+        const at = a.activity_date || a.created_at;
+        if (!lastActivity.has(a.deal_id)) lastActivity.set(a.deal_id, at);
+        if (a.activity_type && a.activity_type !== "system" && !lastHumanActivity.has(a.deal_id)) {
+          lastHumanActivity.set(a.deal_id, at);
+        }
       });
 
       const nextFollowUp = new Map<string, string>();
@@ -70,11 +77,17 @@ export function useDealsHealth(deals: Deal[]) {
         const stageEnteredAt = (d as any).stage_entered_at ? new Date((d as any).stage_entered_at) : null;
         const createdAt = new Date(d.created_at);
         const activityDate = lastActivity.get(d.id) ? new Date(lastActivity.get(d.id)!) : null;
-        // last activity also includes implicit "stage changed" via stage_entered_at
+        const humanDate = lastHumanActivity.get(d.id) ? new Date(lastHumanActivity.get(d.id)!) : null;
+        // Effective activity prefers HUMAN comms (counts strongly), falling back
+        // to system logs / stage transitions / created_at. System-only motion
+        // counts but with reduced weight (handled implicitly: human comm wins
+        // when present, so noisy system logs can't fake "freshness").
         const effectiveActivity =
-          activityDate && stageEnteredAt
-            ? new Date(Math.max(activityDate.getTime(), stageEnteredAt.getTime()))
-            : (activityDate || stageEnteredAt || createdAt);
+          humanDate
+            ? humanDate
+            : activityDate && stageEnteredAt
+              ? new Date(Math.max(activityDate.getTime(), stageEnteredAt.getTime()))
+              : (activityDate || stageEnteredAt || createdAt);
 
         const followUpStr = nextFollowUp.get(d.id);
         const proposalStr = latestProposal.get(d.id);

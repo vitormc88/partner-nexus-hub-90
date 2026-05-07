@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
@@ -25,12 +25,14 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
-import { logSystemActivity, ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS } from "@/lib/activity-log";
+import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
 import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
 import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
+import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
+import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -66,12 +68,6 @@ export default function DealDetail() {
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
-  // Activity add — default Performed By to the logged-in user
-  const [showAddActivity, setShowAddActivity] = useState(false);
-  const [activityForm, setActivityForm] = useState({ activity_type: "note", subject: "", description: "", performed_by: "" });
-  useEffect(() => {
-    setActivityForm((f) => ({ ...f, performed_by: f.performed_by || currentUserName }));
-  }, [currentUserName]);
 
   const startEdit = () => {
     setEditForm({
@@ -195,30 +191,6 @@ export default function DealDetail() {
     toast.success("Contact removed");
   };
 
-  // Activity actions
-  const addActivity = async () => {
-    if (!activityForm.subject) { toast.error("Subject required"); return; }
-    const { error } = await supabase.from("deal_activities").insert({
-      deal_id: deal.id,
-      activity_type: activityForm.activity_type,
-      subject: activityForm.subject,
-      description: activityForm.description || null,
-      performed_by: activityForm.performed_by || null,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Activity logged");
-    queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
-    setShowAddActivity(false);
-    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: currentUserName });
-  };
-
-  const activityIcon = (type: string) => {
-    if (type === "call") return <Phone className="h-3.5 w-3.5 text-blue-500" />;
-    if (type === "email") return <Mail className="h-3.5 w-3.5 text-amber-500" />;
-    if (type === "meeting") return <Calendar className="h-3.5 w-3.5 text-emerald-500" />;
-    if (type === "system") return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
-    return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
-  };
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
@@ -415,6 +387,8 @@ export default function DealDetail() {
               <div><Label>Description</Label><Textarea value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))} rows={2} /></div>
             </div>
           ) : (
+            <div className="space-y-4">
+            <RelationshipSummary dealId={deal.id} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Lead Information</h3>
@@ -469,6 +443,7 @@ export default function DealDetail() {
                 )}
               </div>
             </div>
+            </div>
           )}
         </TabsContent>
 
@@ -519,42 +494,13 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
-        {/* ───── Communication / Activity Timeline ───── */}
+        {/* ───── Communication / Relationship Timeline ───── */}
         <TabsContent value="communication" className="mt-4">
-          <div className="bg-card rounded-xl border shadow-sm p-4">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
-              <Button size="sm" variant="outline" onClick={() => setShowAddActivity(true)}><Plus className="h-3.5 w-3.5 mr-1" />Log Activity</Button>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Historical record of calls, meetings, emails, demos and system events. Use the Tasks tab for upcoming work.
-            </p>
-            <div className="space-y-0">
-              {activities.map((a, i) => {
-                const isSystem = a.activity_type === "system";
-                return (
-                  <div key={a.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isSystem ? "bg-muted/60" : "bg-secondary"}`}>
-                        {activityIcon(a.activity_type)}
-                      </div>
-                      {i < activities.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
-                    </div>
-                    <div className="pb-4 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <p className={`text-sm font-medium ${isSystem ? "text-muted-foreground" : "text-foreground"}`}>{a.subject}</p>
-                        <Badge variant="outline" className="text-[10px]">{ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}</Badge>
-                        {isSystem && <Badge variant="secondary" className="text-[10px]">System</Badge>}
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                      {a.description && <p className="text-sm text-foreground/80 whitespace-pre-wrap">{a.description}</p>}
-                    </div>
-                  </div>
-                );
-              })}
-              {activities.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No activity recorded yet</p>}
-            </div>
-          </div>
+          <DealCommunicationTab
+            dealId={deal.id}
+            dealStage={deal.stage}
+            defaultAssigneeId={user?.id || null}
+          />
         </TabsContent>
 
         {/* ───── Proposals ───── */}
@@ -601,34 +547,6 @@ export default function DealDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Log Activity Dialog ─── */}
-      <Dialog open={showAddActivity} onOpenChange={setShowAddActivity}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Log Activity</DialogTitle></DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Type</Label>
-                <Select value={activityForm.activity_type} onValueChange={v => setActivityForm(f => ({ ...f, activity_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ACTIVITY_TYPE_OPTIONS.filter(o => o.value !== "system").map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Performed By</Label><Input value={activityForm.performed_by} onChange={e => setActivityForm(f => ({ ...f, performed_by: e.target.value }))} /></div>
-            </div>
-            <div><Label>Subject *</Label><Input value={activityForm.subject} onChange={e => setActivityForm(f => ({ ...f, subject: e.target.value }))} /></div>
-            <div><Label>Details</Label><Textarea value={activityForm.description} onChange={e => setActivityForm(f => ({ ...f, description: e.target.value }))} rows={3} /></div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowAddActivity(false)}>Cancel</Button>
-              <Button onClick={addActivity}>Log Activity</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {pendingClientId && (
         <CreateLicenseDialog

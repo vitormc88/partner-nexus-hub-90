@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,28 +18,47 @@ interface Props {
   dealId: string;
   dealCompanyName: string;
   linkedPartnerId: string | null;
+  defaults?: {
+    title?: string;
+    priority?: string;
+    status?: string;
+    assignedUserId?: string;
+    dueDate?: string;
+  };
 }
 
-export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName, linkedPartnerId }: Props) {
+export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName, linkedPartnerId, defaults }: Props) {
   const { user } = useAuth();
   const createTask = useCreateDealTask();
   const { data: partnerUsers = [] } = usePartnerUsers(linkedPartnerId);
   const { data: hqUsers = [] } = useHQUsers();
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(defaults?.title || "");
   const [description, setDescription] = useState("");
-  const [assignedUserId, setAssignedUserId] = useState<string>("");
-  const [dueDate, setDueDate] = useState("");
-  const [status, setStatus] = useState("To Do");
-  const [priority, setPriority] = useState("Medium");
+  const [assignedUserId, setAssignedUserId] = useState<string>(defaults?.assignedUserId || "");
+  const [dueDate, setDueDate] = useState(defaults?.dueDate || "");
+  const [status, setStatus] = useState(defaults?.status || "To Do");
+  const [priority, setPriority] = useState(defaults?.priority || "Medium");
+
+  useEffect(() => {
+    if (open) {
+      setTitle(defaults?.title || "");
+      setDescription("");
+      setAssignedUserId(defaults?.assignedUserId || "");
+      setDueDate(defaults?.dueDate || "");
+      setStatus(defaults?.status || "To Do");
+      setPriority(defaults?.priority || "Medium");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const reset = () => {
-    setTitle("");
+    setTitle(defaults?.title || "");
     setDescription("");
-    setAssignedUserId("");
-    setDueDate("");
-    setStatus("To Do");
-    setPriority("Medium");
+    setAssignedUserId(defaults?.assignedUserId || "");
+    setDueDate(defaults?.dueDate || "");
+    setStatus(defaults?.status || "To Do");
+    setPriority(defaults?.priority || "Medium");
   };
 
   const handleSubmit = async () => {
@@ -47,6 +66,10 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
       toast.error("Title is required");
       return;
     }
+
+    const allUsers = [...partnerUsers, ...hqUsers];
+    const assignedUser = allUsers.find((u) => u.id === assignedUserId);
+    const assignedName = assignedUser?.full_name || assignedUser?.email || null;
 
     createTask.mutate(
       {
@@ -58,9 +81,11 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
         status,
         priority,
         created_by: user?.id,
+        assigned_user_name: assignedName,
       },
       {
         onSuccess: async () => {
+          // Only notify when assigning to someone other than the current user
           if (assignedUserId && assignedUserId !== user?.id) {
             await supabase.from("notifications").insert({
               title: "New Task Assigned",

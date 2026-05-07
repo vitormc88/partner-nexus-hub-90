@@ -25,6 +25,8 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
+import { logSystemActivity, ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS } from "@/lib/activity-log";
+import { useAuth } from "@/contexts/AuthContext";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -45,6 +47,8 @@ export default function DealDetail() {
   const { data: partners = [] } = usePartners();
   const { data: proposals = [] } = useLeadProposals(id);
   const queryClient = useQueryClient();
+  const { user, profile } = useAuth();
+  const currentUserName = profile?.full_name || profile?.email || user?.email || "";
   const [showCreateProposal, setShowCreateProposal] = useState(false);
 
   // Editing state
@@ -56,9 +60,12 @@ export default function DealDetail() {
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
-  // Activity add
+  // Activity add — default Performed By to the logged-in user
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [activityForm, setActivityForm] = useState({ activity_type: "note", subject: "", description: "", performed_by: "" });
+  useEffect(() => {
+    setActivityForm((f) => ({ ...f, performed_by: f.performed_by || currentUserName }));
+  }, [currentUserName]);
 
   const startEdit = () => {
     setEditForm({
@@ -87,6 +94,7 @@ export default function DealDetail() {
 
   const saveEdit = async () => {
     const stageChanged = editForm.stage !== deal.stage;
+    const oldStage = deal.stage;
     const updates: any = {
       company_name: editForm.company_name,
       contact_person_name: editForm.contact_person_name || null,
@@ -114,8 +122,22 @@ export default function DealDetail() {
     const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Lead updated");
+    if (stageChanged) {
+      const subj =
+        editForm.stage === "Won"
+          ? "Lead marked as Won"
+          : editForm.stage === "Lost"
+          ? "Lead marked as Lost"
+          : "Stage changed";
+      logSystemActivity(
+        deal.id,
+        subj,
+        `Stage changed from ${oldStage} to ${editForm.stage}.`
+      );
+    }
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });
+    queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
     setEditing(false);
   };
 
@@ -158,13 +180,14 @@ export default function DealDetail() {
     toast.success("Activity logged");
     queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
     setShowAddActivity(false);
-    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: "" });
+    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: currentUserName });
   };
 
   const activityIcon = (type: string) => {
     if (type === "call") return <Phone className="h-3.5 w-3.5 text-blue-500" />;
     if (type === "email") return <Mail className="h-3.5 w-3.5 text-amber-500" />;
     if (type === "meeting") return <Calendar className="h-3.5 w-3.5 text-emerald-500" />;
+    if (type === "system") return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
     return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
   };
 
@@ -422,6 +445,8 @@ export default function DealDetail() {
             dealId={deal.id}
             dealCompanyName={deal.company_name}
             linkedPartnerId={deal.partner_id || null}
+            dealStage={deal.stage}
+            defaultAssigneeId={user?.id || null}
           />
         </TabsContent>
 
@@ -461,32 +486,39 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
-        {/* ───── Communication ───── */}
+        {/* ───── Communication / Activity Timeline ───── */}
         <TabsContent value="communication" className="mt-4">
           <div className="bg-card rounded-xl border shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
               <Button size="sm" variant="outline" onClick={() => setShowAddActivity(true)}><Plus className="h-3.5 w-3.5 mr-1" />Log Activity</Button>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Historical record of calls, meetings, emails, demos and system events. Use the Tasks tab for upcoming work.
+            </p>
             <div className="space-y-0">
-              {activities.map((a, i) => (
-                <div key={a.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                      {activityIcon(a.activity_type)}
+              {activities.map((a, i) => {
+                const isSystem = a.activity_type === "system";
+                return (
+                  <div key={a.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isSystem ? "bg-muted/60" : "bg-secondary"}`}>
+                        {activityIcon(a.activity_type)}
+                      </div>
+                      {i < activities.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
                     </div>
-                    {i < activities.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
-                  </div>
-                  <div className="pb-4 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-medium text-foreground">{a.subject}</p>
-                      <Badge variant="outline" className="text-[10px] capitalize">{a.activity_type}</Badge>
+                    <div className="pb-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className={`text-sm font-medium ${isSystem ? "text-muted-foreground" : "text-foreground"}`}>{a.subject}</p>
+                        <Badge variant="outline" className="text-[10px]">{ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}</Badge>
+                        {isSystem && <Badge variant="secondary" className="text-[10px]">System</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                      {a.description && <p className="text-sm text-foreground/80 whitespace-pre-wrap">{a.description}</p>}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                    <p className="text-sm text-foreground/80">{a.description}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {activities.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No activity recorded yet</p>}
             </div>
           </div>
@@ -547,10 +579,9 @@ export default function DealDetail() {
                 <Select value={activityForm.activity_type} onValueChange={v => setActivityForm(f => ({ ...f, activity_type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="note">Note</SelectItem>
-                    <SelectItem value="call">Call</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="meeting">Meeting</SelectItem>
+                    {ACTIVITY_TYPE_OPTIONS.filter(o => o.value !== "system").map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

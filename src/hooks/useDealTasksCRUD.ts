@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logSystemActivity } from "@/lib/activity-log";
 
 export const TASK_STATUSES = ["To Do", "In Progress", "Done"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High"] as const;
@@ -66,6 +67,7 @@ export function useCreateDealTask() {
       status?: string;
       priority?: string;
       created_by?: string;
+      assigned_user_name?: string | null;
     }) => {
       const { data, error } = await supabase
         .from("deal_tasks")
@@ -82,11 +84,19 @@ export function useCreateDealTask() {
         .select("*")
         .single();
       if (error) throw error;
+      // Auto-log system activity (best-effort)
+      const who = task.assigned_user_name || "Unassigned";
+      logSystemActivity(
+        task.deal_id,
+        "Task created",
+        `Task "${task.title}" was created and assigned to ${who}.`
+      );
       return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
     },
   });
 }
@@ -94,7 +104,7 @@ export function useCreateDealTask() {
 export function useUpdateDealTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, deal_id, ...updates }: {
+    mutationFn: async ({ id, deal_id, _completedByName, _taskTitle, ...updates }: {
       id: string;
       deal_id: string;
       status?: string;
@@ -105,7 +115,10 @@ export function useUpdateDealTask() {
       due_date?: string | null;
       completed_at?: string | null;
       is_completed?: boolean;
+      _completedByName?: string | null;
+      _taskTitle?: string | null;
     }) => {
+      const wasCompleting = updates.status === "Done";
       const { data, error } = await supabase
         .from("deal_tasks")
         .update({
@@ -116,11 +129,21 @@ export function useUpdateDealTask() {
         .select("*")
         .single();
       if (error) throw error;
+      if (wasCompleting) {
+        const title = _taskTitle || (data as any)?.title || "Task";
+        const who = _completedByName || "a user";
+        logSystemActivity(
+          deal_id,
+          "Task completed",
+          `Task "${title}" was completed by ${who}.`
+        );
+      }
       return { ...data, deal_id };
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
     },
   });
 }

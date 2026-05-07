@@ -100,6 +100,8 @@ export function useRenewals(filters?: { status?: string }) {
         .select("id, client_id, license_end_date, sat_end_date, sat_active");
 
       for (const l of licenses || []) {
+        // Skip licenses already covered by an explicit operationalized renewal
+        if (coveredLicenseIds.has(l.id)) continue;
         if (l.license_end_date) {
           const key = `${l.client_id}::License`;
           if (!coveredKeys.has(key)) {

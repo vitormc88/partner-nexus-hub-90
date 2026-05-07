@@ -608,7 +608,7 @@ export default function ClientDetail() {
                       <FieldRow label="City" value={client.city} />
                       <FieldRow label="Country" value={client.country} />
                       <FieldRow label="Sector" value={client.sector} />
-                      <FieldRow label="Partner" value={client.partner_id || "HQ Direct"} />
+                      <FieldRow label="Partner" value={(client as any)?.partner?.name || "HQ Direct"} />
                       <FieldRow label="Manager / Owner" value={client.manager_owner} />
                     </div>
                   </div>

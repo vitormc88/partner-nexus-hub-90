@@ -417,6 +417,8 @@ export default function DealDetail() {
               <div><Label>Description</Label><Textarea value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))} rows={2} /></div>
             </div>
           ) : (
+            <div className="space-y-4">
+            <RelationshipSummary dealId={deal.id} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Lead Information</h3>

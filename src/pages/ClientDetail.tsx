@@ -655,39 +655,39 @@ export default function ClientDetail() {
             {/* Right column: License Summary + Renewal + Flags */}
             <div className="space-y-4">
               {/* License Summary */}
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> License Summary</CardTitle>
+              <Card className="border-border bg-card shadow-md">
+                <CardHeader className="pb-2 border-b border-border/40">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> License Summary</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-3">
                   {hasValidLicense ? (
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-muted-foreground">License Family</span>
-                        <Badge variant="outline" className="text-xs">{licenseFamily}</Badge>
+                    <div className="space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Family</span>
+                        <Badge variant="outline" className="text-xs font-medium">{licenseFamily}</Badge>
                       </div>
-                      <div className="flex justify-between items-center py-1">
+                      <div className="flex justify-between items-center">
                         <span className="text-xs text-muted-foreground">Variant</span>
-                        <Badge variant="secondary" className="text-xs">{getVariantLabel(licenseVariant)}</Badge>
+                        <Badge variant="secondary" className="text-xs">{isProfessional ? licenseVariant : getVariantLabel(licenseVariant)}</Badge>
                       </div>
-                      <div className="flex justify-between items-center py-1">
+                      <div className="flex justify-between items-center">
                         <span className="text-xs text-muted-foreground">Deployment</span>
-                        <Badge variant="secondary" className="text-xs">{deploymentDisplay}</Badge>
+                        <Badge variant="secondary" className="text-xs">{isProfessional ? "SaaS" : deploymentDisplay}</Badge>
                       </div>
-                      <div className="border-t border-border/40 pt-2 mt-2">
+                      <div className="border-t border-border/40 pt-3 mt-2">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Users</p>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="rounded-md bg-muted/50 p-2 text-center">
-                            <p className="text-lg font-bold text-foreground">{primaryLicense?.backoffice_users ?? 0}</p>
+                          <div className="rounded-md bg-muted/60 p-2.5 text-center">
+                            <p className="text-xl font-bold text-foreground">{primaryLicense?.backoffice_users ?? 0}</p>
                             <p className="text-[10px] text-muted-foreground">BackOffice</p>
                           </div>
-                          <div className="rounded-md bg-muted/50 p-2 text-center">
-                            <p className="text-lg font-bold text-foreground">{primaryLicense?.web_accesses ?? 0}</p>
-                            <p className="text-[10px] text-muted-foreground">Web</p>
+                          <div className="rounded-md bg-muted/60 p-2.5 text-center">
+                            <p className="text-xl font-bold text-foreground">{primaryLicense?.web_accesses ?? 0}</p>
+                            <p className="text-[10px] text-muted-foreground">Web/Mobile</p>
                           </div>
                         </div>
                       </div>
-                      <div className="border-t border-border/40 pt-2 mt-1 space-y-1">
+                      <div className="border-t border-border/40 pt-3 mt-1 space-y-1.5">
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">S&AT Active</span>
                           <Badge variant={primaryLicense?.sat_active ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.sat_active ? "Yes" : "No"}</Badge>
@@ -698,10 +698,10 @@ export default function ClientDetail() {
                         </div>
                       </div>
                       {renewalEndDate && (
-                        <div className="border-t border-border/40 pt-2 mt-1">
+                        <div className="border-t border-border/40 pt-3 mt-1">
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-muted-foreground">Renewal Date</span>
-                            <span className="text-xs font-medium">{renewalEndDate}</span>
+                            <span className="text-xs font-semibold text-foreground">{renewalEndDate}</span>
                           </div>
                         </div>
                       )}
@@ -718,25 +718,25 @@ export default function ClientDetail() {
               </Card>
 
               {/* Renewal Status */}
-              <Card className={`border shadow-sm ${renewalInfo.status === "expired" ? "border-destructive/30" : renewalInfo.status === "due_soon" ? "border-orange-300" : "border-border/60"}`}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Renewal</CardTitle>
+              <Card className={`shadow-md ${renewalInfo.status === "expired" ? "border-destructive/40" : renewalInfo.status === "due_soon" ? "border-orange-300" : "border-border"}`}>
+                <CardHeader className="pb-2 border-b border-border/40">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" /> Renewal</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between items-center py-1">
+                <CardContent className="pt-3 space-y-2">
+                  <div className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">Start Date</span>
                     <span className="text-sm">{primaryContract?.contract_start_date || primaryLicense?.license_start_date || "—"}</span>
                   </div>
-                  <div className="flex justify-between items-center py-1">
+                  <div className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">End Date</span>
                     <span className="text-sm font-medium">{renewalEndDate || "—"}</span>
                   </div>
-                  <div className="flex justify-between items-center py-1">
+                  <div className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">Days Remaining</span>
                     <span className="text-sm font-bold">{renewalInfo.days !== null ? (renewalInfo.days < 0 ? `${Math.abs(renewalInfo.days)} overdue` : renewalInfo.days) : "—"}</span>
                   </div>
-                  <div className="pt-1">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${renewalInfo.color}`}>
+                  <div className="pt-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${renewalInfo.color}`}>
                       <RenewalIcon status={renewalInfo.status} />
                       {renewalInfo.label}
                     </span>
@@ -745,13 +745,13 @@ export default function ClientDetail() {
               </Card>
 
               {/* Flags */}
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader className="pb-2">
+              <Card className="border-border shadow-md">
+                <CardHeader className="pb-2 border-b border-border/40">
                   <CardTitle className="text-sm font-semibold">Flags</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="pt-3 space-y-2">
                   {[
-                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? false, note: licenseVariant === "Business UseIT" ? "Always active for UseIT" : undefined },
+                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? false, note: isProfessional ? "Always active for Professional SaaS" : (licenseVariant === "Business UseIT" ? "Always active for UseIT" : undefined) },
                     { label: "Custom Reports", value: client.has_custom_reports },
                     { label: "Premium", value: client.is_premium },
                   ].map(flag => (

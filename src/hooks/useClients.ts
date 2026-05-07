@@ -31,13 +31,18 @@ export function useClient(id: string | undefined) {
     queryKey: ["client", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*, partner:partner_id(id, name)")
-        .eq("id", id)
-        .single();
+      const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
       if (error) throw error;
-      return data as Client & { partner?: { id: string; name: string } | null };
+      let partner: { id: string; name: string } | null = null;
+      if ((data as any)?.partner_id) {
+        const { data: p } = await supabase
+          .from("partners")
+          .select("id, name")
+          .eq("id", (data as any).partner_id)
+          .maybeSingle();
+        if (p) partner = p as any;
+      }
+      return { ...(data as any), partner } as Client & { partner?: { id: string; name: string } | null };
     },
     enabled: !!id,
   });

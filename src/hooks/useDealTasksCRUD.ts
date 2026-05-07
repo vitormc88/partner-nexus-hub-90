@@ -67,6 +67,7 @@ export function useCreateDealTask() {
       status?: string;
       priority?: string;
       created_by?: string;
+      assigned_user_name?: string | null;
     }) => {
       const { data, error } = await supabase
         .from("deal_tasks")
@@ -83,11 +84,19 @@ export function useCreateDealTask() {
         .select("*")
         .single();
       if (error) throw error;
+      // Auto-log system activity (best-effort)
+      const who = task.assigned_user_name || "Unassigned";
+      logSystemActivity(
+        task.deal_id,
+        "Task created",
+        `Task "${task.title}" was created and assigned to ${who}.`
+      );
       return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
     },
   });
 }

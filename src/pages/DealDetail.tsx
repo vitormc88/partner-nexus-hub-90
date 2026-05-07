@@ -27,6 +27,9 @@ import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } f
 import { cn } from "@/lib/utils";
 import { logSystemActivity, ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
+import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
+import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
+import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -50,6 +53,8 @@ export default function DealDetail() {
   const { user, profile } = useAuth();
   const currentUserName = profile?.full_name || profile?.email || user?.email || "";
   const [showCreateProposal, setShowCreateProposal] = useState(false);
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
 
   // Editing state
   const [editing, setEditing] = useState(false);
@@ -134,6 +139,29 @@ export default function DealDetail() {
         subj,
         `Stage changed from ${oldStage} to ${editForm.stage}.`
       );
+
+      // If stage transitioned to Won, run client/license lifecycle
+      if (editForm.stage === "Won" && oldStage !== "Won") {
+        try {
+          const { client, created } = await findOrCreateClientFromDeal({ ...deal, ...updates } as any);
+          if (!created) {
+            toast.message("Existing client found — linked to current deal.", { description: client.commercial_name });
+          } else {
+            toast.success(`Client ${client.client_code} created`);
+          }
+          const { count } = await supabase
+            .from("licenses")
+            .select("id", { count: "exact", head: true })
+            .eq("client_id", client.id);
+          if ((count ?? 0) === 0) {
+            setPendingClientId(client.id);
+            setLicenseModalOpen(true);
+          }
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+        } catch (e: any) {
+          toast.error(e?.message || "Failed to create client from deal");
+        }
+      }
     }
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });
@@ -221,6 +249,7 @@ export default function DealDetail() {
         </div>
         {!editing && (
           <div className="flex items-center gap-2">
+            {deal.stage !== "Lost" && <MarkAsWonButton deal={deal} />}
             <Button size="sm" onClick={() => setShowCreateProposal(true)}>
               <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
             </Button>
@@ -596,6 +625,16 @@ export default function DealDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {pendingClientId && (
+        <CreateLicenseDialog
+          open={licenseModalOpen}
+          onOpenChange={setLicenseModalOpen}
+          clientId={pendingClientId}
+          dealId={deal.id}
+          onSkip={() => toast.message("License setup skipped — client will show 'Missing license configuration'.")}
+        />
+      )}
     </div>
   );
 }

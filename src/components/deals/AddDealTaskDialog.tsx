@@ -40,11 +40,17 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
   const [status, setStatus] = useState(defaults?.status || "To Do");
   const [priority, setPriority] = useState(defaults?.priority || "Medium");
 
-  // Re-apply defaults whenever the dialog opens
-  // (so multiple invocations with different defaults work)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState(() => {});
-  if (open === false) { /* no-op */ }
+  useEffect(() => {
+    if (open) {
+      setTitle(defaults?.title || "");
+      setDescription("");
+      setAssignedUserId(defaults?.assignedUserId || "");
+      setDueDate(defaults?.dueDate || "");
+      setStatus(defaults?.status || "To Do");
+      setPriority(defaults?.priority || "Medium");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const reset = () => {
     setTitle(defaults?.title || "");

@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
 import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
 import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
+import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -275,6 +276,9 @@ export default function DealDetail() {
           ))}
         </div>
       </div>
+
+
+      {deal.status === "Open" && <DealHealthBanner deal={deal} />}
 
       <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <TabsList className="w-full justify-start bg-secondary/50 rounded-lg">

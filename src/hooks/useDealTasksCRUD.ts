@@ -118,7 +118,24 @@ export function useUpdateDealTask() {
       _completedByName?: string | null;
       _taskTitle?: string | null;
     }) => {
-      const wasCompleting = updates.status === "Done";
+      // Fetch previous state to detect a genuine not-done -> done transition.
+      // This guards against duplicate "Task completed" entries from re-saves,
+      // edit dialog saves on already-completed tasks, double-clicks, etc.
+      let prevStatus: string | null = null;
+      let prevCompleted: boolean | null = null;
+      if (updates.status !== undefined) {
+        const { data: prev } = await supabase
+          .from("deal_tasks")
+          .select("status, is_completed")
+          .eq("id", id)
+          .maybeSingle();
+        prevStatus = (prev as any)?.status ?? null;
+        prevCompleted = (prev as any)?.is_completed ?? null;
+      }
+      const wasAlreadyDone =
+        prevStatus === "Done" || prevCompleted === true;
+      const isTransitionToDone = updates.status === "Done" && !wasAlreadyDone;
+
       const { data, error } = await supabase
         .from("deal_tasks")
         .update({
@@ -129,7 +146,7 @@ export function useUpdateDealTask() {
         .select("*")
         .single();
       if (error) throw error;
-      if (wasCompleting) {
+      if (isTransitionToDone) {
         const title = _taskTitle || (data as any)?.title || "Task";
         const who = _completedByName || "a user";
         logSystemActivity(

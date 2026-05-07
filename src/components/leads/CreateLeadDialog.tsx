@@ -72,7 +72,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
     setCreating(true);
     try {
       const assignedUser = partnerUsers.find(u => u.id === form.assigned_to);
-      const { error } = await supabase.from("deals").insert({
+      const { data: created, error } = await supabase.from("deals").insert({
         company_name: form.company_name,
         contact_person_name: form.contact_person_name || null,
         partner_id: lockedPartnerId || userPartnerId || form.partner_id || null,
@@ -92,8 +92,14 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
         asset_range: form.asset_range || null,
         maintenance_team_size: form.maintenance_team_size || null,
         register_date: new Date().toISOString().split("T")[0],
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+      if (created?.id) {
+        try {
+          const { logSystemActivity } = await import("@/lib/activity-log");
+          logSystemActivity(created.id, "Lead created", `Lead "${form.company_name}" was created${assignedUser?.full_name ? ` and assigned to ${assignedUser.full_name}` : ""}.`);
+        } catch { /* noop */ }
+      }
       toast.success("Lead created successfully");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
       onOpenChange(false);

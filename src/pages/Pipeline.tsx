@@ -105,10 +105,10 @@ export default function Pipeline() {
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   const intelKpis = [
-    { label: "Hot Deals", value: String(hotDeals), icon: Flame, accent: "text-rose-600", filter: "Hot" },
-    { label: "No Follow-up", value: String(noFollowUpDeals), icon: BellOff, accent: noFollowUpDeals > 0 ? "text-amber-600" : "text-foreground" },
-    { label: "Stalled / At Risk", value: String(stalledDeals), icon: AlertTriangle, accent: stalledDeals > 0 ? "text-orange-600" : "text-foreground", filter: "Stalled" },
-    { label: "Overdue Tasks", value: String(overdueTaskDeals), icon: AlertCircle, accent: overdueTaskDeals > 0 ? "text-red-600" : "text-foreground" },
+    { label: "Hot Deals", value: String(hotDeals), icon: Flame, accent: "text-rose-600", kind: "health" as const, key: "Hot" },
+    { label: "No Follow-up", value: String(noFollowUpDeals), icon: BellOff, accent: noFollowUpDeals > 0 ? "text-amber-600" : "text-foreground", kind: "signal" as const, key: "no-followup" },
+    { label: "Stalled / At Risk", value: String(stalledDeals), icon: AlertTriangle, accent: stalledDeals > 0 ? "text-orange-600" : "text-foreground", kind: "health" as const, key: "Stalled" },
+    { label: "Overdue Tasks", value: String(overdueTaskDeals), icon: AlertCircle, accent: overdueTaskDeals > 0 ? "text-red-600" : "text-foreground", kind: "signal" as const, key: "overdue" },
   ];
 
   return (

@@ -169,6 +169,15 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
           Effective <span className="font-semibold text-foreground">{result.effectiveProbability}%</span>
         </span>
       </div>
+
+      <AddDealTaskDialog
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        dealId={deal.id}
+        dealCompanyName={deal.company_name}
+        linkedPartnerId={(deal.partner_id as any) || null}
+        defaults={addDefaults}
+      />
     </div>
   );
 }

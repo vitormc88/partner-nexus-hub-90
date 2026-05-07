@@ -120,6 +120,17 @@ export function EditDealTaskDialog({ open, onOpenChange, task, dealCompanyName, 
             </div>
           </div>
           <div>
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TASK_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label>Assigned To</Label>
             <Select value={assignedUserId} onValueChange={setAssignedUserId}>
               <SelectTrigger><SelectValue placeholder="Select user…" /></SelectTrigger>

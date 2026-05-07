@@ -202,10 +202,7 @@ export default function Pipeline() {
                     return (
                       <Link key={deal.id} to={`/deals/${deal.id}`} draggable
                         onDragStart={e => e.dataTransfer.setData("dealId", deal.id)}
-                        className={cn(
-                          "block bg-card rounded-lg border shadow-sm p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
-                          meta && `border-l-2 ${meta.dot.replace("bg-", "border-l-")}`
-                        )}>
+                        className="block bg-card rounded-lg border shadow-sm p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-foreground leading-tight truncate">{deal.company_name}</p>

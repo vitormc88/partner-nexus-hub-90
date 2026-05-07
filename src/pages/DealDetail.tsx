@@ -277,6 +277,9 @@ export default function DealDetail() {
         </div>
       </div>
 
+
+      {deal.status === "Open" && <DealHealthBanner deal={deal} />}
+
       <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <TabsList className="w-full justify-start bg-secondary/50 rounded-lg">
           <TabsTrigger value="overview">Overview</TabsTrigger>

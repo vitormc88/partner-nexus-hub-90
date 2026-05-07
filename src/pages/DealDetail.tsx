@@ -139,6 +139,29 @@ export default function DealDetail() {
         subj,
         `Stage changed from ${oldStage} to ${editForm.stage}.`
       );
+
+      // If stage transitioned to Won, run client/license lifecycle
+      if (editForm.stage === "Won" && oldStage !== "Won") {
+        try {
+          const { client, created } = await findOrCreateClientFromDeal({ ...deal, ...updates } as any);
+          if (!created) {
+            toast.message("Existing client found — linked to current deal.", { description: client.commercial_name });
+          } else {
+            toast.success(`Client ${client.client_code} created`);
+          }
+          const { count } = await supabase
+            .from("licenses")
+            .select("id", { count: "exact", head: true })
+            .eq("client_id", client.id);
+          if ((count ?? 0) === 0) {
+            setPendingClientId(client.id);
+            setLicenseModalOpen(true);
+          }
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+        } catch (e: any) {
+          toast.error(e?.message || "Failed to create client from deal");
+        }
+      }
     }
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });

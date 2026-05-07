@@ -68,7 +68,7 @@ export default function UserManagement() {
         body: {
           action: "resend_invite",
           email: user.email,
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: getAppRedirectUrl("/reset-password"),
         },
       });
       if (error) throw error;

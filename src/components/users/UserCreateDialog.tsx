@@ -73,7 +73,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
         payload.password = password;
       } else {
         payload.mode = "invite";
-        payload.redirectTo = `${window.location.origin}/reset-password`;
+        payload.redirectTo = getAppRedirectUrl("/reset-password");
       }
 
       const { data, error } = await supabase.functions.invoke("admin-create-user", { body: payload });

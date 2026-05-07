@@ -54,7 +54,6 @@ export const LICENSE_TYPE_OPTIONS = [
 
 export interface CreateLicensePayload {
   client_id: string;
-  /** Concrete license_type stored on the license & client (e.g. "Professional 2", "Business UseIT"). */
   license_type: string;
   license_model: LicenseModel;
   product_family?: ProductFamily;
@@ -70,6 +69,14 @@ export interface CreateLicensePayload {
   notes?: string | null;
   is_draft?: boolean;
   source_proposal_id?: string | null;
+  /** Operational accesses inherited from the proposal. */
+  included_backoffice?: number | null;
+  additional_backoffice?: number | null;
+  included_web?: number | null;
+  additional_web?: number | null;
+  api_enabled?: boolean | null;
+  /** Canonical module names (e.g. "Stock Management", "SLA", "API"). */
+  modules?: string[] | null;
 }
 
 export interface ProposalDefaults {

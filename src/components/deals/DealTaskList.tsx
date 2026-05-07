@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus, Pencil, AlertTriangle } from "lucide-react";
-import { format, isPast, isToday, parseISO, addBusinessDays } from "date-fns";
+import { format, isPast, isToday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { AddDealTaskDialog } from "./AddDealTaskDialog";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMyEffectivePermissions } from "@/hooks/useRoleTemplates";
 import { canEdit } from "@/lib/permissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { followUpDefaultsForStage } from "@/lib/followup-defaults";
 
 interface Props {
   dealId: string;
@@ -51,15 +52,13 @@ const dueDateColor = (date: string | null) => {
   return "text-muted-foreground";
 };
 
-function suggestedFollowUpDate() {
-  try {
-    return format(addBusinessDays(new Date(), 3), "yyyy-MM-dd");
-  } catch {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().slice(0, 10);
-  }
+function isOverdue(date: string | null, done: boolean): boolean {
+  if (!date || done) return false;
+  const d = parseISO(date);
+  return isPast(d) && !isToday(d);
 }
+
+const PRIORITY_RANK: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
 export function DealTaskList({
   dealId,
@@ -79,13 +78,24 @@ export function DealTaskList({
   const [showAdd, setShowAdd] = useState(false);
   const [editTask, setEditTask] = useState<DealTask | null>(null);
   const [followUpPrompt, setFollowUpPrompt] = useState(false);
-  const [addDefaults, setAddDefaults] = useState<{ title?: string; priority?: string; assignedUserId?: string; dueDate?: string } | undefined>(undefined);
+  const [addDefaults, setAddDefaults] = useState<{ title?: string; description?: string; priority?: string; category?: string; assignedUserId?: string; dueDate?: string } | undefined>(undefined);
 
   const isClosed = dealStage === "Won" || dealStage === "Lost";
 
   const sortedTasks = useMemo(() => {
     const active = tasks.filter((t) => t.status !== "Done");
     const done = tasks.filter((t) => t.status === "Done");
+    // Sort active: overdue first, then by priority desc, then by due date asc
+    active.sort((a, b) => {
+      const aOver = isOverdue(a.due_date, false);
+      const bOver = isOverdue(b.due_date, false);
+      if (aOver !== bOver) return aOver ? -1 : 1;
+      const pr = (PRIORITY_RANK[b.priority] || 0) - (PRIORITY_RANK[a.priority] || 0);
+      if (pr !== 0) return pr;
+      const ad = a.due_date || "9999-12-31";
+      const bd = b.due_date || "9999-12-31";
+      return ad.localeCompare(bd);
+    });
     return [...active, ...done];
   }, [tasks]);
 
@@ -94,14 +104,22 @@ export function DealTaskList({
     [tasks]
   );
 
+  const overdueCount = useMemo(
+    () => tasks.filter((t) => t.status !== "Done" && isOverdue(t.due_date, false)).length,
+    [tasks]
+  );
+
   const showOrphanBanner = !hideOrphanBanner && !isClosed && !isLoading && openTaskCount === 0;
 
   const openAddFollowUp = () => {
+    const def = followUpDefaultsForStage(dealStage);
     setAddDefaults({
-      title: "Follow-up",
-      priority: "Medium",
+      title: def.title,
+      description: def.description,
+      priority: def.priority,
+      category: def.category,
       assignedUserId: defaultAssigneeId || user?.id || "",
-      dueDate: suggestedFollowUpDate(),
+      dueDate: def.dueDate,
     });
     setShowAdd(true);
   };

@@ -87,7 +87,9 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
             <BellOff className="h-3.5 w-3.5" />
             {data.nextFollowUpAt
               ? `Next follow-up ${new Date(data.nextFollowUpAt).toLocaleDateString("en-GB")}`
-              : "No follow-up scheduled"}
+              : (result.daysSinceActivity ?? 999) <= 3
+                ? "Awaiting next action"
+                : "No follow-up scheduled"}
           </span>
         </div>
       </div>

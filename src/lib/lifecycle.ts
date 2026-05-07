@@ -248,26 +248,31 @@ export function computeRenewalStatus(renewalDate: string): string {
   return "Active";
 }
 
-/** Renewal naming aligned with Proposal Generator structure. */
+/** Renewal naming aligned with Proposal Generator structure (commercial-facing). */
 export function computeRenewalType(payload: {
   license_type: string;
   product_family?: ProductFamily;
   proposal_mode?: BusinessProposalMode | null;
   hosting?: Hosting;
   license_model: LicenseModel;
+  plan?: number | null;
+  billing_frequency?: BillingFrequency;
 }): string {
   const family = payload.product_family;
+  const freq = payload.billing_frequency || "Annual";
   if (family === "Business") {
     if (payload.proposal_mode === "KeepIT") return "Business KeepIT S&AT Renewal";
     return "Business UseIT Renewal";
   }
-  if (family === "Professional") return "Professional SaaS Renewal";
+  if (family === "Professional") {
+    const plan = payload.plan ?? (payload.license_type?.match(/Professional\s*(\d)/)?.[1] ? Number(payload.license_type.match(/Professional\s*(\d)/)![1]) : null);
+    return `Professional ${plan ?? ""}${plan ? " " : ""}${freq} Renewal`.replace(/\s+/g, " ").trim();
+  }
   if (family === "START") return "START S&AT Renewal";
   if (family === "Express") return "Express Renewal";
-  // Fallback derived from license_type
   if (payload.license_type?.startsWith("Business KeepIT")) return "Business KeepIT S&AT Renewal";
   if (payload.license_type?.startsWith("Business")) return "Business UseIT Renewal";
-  if (payload.license_type?.startsWith("Professional")) return "Professional SaaS Renewal";
+  if (payload.license_type?.startsWith("Professional")) return `${payload.license_type} ${freq} Renewal`;
   return payload.license_model === "Perpetual" ? "Support Renewal" : "License Renewal";
 }
 

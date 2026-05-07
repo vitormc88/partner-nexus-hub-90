@@ -12,6 +12,7 @@ import { UserEditDialog } from "@/components/users/UserEditDialog";
 import { UserCreateDialog } from "@/components/users/UserCreateDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getAppRedirectUrl } from "@/lib/app-url";
 
 function StatusBadge({ status }: { status: string | null }) {
   if (status === "active") {
@@ -68,7 +69,7 @@ export default function UserManagement() {
         body: {
           action: "resend_invite",
           email: user.email,
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: getAppRedirectUrl("/reset-password"),
         },
       });
       if (error) throw error;

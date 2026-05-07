@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { getAppUrl, getAppRedirectUrl } from "@/lib/app-url";
 
 type AuthView = "login" | "signup" | "forgot";
 
@@ -47,7 +48,7 @@ export default function Auth() {
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: getAppUrl(),
         },
       });
       if (error) throw error;
@@ -64,7 +65,7 @@ export default function Auth() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: getAppRedirectUrl("/reset-password"),
       });
       if (error) throw error;
       toast.success("If an account exists with that email, you will receive a password reset link.");

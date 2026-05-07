@@ -87,6 +87,7 @@ export default function DealDetail() {
 
   const saveEdit = async () => {
     const stageChanged = editForm.stage !== deal.stage;
+    const oldStage = deal.stage;
     const updates: any = {
       company_name: editForm.company_name,
       contact_person_name: editForm.contact_person_name || null,
@@ -114,8 +115,22 @@ export default function DealDetail() {
     const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Lead updated");
+    if (stageChanged) {
+      const subj =
+        editForm.stage === "Won"
+          ? "Lead marked as Won"
+          : editForm.stage === "Lost"
+          ? "Lead marked as Lost"
+          : "Stage changed";
+      logSystemActivity(
+        deal.id,
+        subj,
+        `Stage changed from ${oldStage} to ${editForm.stage}.`
+      );
+    }
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });
+    queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
     setEditing(false);
   };
 

@@ -533,6 +533,11 @@ export default function ClientDetail() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
+          {licenses && licenses.length === 0 && client.status === "Active" && (
+            <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 gap-1">
+              <AlertTriangle className="h-3 w-3" /> Missing license configuration
+            </Badge>
+          )}
           {client.status !== "Archived" && (
             <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
           )}

@@ -445,6 +445,8 @@ export default function DealDetail() {
             dealId={deal.id}
             dealCompanyName={deal.company_name}
             linkedPartnerId={deal.partner_id || null}
+            dealStage={deal.stage}
+            defaultAssigneeId={user?.id || null}
           />
         </TabsContent>
 

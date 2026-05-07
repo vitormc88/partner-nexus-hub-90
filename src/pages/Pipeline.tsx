@@ -3,23 +3,45 @@ import { Link } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDealsHealth } from "@/hooks/useDealsHealth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus } from "lucide-react";
+import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus, Flame, Clock, BellOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
+import { HEALTH_META } from "@/lib/deal-health";
+import { cn } from "@/lib/utils";
+import { logSystemActivity } from "@/lib/activity-log";
 
+function formatDaysAgo(d: Date | null): string {
+  if (!d) return "—";
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "1d ago";
+  return `${days}d ago`;
+}
+
+function formatRelativeFuture(d: Date | null): string | null {
+  if (!d) return null;
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  if (days < 0) return `overdue ${Math.abs(days)}d`;
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days}d`;
+}
 
 export default function Pipeline() {
   const { isHQ, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
+  const [healthFilter, setHealthFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
+  const { data: healthMap } = useDealsHealth(deals);
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
@@ -29,7 +51,8 @@ export default function Pipeline() {
     const pName = partnerMap.get(d.partner_id || "") || "";
     const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
     const matchPartner = partnerFilter === "all" || pName === partnerFilter;
-    return matchSearch && matchPartner;
+    const matchHealth = healthFilter === "all" || healthMap?.get(d.id)?.health === healthFilter;
+    return matchSearch && matchPartner && matchHealth;
   });
 
   const open = filtered.filter(d => d.status === "Open");
@@ -41,13 +64,18 @@ export default function Pipeline() {
     .reduce((s, d) => s + (d.expected_value || 0) * (getStageProbability(d.stage) / 100), 0);
   const closedCount = won.length + lost.length;
   const winRate = closedCount > 0 ? Math.round((won.length / closedCount) * 100) : 0;
-  const stuckDeals = open.filter(d => {
-    const entered = d.stage_entered_at ? new Date(d.stage_entered_at) : new Date(d.created_at);
-    const daysSince = Math.floor((Date.now() - entered.getTime()) / 86400000);
-    return daysSince >= STUCK_THRESHOLD_DAYS;
+
+  // ── Intelligence counters (computed from health map) ────────────────
+  const hotDeals = open.filter(d => healthMap?.get(d.id)?.health === "Hot").length;
+  const stalledDeals = open.filter(d => {
+    const h = healthMap?.get(d.id)?.health;
+    return h === "Stalled" || h === "AtRisk";
   }).length;
+  const noFollowUpDeals = open.filter(d => healthMap?.get(d.id)?.warnings.includes("No follow-up")).length;
+  const overdueTaskDeals = open.filter(d => healthMap?.get(d.id)?.hasOverdueTask).length;
 
   const handleDrop = async (stage: DealStage, dealId: string) => {
+    const deal = deals.find(d => d.id === dealId);
     const newStatus = stage === "Won" ? "Won" : stage === "Lost" ? "Lost" : "Open";
     const prob = getStageProbability(stage);
     await supabase.from("deals").update({
@@ -55,31 +83,41 @@ export default function Pipeline() {
       status: newStatus,
       probability: prob,
       stage_entered_at: new Date().toISOString(),
+      last_activity_at: new Date().toISOString(),
     }).eq("id", dealId);
+    if (deal && deal.stage !== stage) {
+      logSystemActivity(dealId, "Stage changed", `Stage changed from ${deal.stage} to ${stage}.`);
+    }
     queryClient.invalidateQueries({ queryKey: ["deals"] });
+    queryClient.invalidateQueries({ queryKey: ["deals-health"] });
   };
 
-
-
-
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+
+  const intelKpis = [
+    { label: "Hot Deals", value: String(hotDeals), icon: Flame, accent: "text-rose-600", filter: "Hot" },
+    { label: "No Follow-up", value: String(noFollowUpDeals), icon: BellOff, accent: noFollowUpDeals > 0 ? "text-amber-600" : "text-foreground" },
+    { label: "Stalled / At Risk", value: String(stalledDeals), icon: AlertTriangle, accent: stalledDeals > 0 ? "text-orange-600" : "text-foreground", filter: "Stalled" },
+    { label: "Overdue Tasks", value: String(overdueTaskDeals), icon: AlertCircle, accent: overdueTaskDeals > 0 ? "text-red-600" : "text-foreground" },
+  ];
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-5">
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Sales Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">{open.length} open leads · €{(totalPipeline / 1000).toFixed(0)}k pipeline</p>
+          <p className="text-sm text-muted-foreground mt-1">{open.length} open leads · €{(totalPipeline / 1000).toFixed(0)}k pipeline · {hotDeals} hot</p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> New Lead</Button>
       </div>
 
+      {/* Commercial KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "60ms" }}>
         {[
           { label: "Pipeline Value", value: `€${(totalPipeline / 1000).toFixed(0)}k`, icon: TrendingUp, accent: "text-primary" },
           { label: "Weighted Pipeline", value: `€${(weightedPipeline / 1000).toFixed(0)}k`, icon: Target, accent: "text-foreground" },
           { label: "Win Rate", value: closedCount > 0 ? `${winRate}%` : "—", icon: Trophy, accent: "text-emerald-600" },
-          { label: "Stuck Deals", value: String(stuckDeals), icon: AlertTriangle, accent: stuckDeals > 0 ? "text-amber-600" : "text-foreground" },
+          { label: "Open Leads", value: String(open.length), icon: Clock, accent: "text-foreground" },
         ].map(kpi => (
           <div key={kpi.label} className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -93,7 +131,34 @@ export default function Pipeline() {
         ))}
       </div>
 
-      <div className="flex items-center gap-3 animate-reveal-up" style={{ animationDelay: "120ms" }}>
+      {/* Operational intelligence */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "90ms" }}>
+        {intelKpis.map(kpi => {
+          const isActive = kpi.filter && healthFilter === kpi.filter;
+          return (
+            <button
+              key={kpi.label}
+              type="button"
+              onClick={() => kpi.filter && setHealthFilter(isActive ? "all" : kpi.filter!)}
+              className={cn(
+                "bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 text-left transition-colors",
+                kpi.filter && "hover:bg-secondary/40",
+                isActive && "ring-2 ring-primary/40 border-primary/40"
+              )}
+            >
+              <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                <kpi.icon className={`h-4 w-4 ${kpi.accent}`} />
+              </div>
+              <div>
+                <p className={`text-lg font-bold tabular-nums ${kpi.accent}`}>{kpi.value}</p>
+                <p className="text-[11px] text-muted-foreground">{kpi.label}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 animate-reveal-up flex-wrap" style={{ animationDelay: "120ms" }}>
         <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2 flex-1 max-w-sm">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <input type="text" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground" />
@@ -101,6 +166,14 @@ export default function Pipeline() {
         <select value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
           <option value="all">All Partners</option>
           {partnerNames.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={healthFilter} onChange={e => setHealthFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
+          <option value="all">All Health</option>
+          <option value="Hot">Hot</option>
+          <option value="Healthy">Healthy</option>
+          <option value="Attention">Attention</option>
+          <option value="Stalled">Stalled</option>
+          <option value="AtRisk">At Risk</option>
         </select>
       </div>
 
@@ -112,40 +185,67 @@ export default function Pipeline() {
             <div key={stage.key} className="min-w-[260px] w-[260px] shrink-0"
               onDragOver={e => e.preventDefault()}
               onDrop={e => { const id = e.dataTransfer.getData("dealId"); if (id) handleDrop(stage.key, id); }}>
-              <div className={`rounded-xl ${stage.color} border p-3 min-h-[400px]`}>
-                <div className="flex items-center justify-between mb-3">
+              <div className={`rounded-xl ${stage.color} border p-2.5 min-h-[400px]`}>
+                <div className="flex items-center justify-between mb-2.5 sticky top-0 z-10 -mx-2.5 px-2.5 pb-1.5 backdrop-blur-sm">
                   <div className="flex items-center gap-2">
                     <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stage.label}</h3>
-                    <Badge variant="outline" className="text-[10px] tabular-nums">{stageDeals.length}</Badge>
+                    <Badge variant="outline" className="text-[10px] tabular-nums px-1.5 py-0">{stageDeals.length}</Badge>
                   </div>
                   {stageValue > 0 && <span className="text-[10px] text-muted-foreground tabular-nums font-medium">€{(stageValue / 1000).toFixed(0)}k</span>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {stageDeals.map(deal => {
-                    const entered = deal.stage_entered_at ? new Date(deal.stage_entered_at) : new Date(deal.created_at);
-                    const daysInStage = Math.floor((Date.now() - entered.getTime()) / 86400000);
-                    const isStuck = daysInStage >= STUCK_THRESHOLD_DAYS;
+                    const h = healthMap?.get(deal.id);
+                    const meta = h ? HEALTH_META[h.health] : null;
+                    const followUp = formatRelativeFuture(h?.nextFollowUpAt ?? null);
+                    const isStuck = (h?.daysInStage ?? 0) >= STUCK_THRESHOLD_DAYS;
                     return (
                       <Link key={deal.id} to={`/deals/${deal.id}`} draggable
                         onDragStart={e => e.dataTransfer.setData("dealId", deal.id)}
-                        className="block bg-card rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <p className="text-sm font-medium text-foreground leading-tight">{deal.company_name}</p>
+                        className={cn(
+                          "block bg-card rounded-lg border shadow-sm p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
+                          meta && `border-l-2 ${meta.dot.replace("bg-", "border-l-")}`
+                        )}>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground leading-tight truncate">{deal.company_name}</p>
+                            <p className="text-[10.5px] text-muted-foreground truncate">{partnerMap.get(deal.partner_id || "") || "—"}</p>
+                          </div>
                           <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
                         </div>
-                        <p className="text-[11px] text-muted-foreground mb-1.5">{partnerMap.get(deal.partner_id || "") || "—"}</p>
+
                         {(deal.expected_value || 0) > 0 && (
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-semibold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
-                            <Badge variant="outline" className="text-[10px]">{getStageProbability(deal.stage)}%</Badge>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-bold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{getStageProbability(deal.stage)}%</Badge>
                           </div>
                         )}
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{(deal.assigned_salesperson || "").split(" ")[0] || "—"}</span>
-                          <div className="flex items-center gap-2">
-                            {isStuck && <span className="text-amber-600 font-medium">{daysInStage}d</span>}
-                            {deal.country && <span>{deal.country}</span>}
+
+                        {/* Intelligence row */}
+                        {meta && (
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0 text-[9.5px] font-medium", meta.chip)}>
+                              <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                              {meta.label}
+                            </span>
+                            {h!.warnings.slice(0, 2).map((w, i) => (
+                              <span key={i} className="text-[9.5px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 px-1.5 py-0 rounded-full">{w}</span>
+                            ))}
                           </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+                          <span className="truncate flex-1">
+                            {(deal.assigned_salesperson || "").split(" ")[0] || "—"}
+                            <span className="opacity-60"> · {h?.daysInStage ?? 0}d in stage</span>
+                          </span>
+                          <span className="shrink-0 ml-1.5">
+                            {followUp
+                              ? <span className={followUp.startsWith("overdue") ? "text-red-600 font-medium" : "text-emerald-600"}>↗ {followUp}</span>
+                              : isStuck
+                                ? <span className="text-amber-600 font-medium">{h?.daysInStage}d</span>
+                                : <span>{formatDaysAgo(h?.lastActivityAt ?? null)}</span>}
+                          </span>
                         </div>
                       </Link>
                     );

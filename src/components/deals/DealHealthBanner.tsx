@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { computeDealHealth, HEALTH_META, STAGE_AGING } from "@/lib/deal-health";
 import type { Deal } from "@/hooks/useDeals";
-import { Activity, AlertTriangle, Clock, BellOff, Lightbulb, CheckCircle2 } from "lucide-react";
+import { Activity, AlertTriangle, Clock, BellOff, Lightbulb, CheckCircle2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { AddDealTaskDialog } from "./AddDealTaskDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMyEffectivePermissions } from "@/hooks/useRoleTemplates";
+import { canEdit } from "@/lib/permissions";
+import { defaultsFromSuggestion, followUpDefaultsForStage } from "@/lib/followup-defaults";
 
 export function DealHealthBanner({ deal }: { deal: Deal }) {
+  const { user } = useAuth();
+  const { data: perms } = useMyEffectivePermissions();
+  const canEditPipeline = canEdit(perms, "pipeline");
+  const [showAdd, setShowAdd] = useState(false);
+  const [addDefaults, setAddDefaults] = useState<any>(undefined);
   const { data } = useQuery({
     queryKey: ["deal-health-signals", deal.id],
     queryFn: async () => {
@@ -110,13 +122,38 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
       {result.suggestedAction && (
         <div className="flex items-start gap-2 rounded-lg bg-secondary/50 border px-3 py-2">
           <Lightbulb className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-          <div className="text-xs">
+          <div className="text-xs flex-1 min-w-0">
             <p className="font-semibold text-foreground">Next best action</p>
             <p className="text-muted-foreground">
               {result.suggestedAction.label}
               {result.suggestedAction.hint && <span className="opacity-70"> · {result.suggestedAction.hint}</span>}
             </p>
           </div>
+          {canEditPipeline && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs shrink-0"
+              onClick={() => {
+                const def = defaultsFromSuggestion(
+                  deal.stage,
+                  result.suggestedAction!.label,
+                  result.suggestedAction!.hint
+                );
+                setAddDefaults({
+                  title: def.title,
+                  description: def.description,
+                  priority: def.priority,
+                  category: def.category,
+                  dueDate: def.dueDate,
+                  assignedUserId: user?.id || "",
+                });
+                setShowAdd(true);
+              }}
+            >
+              <Plus className="h-3 w-3 mr-1" /> Create suggested task
+            </Button>
+          )}
         </div>
       )}
 

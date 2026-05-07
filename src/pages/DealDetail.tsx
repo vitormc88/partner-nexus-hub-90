@@ -53,6 +53,8 @@ export default function DealDetail() {
   const { user, profile } = useAuth();
   const currentUserName = profile?.full_name || profile?.email || user?.email || "";
   const [showCreateProposal, setShowCreateProposal] = useState(false);
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
 
   // Editing state
   const [editing, setEditing] = useState(false);

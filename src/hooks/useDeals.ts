@@ -43,7 +43,11 @@ export function useRenewals(filters?: { status?: string }) {
 
       const explicit = existing || [];
 
-      // Build a set of already-covered (client_id + renewal_type) from explicit records
+      // Track license_ids and contract clients already covered by explicit renewals,
+      // so we don't generate phantom "License"/"SAT" derived rows on top of real operationalized ones.
+      const coveredLicenseIds = new Set(
+        explicit.filter((r: any) => r.license_id).map((r: any) => r.license_id)
+      );
       const coveredKeys = new Set(
         explicit.map((r: any) => `${r.client_id}::${r.renewal_type}`)
       );

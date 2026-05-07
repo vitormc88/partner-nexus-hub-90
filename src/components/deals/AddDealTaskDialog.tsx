@@ -48,6 +48,10 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
       return;
     }
 
+    const allUsers = [...partnerUsers, ...hqUsers];
+    const assignedUser = allUsers.find((u) => u.id === assignedUserId);
+    const assignedName = assignedUser?.full_name || assignedUser?.email || null;
+
     createTask.mutate(
       {
         deal_id: dealId,
@@ -58,9 +62,11 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
         status,
         priority,
         created_by: user?.id,
+        assigned_user_name: assignedName,
       },
       {
         onSuccess: async () => {
+          // Only notify when assigning to someone other than the current user
           if (assignedUserId && assignedUserId !== user?.id) {
             await supabase.from("notifications").insert({
               title: "New Task Assigned",

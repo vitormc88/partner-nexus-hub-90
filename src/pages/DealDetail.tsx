@@ -68,12 +68,6 @@ export default function DealDetail() {
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
-  // Activity add — default Performed By to the logged-in user
-  const [showAddActivity, setShowAddActivity] = useState(false);
-  const [activityForm, setActivityForm] = useState({ activity_type: "note", subject: "", description: "", performed_by: "" });
-  useEffect(() => {
-    setActivityForm((f) => ({ ...f, performed_by: f.performed_by || currentUserName }));
-  }, [currentUserName]);
 
   const startEdit = () => {
     setEditForm({

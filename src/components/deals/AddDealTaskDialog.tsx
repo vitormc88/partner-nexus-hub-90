@@ -85,6 +85,7 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
         due_date: dueDate || null,
         status,
         priority,
+        category,
         created_by: user?.id,
         assigned_user_name: assignedName,
       },
@@ -148,6 +149,17 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div>
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TASK_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Assigned To</Label>

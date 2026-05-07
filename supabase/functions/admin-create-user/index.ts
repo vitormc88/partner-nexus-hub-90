@@ -109,8 +109,9 @@ Deno.serve(async (req) => {
       const existingUser = users?.users?.find((u: any) => u.email === email);
       if (!existingUser) return Response.json({ error: "User not found" }, { status: 404, headers: corsHeaders });
 
-      // Re-invite the user with correct redirect
-      const redirectTo = body.redirectTo || `${supabaseUrl}`;
+      // Always redirect to the published PartnerOS app — never the Supabase URL or Lovable preview.
+      const PRODUCTION_APP_URL = "https://partner-nexus-hub-90.lovable.app";
+      const redirectTo = body.redirectTo || `${PRODUCTION_APP_URL}/reset-password`;
       const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         redirectTo,
       });
@@ -151,9 +152,10 @@ Deno.serve(async (req) => {
       userId = createData.user.id;
     } else {
       // Invite flow — sends email
+      const PRODUCTION_APP_URL = "https://partner-nexus-hub-90.lovable.app";
       const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         data: { full_name: fullName },
-        redirectTo: body.redirectTo || undefined,
+        redirectTo: body.redirectTo || `${PRODUCTION_APP_URL}/reset-password`,
       });
 
       if (inviteError || !inviteData.user) {

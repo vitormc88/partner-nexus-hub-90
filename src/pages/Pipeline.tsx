@@ -216,7 +216,7 @@ export default function Pipeline() {
                 <div className="space-y-1.5">
                   {stageDeals.map(deal => {
                     const h = healthMap?.get(deal.id);
-                    const followUp0 = h?.nextFollowUpAt ?? null;
+                    
                     const followUp = formatRelativeFuture(h?.nextFollowUpAt ?? null);
                     const isStuck = (h?.daysInStage ?? 0) >= STUCK_THRESHOLD_DAYS;
                     return (

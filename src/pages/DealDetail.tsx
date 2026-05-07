@@ -180,13 +180,14 @@ export default function DealDetail() {
     toast.success("Activity logged");
     queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
     setShowAddActivity(false);
-    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: "" });
+    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: currentUserName });
   };
 
   const activityIcon = (type: string) => {
     if (type === "call") return <Phone className="h-3.5 w-3.5 text-blue-500" />;
     if (type === "email") return <Mail className="h-3.5 w-3.5 text-amber-500" />;
     if (type === "meeting") return <Calendar className="h-3.5 w-3.5 text-emerald-500" />;
+    if (type === "system") return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
     return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
   };
 

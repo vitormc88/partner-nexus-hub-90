@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { HEALTH_META } from "@/lib/deal-health";
+import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 

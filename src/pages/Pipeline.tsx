@@ -62,7 +62,10 @@ export default function Pipeline() {
   const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
   const weightedPipeline = open
     .filter(d => (d.expected_value || 0) > 0)
-    .reduce((s, d) => s + (d.expected_value || 0) * (getStageProbability(d.stage) / 100), 0);
+    .reduce((s, d) => {
+      const eff = healthMap?.get(d.id)?.effectiveProbability ?? getStageProbability(d.stage);
+      return s + (d.expected_value || 0) * (eff / 100);
+    }, 0);
   const closedCount = won.length + lost.length;
   const winRate = closedCount > 0 ? Math.round((won.length / closedCount) * 100) : 0;
 

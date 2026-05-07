@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
-import { HEALTH_META } from "@/lib/deal-health";
+import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 
@@ -38,6 +38,7 @@ export default function Pipeline() {
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState<string>("all");
+  const [signalFilter, setSignalFilter] = useState<"none" | "no-followup" | "overdue">("none");
   const [showCreate, setShowCreate] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
@@ -51,8 +52,13 @@ export default function Pipeline() {
     const pName = partnerMap.get(d.partner_id || "") || "";
     const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
     const matchPartner = partnerFilter === "all" || pName === partnerFilter;
-    const matchHealth = healthFilter === "all" || healthMap?.get(d.id)?.health === healthFilter;
-    return matchSearch && matchPartner && matchHealth;
+    const h = healthMap?.get(d.id);
+    const matchHealth = healthFilter === "all" || h?.health === healthFilter;
+    const matchSignal =
+      signalFilter === "none" ||
+      (signalFilter === "no-followup" && !!h?.warnings.includes("No follow-up")) ||
+      (signalFilter === "overdue" && !!h?.hasOverdueTask);
+    return matchSearch && matchPartner && matchHealth && matchSignal;
   });
 
   const open = filtered.filter(d => d.status === "Open");
@@ -61,7 +67,10 @@ export default function Pipeline() {
   const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
   const weightedPipeline = open
     .filter(d => (d.expected_value || 0) > 0)
-    .reduce((s, d) => s + (d.expected_value || 0) * (getStageProbability(d.stage) / 100), 0);
+    .reduce((s, d) => {
+      const eff = healthMap?.get(d.id)?.effectiveProbability ?? getStageProbability(d.stage);
+      return s + (d.expected_value || 0) * (eff / 100);
+    }, 0);
   const closedCount = won.length + lost.length;
   const winRate = closedCount > 0 ? Math.round((won.length / closedCount) * 100) : 0;
 
@@ -95,10 +104,10 @@ export default function Pipeline() {
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   const intelKpis = [
-    { label: "Hot Deals", value: String(hotDeals), icon: Flame, accent: "text-rose-600", filter: "Hot" },
-    { label: "No Follow-up", value: String(noFollowUpDeals), icon: BellOff, accent: noFollowUpDeals > 0 ? "text-amber-600" : "text-foreground" },
-    { label: "Stalled / At Risk", value: String(stalledDeals), icon: AlertTriangle, accent: stalledDeals > 0 ? "text-orange-600" : "text-foreground", filter: "Stalled" },
-    { label: "Overdue Tasks", value: String(overdueTaskDeals), icon: AlertCircle, accent: overdueTaskDeals > 0 ? "text-red-600" : "text-foreground" },
+    { label: "Hot Deals", value: String(hotDeals), icon: Flame, accent: "text-rose-600", kind: "health" as const, key: "Hot" },
+    { label: "No Follow-up", value: String(noFollowUpDeals), icon: BellOff, accent: noFollowUpDeals > 0 ? "text-amber-600" : "text-foreground", kind: "signal" as const, key: "no-followup" },
+    { label: "Stalled / At Risk", value: String(stalledDeals), icon: AlertTriangle, accent: stalledDeals > 0 ? "text-orange-600" : "text-foreground", kind: "health" as const, key: "Stalled" },
+    { label: "Overdue Tasks", value: String(overdueTaskDeals), icon: AlertCircle, accent: overdueTaskDeals > 0 ? "text-red-600" : "text-foreground", kind: "signal" as const, key: "overdue" },
   ];
 
   return (
@@ -134,15 +143,25 @@ export default function Pipeline() {
       {/* Operational intelligence */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "90ms" }}>
         {intelKpis.map(kpi => {
-          const isActive = kpi.filter && healthFilter === kpi.filter;
+          const isActive =
+            (kpi.kind === "health" && healthFilter === kpi.key) ||
+            (kpi.kind === "signal" && signalFilter === kpi.key);
+          const onClick = () => {
+            if (kpi.kind === "health") {
+              setHealthFilter(isActive ? "all" : kpi.key);
+              setSignalFilter("none");
+            } else {
+              setSignalFilter(isActive ? "none" : (kpi.key as "no-followup" | "overdue"));
+              setHealthFilter("all");
+            }
+          };
           return (
             <button
               key={kpi.label}
               type="button"
-              onClick={() => kpi.filter && setHealthFilter(isActive ? "all" : kpi.filter!)}
+              onClick={onClick}
               className={cn(
-                "bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 text-left transition-colors",
-                kpi.filter && "hover:bg-secondary/40",
+                "bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 text-left transition-colors hover:bg-secondary/40",
                 isActive && "ring-2 ring-primary/40 border-primary/40"
               )}
             >
@@ -196,7 +215,7 @@ export default function Pipeline() {
                 <div className="space-y-1.5">
                   {stageDeals.map(deal => {
                     const h = healthMap?.get(deal.id);
-                    const meta = h ? HEALTH_META[h.health] : null;
+                    
                     const followUp = formatRelativeFuture(h?.nextFollowUpAt ?? null);
                     const isStuck = (h?.daysInStage ?? 0) >= STUCK_THRESHOLD_DAYS;
                     return (
@@ -219,13 +238,14 @@ export default function Pipeline() {
                         )}
 
                         {/* Intelligence row */}
-                        {meta && (
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0 text-[9.5px] font-medium", meta.chip)}>
-                              <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                              {meta.label}
-                            </span>
-                            {h!.warnings.slice(0, 2).map((w, i) => (
+                        {h && (
+                          <div
+                            className="flex items-center gap-1.5 flex-wrap mb-1"
+                            onClickCapture={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <DealHealthBadge result={h} />
+                            {h.warnings.slice(0, 2).map((w, i) => (
                               <span key={i} className="text-[9.5px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 px-1.5 py-0 rounded-full">{w}</span>
                             ))}
                           </div>

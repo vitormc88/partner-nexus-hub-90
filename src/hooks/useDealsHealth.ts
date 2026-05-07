@@ -89,6 +89,7 @@ export function useDealsHealth(deals: Deal[]) {
           hasOverdueTask: overdue.has(d.id),
           latestProposalAt: proposalStr ? new Date(proposalStr) : null,
           hasOwner: !!(d.assigned_salesperson && d.assigned_salesperson.trim()),
+          baseProbability: (d as any).probability ?? null,
         });
 
         map.set(d.id, {

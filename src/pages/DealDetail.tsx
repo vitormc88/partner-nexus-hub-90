@@ -25,7 +25,7 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
-import { logSystemActivity, ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS } from "@/lib/activity-log";
+import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
 import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";

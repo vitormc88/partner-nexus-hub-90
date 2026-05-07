@@ -11,12 +11,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Sparkles } from "lucide-react";
 import { useLeadProposals } from "@/hooks/useProposals";
 import {
-  LICENSE_TYPE_OPTIONS,
   createLicenseAndRenewal,
   computeRenewalDate,
   proposalToLicenseDefaults,
-  type LicenseModel,
+  shouldCreateRenewal,
   type BillingFrequency,
+  type Hosting,
+  type ProductFamily,
+  type BusinessProposalMode,
+  type LicenseModel,
 } from "@/lib/lifecycle";
 
 interface Props {
@@ -27,11 +30,12 @@ interface Props {
   onSkip?: () => void;
 }
 
+const FAMILY_OPTIONS: ProductFamily[] = ["Professional", "Business", "START", "Express"];
+
 export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSkip }: Props) {
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
 
-  // Pull proposals for the deal so we can inherit commercial structure
   const { data: proposals = [] } = useLeadProposals(dealId);
   const candidateProposals = useMemo(
     () =>
@@ -39,7 +43,6 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
         .filter((p) => p.status !== "Lost")
         .sort(
           (a, b) =>
-            // Prefer Won → Sent → Ready → Draft, then most recent
             ({ Won: 0, Sent: 1, Ready: 2, Draft: 3 } as any)[a.status] -
               ({ Won: 0, Sent: 1, Ready: 2, Draft: 3 } as any)[b.status] ||
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -53,8 +56,10 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
   );
 
   const [form, setForm] = useState({
-    license_type: "Professional 1",
-    license_model: "SaaS / UseIT" as LicenseModel,
+    product_family: "Professional" as ProductFamily,
+    plan: 1 as number | null,
+    proposal_mode: null as BusinessProposalMode | null,
+    hosting: "SaaS" as Hosting,
     contract_start_date: new Date().toISOString().slice(0, 10),
     renewal_date: "",
     initial_contract_value: "",
@@ -65,15 +70,16 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
     source_proposal_id: "" as string,
   });
 
-  // When a proposal becomes available (or selection changes), inherit defaults
+  // Inherit defaults from selected proposal
   useEffect(() => {
-    if (!open) return;
-    if (!selectedProposal) return;
+    if (!open || !selectedProposal) return;
     const d = proposalToLicenseDefaults(selectedProposal);
     setForm((f) => ({
       ...f,
-      license_type: d.license_type,
-      license_model: d.license_model,
+      product_family: d.product_family,
+      plan: d.plan,
+      proposal_mode: d.proposal_mode,
+      hosting: d.hosting,
       billing_frequency: d.billing_frequency,
       initial_contract_value: String(d.initial_contract_value || ""),
       recurring_contract_value: String(d.recurring_contract_value || ""),
@@ -84,8 +90,22 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
     setSelectedProposalId(selectedProposal.id);
   }, [open, selectedProposal?.id]);
 
-  const autoRenewal = computeRenewalDate(form.contract_start_date, form.license_model, form.billing_frequency);
   const inherited = !!form.source_proposal_id;
+  const isProfessional = form.product_family === "Professional";
+  const isBusiness = form.product_family === "Business";
+
+  // Derive concrete license_type + license_model from current form
+  const licenseType = useMemo(() => {
+    if (isProfessional) return `Professional ${form.plan ?? 1}`;
+    if (isBusiness) return `Business ${form.proposal_mode || "UseIT"}`;
+    return form.product_family;
+  }, [form.product_family, form.plan, form.proposal_mode, isProfessional, isBusiness]);
+
+  const licenseModel: LicenseModel =
+    isBusiness && form.proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+
+  const autoRenewal = computeRenewalDate(form.contract_start_date, licenseModel, form.billing_frequency);
+  const willCreateRenewal = shouldCreateRenewal(form.product_family, form.proposal_mode);
 
   const submit = async (mode: "save_renewal" | "draft" | "skip") => {
     if (mode === "skip") {
@@ -98,8 +118,11 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
       await createLicenseAndRenewal(
         {
           client_id: clientId,
-          license_type: form.license_type,
-          license_model: form.license_model,
+          license_type: licenseType,
+          license_model: licenseModel,
+          product_family: form.product_family,
+          proposal_mode: isBusiness ? form.proposal_mode : null,
+          hosting: form.hosting,
           contract_start_date: form.contract_start_date,
           renewal_date: form.renewal_date || autoRenewal,
           initial_contract_value: form.initial_contract_value ? Number(form.initial_contract_value) : null,
@@ -110,9 +133,9 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           is_draft: mode === "draft",
           source_proposal_id: form.source_proposal_id || null,
         },
-        { dealId, createRenewal: mode === "save_renewal" }
+        { dealId, createRenewal: mode === "save_renewal" && willCreateRenewal }
       );
-      toast.success(mode === "draft" ? "License saved as draft" : "Operationalization confirmed — license & renewal created");
+      toast.success(mode === "draft" ? "License saved as draft" : "Operationalization confirmed");
       qc.invalidateQueries({ queryKey: ["licenses"] });
       qc.invalidateQueries({ queryKey: ["renewals"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
@@ -129,13 +152,11 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {inherited ? "Confirm Operationalization" : "Create Client License"}
-          </DialogTitle>
+          <DialogTitle>{inherited ? "Confirm Operationalization" : "Set Up License"}</DialogTitle>
           <DialogDescription>
             {inherited
-              ? "The approved proposal already defines the commercial structure. Review the operational data below and confirm — adjust only if something has changed."
-              : "No proposal found for this deal — set up the initial license manually. A renewal will be auto-generated."}
+              ? "The approved proposal defines the commercial structure. Review and confirm — adjust only if something has changed."
+              : "No proposal found — set up the initial license manually."}
           </DialogDescription>
         </DialogHeader>
 
@@ -151,13 +172,8 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
                   </Badge>
                 )}
               </div>
-              <Select
-                value={selectedProposalId || selectedProposal?.id || ""}
-                onValueChange={setSelectedProposalId}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={selectedProposalId || selectedProposal?.id || ""} onValueChange={setSelectedProposalId}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {candidateProposals.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
@@ -175,23 +191,78 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
 
         <div className="grid grid-cols-2 gap-4 mt-2">
           <div>
-            <Label>License Type</Label>
-            <Select value={form.license_type} onValueChange={(v) => setForm((f) => ({ ...f, license_type: v }))}>
+            <Label>Product Family</Label>
+            <Select
+              value={form.product_family}
+              onValueChange={(v) => {
+                const family = v as ProductFamily;
+                setForm((f) => ({
+                  ...f,
+                  product_family: family,
+                  proposal_mode: family === "Business" ? (f.proposal_mode || "UseIT") : null,
+                  hosting: family === "Business" ? f.hosting : "SaaS",
+                  plan: family === "Professional" ? (f.plan || 1) : null,
+                }));
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {LICENSE_TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {FAMILY_OPTIONS.map((fam) => <SelectItem key={fam} value={fam}>{fam}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+
+          {isProfessional && (
+            <div>
+              <Label>Plan</Label>
+              <Select value={String(form.plan ?? 1)} onValueChange={(v) => setForm((f) => ({ ...f, plan: Number(v) }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Plan 1</SelectItem>
+                  <SelectItem value="2">Plan 2</SelectItem>
+                  <SelectItem value="3">Plan 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isBusiness && (
+            <div>
+              <Label>Proposal Mode</Label>
+              <Select
+                value={form.proposal_mode || "UseIT"}
+                onValueChange={(v) => setForm((f) => ({ ...f, proposal_mode: v as BusinessProposalMode }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UseIT">UseIT</SelectItem>
+                  <SelectItem value="KeepIT">KeepIT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
-            <Label>License Model</Label>
-            <Select value={form.license_model} onValueChange={(v) => setForm((f) => ({ ...f, license_model: v as LicenseModel }))}>
+            <Label>Hosting</Label>
+            <Select
+              value={form.hosting}
+              onValueChange={(v) => setForm((f) => ({ ...f, hosting: v as Hosting }))}
+              disabled={isProfessional}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="SaaS / UseIT">SaaS / UseIT</SelectItem>
-                <SelectItem value="Perpetual / KeepIT">Perpetual / KeepIT</SelectItem>
+                <SelectItem value="SaaS">SaaS</SelectItem>
+                <SelectItem value="On-Premise">On-Premise</SelectItem>
               </SelectContent>
             </Select>
+            {isProfessional && (
+              <p className="text-[10px] text-muted-foreground mt-1">Professional is SaaS-only.</p>
+            )}
+          </div>
+
+          <div>
+            <Label>Users / Licenses</Label>
+            <Input type="number" min={0} value={form.num_users} onChange={(e) => setForm((f) => ({ ...f, num_users: e.target.value }))} />
           </div>
 
           <div>
@@ -200,7 +271,12 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           </div>
           <div>
             <Label>Renewal Date</Label>
-            <Input type="date" value={form.renewal_date || autoRenewal || ""} onChange={(e) => setForm((f) => ({ ...f, renewal_date: e.target.value }))} />
+            <Input
+              type="date"
+              value={form.renewal_date || autoRenewal || ""}
+              onChange={(e) => setForm((f) => ({ ...f, renewal_date: e.target.value }))}
+              disabled={!willCreateRenewal}
+            />
           </div>
 
           <div>
@@ -214,35 +290,38 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Number of users / licenses</Label>
-            <Input type="number" min={0} value={form.num_users} onChange={(e) => setForm((f) => ({ ...f, num_users: e.target.value }))} />
-          </div>
+          <div />
 
           <div>
-            <Label>Initial Contract Value — Year 1 (€)</Label>
+            <Label>Year 1 Value (€)</Label>
             <Input
-              type="number"
-              min={0}
+              type="number" min={0}
               value={form.initial_contract_value}
               onChange={(e) => setForm((f) => ({ ...f, initial_contract_value: e.target.value }))}
             />
-            <p className="text-[10px] text-muted-foreground mt-1">Includes setup / implementation (one-time + Y1 recurring).</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Setup + Year 1 recurring.</p>
           </div>
           <div>
-            <Label>Recurring Contract Value — Year 2+ (€)</Label>
+            <Label>Recurring Year 2+ Value (€)</Label>
             <Input
-              type="number"
-              min={0}
+              type="number" min={0}
               value={form.recurring_contract_value}
               onChange={(e) => setForm((f) => ({ ...f, recurring_contract_value: e.target.value }))}
             />
-            <p className="text-[10px] text-muted-foreground mt-1">Used for ARR & renewal estimates.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Used for ARR & renewals.</p>
           </div>
 
           <div className="col-span-2">
             <Label>Notes</Label>
-            <Textarea rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+            <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+          </div>
+
+          <div className="col-span-2 rounded-md border bg-muted/20 p-3 text-xs space-y-1">
+            <div className="font-medium text-foreground">License preview</div>
+            <div className="text-muted-foreground">
+              <span className="text-foreground">{licenseType}</span> · Hosting: <span className="text-foreground">{form.hosting}</span>
+              {!willCreateRenewal && <span className="ml-2">· No renewal by default</span>}
+            </div>
           </div>
         </div>
 
@@ -250,7 +329,7 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           <Button variant="ghost" disabled={submitting} onClick={() => submit("skip")}>Skip for now</Button>
           <Button variant="outline" disabled={submitting} onClick={() => submit("draft")}>Save as Draft</Button>
           <Button disabled={submitting} onClick={() => submit("save_renewal")}>
-            {inherited ? "Confirm & Activate Renewal" : "Save & Create Renewal"}
+            {willCreateRenewal ? (inherited ? "Confirm & Activate Renewal" : "Save & Create Renewal") : "Confirm License"}
           </Button>
         </DialogFooter>
       </DialogContent>

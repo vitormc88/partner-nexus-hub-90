@@ -1,160 +1,112 @@
-## Goal
+Before proceeding, please ensure that the Mark as Won flow is idempotent:
 
-Move from ad-hoc per-user permissions to a clean **Role Template + User Override** model, with a Settings page for HQ Admins to manage role defaults, and consistent enforcement across sidebar, routes, and actions.
+- if the same deal is already Won and already linked to a client, do not create another client, license, or renewal
 
----
+- if a license modal is reopened, do not duplicate draft licenses or renewals
 
-## 1. Database changes (single migration)
+- only create a renewal when a valid license is saved
 
-**New tables**
+- skipping license should create the client but not create a renewal  
+  
+Goal
 
-- `role_permission_templates` — one row per `(role app_role, module_key text)` with `access_level` (`no_access | view | edit | admin`). Editable by HQ Admin only. Seeded with the default matrix from section 7 of the request.
-- `user_module_permissions` gets a new column `is_override boolean default true` so we can distinguish overrides from inherited rows. Existing rows are backfilled to `is_override = true` only where they differ from the role template (others deleted, so the user falls back to the template).
+Connect the full Lead → Deal → Client → License → Renewal lifecycle in PartnerOS, so winning a deal automatically materializes operational records and the Renewals/Clients/Dashboard modules reflect reality.
 
-**New helper functions (SECURITY DEFINER, search_path=public)**
+## Scope summary
 
-- `get_effective_access(_user_id uuid, _module_key text) returns text` — returns override if present, else max access across the user's role templates, else `no_access`.
-- `can_access_module(_user_id, _module_key)`, `can_view`, `can_edit`, `can_admin` — booleans built on `get_effective_access`.
-- `apply_role_template_to_user(_user_id, _role)` — inserts inherited rows for a user (used by trigger on `user_roles` insert).
-- `sync_role_template_to_users(_role, _overwrite_overrides bool)` — used by "Apply to existing users".
+1. **Won Deal → Client**: Auto-create (or link) a client when a deal is moved to `Won`.
+2. **License creation modal**: Guided flow launched after Won, with Save & Create Renewal / Save Draft / Skip.
+3. **Auto Renewal**: Computed from license model + billing frequency.
+4. **Renewals module**: Wire to real `licenses` + new `renewals` data with proper aging + RLS.
+5. **Clients & Licenses list**: Show denormalized lifecycle columns.
+6. **Client Detail page**: 6 tabs (Overview, Licenses, Renewals, Contacts, Activity Timeline, Documents).
+7. **Dashboard**: Source from real entities consistently (Won deals = revenue; clients/renewals from tables).
+8. **Quick "Mark as Won"** action on Deal Detail with confirmation + license modal.
+9. **System activity logging** for all lifecycle events.
+10. **Non-destructive migrations** only.
 
-**Triggers**
+## Technical plan
 
-- On `user_roles` insert → call `apply_role_template_to_user`.
-- Validation trigger on `user_roles` ensuring role matches `profiles.is_hq` (HQ roles ↔ `is_hq=true`, partner roles ↔ `is_hq=false` with `partner_id` set). Block contradictions.
+### Database (additive migration)
 
-**RLS**
+New table `renewals`:
 
-- `role_permission_templates`: select for any authenticated; insert/update/delete only `hq_admin`.
-- `user_module_permissions`: keep existing; tighten select so a user can read their own + hq_admin reads all.
-
-**Backfill**
-
-- Seed default matrix per role.
-- For every existing user, compute effective rows from their current explicit permissions: keep as overrides only where they differ from the new template; everything else inherits.
-
----
-
-## 2. Frontend — new Settings → Roles & Permissions page
-
-Route: `/settings/roles` (HQ Admin only).
-Matrix UI: rows = roles (HQ Admin, HQ Standard, Partner Admin, Partner Sales, Partner Read Only; Partner Manager flagged "Deprecated"), columns = modules; each cell is a `Select` with the 4 levels.
-
-Actions per role:
-
-- **Save Role Template**
-- **Reset role to default** (re-applies hard-coded defaults)
-- **Apply to existing users** → confirmation dialog with two options: *future only* / *all existing users with this role* + checkbox "Also overwrite users with custom overrides".
-
-Add `partner_read_only` to the `app_role` enum (replacing the loose use of `partner_restricted`, which we keep as a deprecated alias).
-
----
-
-## 3. User Management improvements
-
-**Create User dialog**
-
-- Selecting a Role auto-derives Type (HQ vs Partner). Type field becomes read-only / hidden.
-- Show a live "Role permissions preview" — small table of module → level pulled from `role_permission_templates`.
-- Block invalid combinations (Partner role with no linked partner, etc.).
-
-**Edit User → Permissions tab**
-
-- Show inherited level next to override level for each module.
-- Top banner: "Using role template" (green) or "Custom permissions override active" (amber, with override count).
-- Buttons: **Reset to role template** (clears all overrides) and **Save custom permissions**.
-- Cells differing from template are visually marked.
-
-**List view**
-
-- Add filters: role, partner, status, type.
-
----
-
-## 4. Permission enforcement (consistent helpers)
-
-New `src/lib/permissions.ts` exporting:
-
-```
-canAccessModule(perms, moduleKey)
-canView(perms, moduleKey)
-canEdit(perms, moduleKey)
-canAdmin(perms, moduleKey)
+```text
+renewals
+- id uuid pk
+- client_id uuid (fk clients)
+- license_id uuid (fk licenses, nullable)
+- partner_id text (denormalized from client for RLS perf)
+- renewal_type text  -- 'License' | 'SaaS' | 'Support' | 'Maintenance'
+- renewal_date date
+- estimated_value numeric
+- currency text default 'EUR'
+- status text  -- 'Active' | 'Due Soon' | 'Overdue' | 'Won' | 'Lost'
+- billing_frequency text  -- 'Annual' | 'Monthly' | 'One-time'
+- notes text
+- created_at, updated_at
 ```
 
-Backed by a new `useEffectivePermissions()` hook that returns the merged (template + overrides) view for the current user, fetched via a single RPC `get_my_effective_permissions()`.
+RLS policies mirror `clients` (HQ full; partner users scoped via `can_view_partner` / `get_user_partner_id`).
 
-**Where they're used**
+Add columns:
 
-- `AppSidebar` — filter nav items.
-- `ProtectedRoute` — already route-gated; switch to effective perms and add a clean "Access denied" screen for direct URL hits.
-- Action buttons (Create / Edit / Delete) across Pipeline, Clients, Renewals, Deal Registrations, Commissions, Onboarding, Certifications, Knowledge Base, User Management — wrapped with `canEdit` / `canAdmin`.
+- `clients.source_deal_id uuid nullable` — provenance link.
+- `licenses.billing_frequency text nullable`, `licenses.contract_value numeric nullable`, `licenses.notes text nullable`, `licenses.is_draft boolean default false`.
+- `deals.client_id uuid nullable` — link won deal to created/matched client.
 
-Multi-tenant data visibility is already enforced by RLS via `partner_id` + `can_view_partner`; no data-layer changes required, but we audit the listed modules to confirm partner scoping is on.
+No data wipe; all columns nullable / defaulted.
 
----
+### Helpers
 
-## 5. Backward compatibility
+- `src/lib/lifecycle.ts`:
+  - `findOrCreateClientFromDeal(deal)` — duplicate check on `lower(company_name) + partner_id`.
+  - `createLicenseAndRenewal(payload)` — inserts license, computes renewal date, inserts renewal, logs activities.
+  - `computeRenewalDate(startDate, model, frequency)`.
+  - `computeRenewalStatus(renewalDate)` for aging buckets.
 
-- `partner_manager` and `partner_restricted` enum values remain. UI labels them "Deprecated" and maps them to `partner_admin` / `partner_read_only` defaults.
-- Existing per-user permission rows are preserved (kept as overrides where meaningful).
-- Existing auth, invite, and reset-password flows untouched.
+### UI
 
----
+- `src/components/deals/MarkAsWonButton.tsx` — confirmation dialog, triggers client creation + opens license modal.
+- `src/components/deals/CreateLicenseDialog.tsx` — fields per spec; 3 buttons.
+- `src/pages/DealDetail.tsx` — add "Mark as Won" quick action; if stage changes to Won via edit, also fire flow.
+- `src/pages/ClientDetail.tsx` — already exists; expand to 6 tabs: Overview / Licenses / Renewals / Contacts / Activity Timeline / Documents. Add "Missing license configuration" warning badge.
+- `src/pages/ClientsLicenses.tsx` — extend columns: license type, model, renewal date, contract value.
+- `src/pages/Renewals.tsx` — replace mock with `useRenewals` (new hook reading new table).
+- `src/pages/Dashboard.tsx` — keep Won-deals-as-revenue rule (per Core memory), point renewal cards at new `renewals` table.
 
-## 6. Out of scope / risks
+### Hooks
 
-- Does **not** rewrite every module's create/edit buttons in this pass — we wire the helpers and update high-traffic ones (Pipeline, Clients, Users, Settings). Remaining modules can be migrated incrementally; `ProtectedRoute` still blocks no-access users.
-- RLS on data tables already exists per partner; we are not rewriting those policies.
-- "Limited User Management for Partner Admin under same partner" → set to **No Access** by default for safety (called out in request as acceptable fallback).
+- `src/hooks/useRenewals.ts` (new, replaces the old deal-derived stub used in Dashboard).
+- `src/hooks/useClientLifecycle.ts` — wraps the lifecycle helpers as mutations with toasts + cache invalidation.
+- Extend `useClients`/`useClientLicenses` to expose new fields.
 
----
+### Activity logging
 
-## Deliverables summary
+Reuse `logSystemActivity(dealId, ...)` and add a sibling `logClientActivity(clientId, ...)` that writes to `client_notes` with `note_type = 'system'` (existing table — non-destructive). All lifecycle events log on both deal and client where applicable.
 
-- 1 migration: `role_permission_templates` table + enum addition + triggers + helper SQL functions + backfill.
-- New page: `src/pages/RolesPermissions.tsx` (mounted under `/settings/roles`).
-- New hook: `src/hooks/useRoleTemplates.ts`, `src/hooks/useEffectivePermissions.ts`.
-- New lib: `src/lib/permissions.ts`.
-- Updated: `UserCreateDialog`, `UserEditDialog`, `UserManagement` page, `AppSidebar`, `ProtectedRoute`, `Settings` index.
+### Notifications
 
-I'll wait for your approval before running the migration and writing the code.  
-Additional safety requirements before approval:
+On renewal creation, insert a `notifications` row scoped to partner (uses existing RLS).
 
-1. Do not delete existing user_module_permissions rows during the first migration.
+### Non-goals (this pass)
 
-Instead, preserve them safely and mark template-matching rows as non-overrides or inactive if needed.
+- No destructive backfill of existing Won deals (a one-shot "Generate missing clients" admin action can come later).
+- Documents tab on Client Detail surfaces the existing `documents` table filtered by partner; no new uploads UI in this pass.
+- Won via pipeline drag-drop is not added; only the quick action + edit flow.
 
-Only remove redundant rows after manual validation.
+## Out-of-scope confirmations
 
-2. Before running the migration, create a backup/export of:
+- Total Revenue stays sourced from Won deals (per existing Core rule "Total Revenue & Pipeline Value come strictly from deals").
+- Active Clients count switches to real `clients` table (already the case).
 
-- profiles
+## Testing checklist
 
-- user_roles
+- Move a deal to Won → client created, license modal opens.
+- Save & Create Renewal → renewal appears in Renewals page + Dashboard "Due Soon" buckets.
+- Skip license → client shows "Missing license configuration" badge.
+- Re-winning a deal whose company already exists for that partner → toast "Existing client found — linked to current deal.", no duplicate.
+- Partner user sees only own client/renewals; HQ sees all.
+- Activity Timeline on Deal and Client both show the lifecycle entries.
 
-- user_module_permissions
-
-- partners
-
-- role-related tables
-
-3. Add a migration rollback strategy or at least document how to revert the permission model if something breaks.
-
-4. During this first implementation, prioritize safe preservation of existing permissions over database cleanliness.
-
-5. After implementation, provide a test checklist to validate:
-
-- existing users can still log in
-
-- HQ Admin still has full access
-
-- partner users only see their partner data
-
-- sidebar hides modules with No Access
-
-- direct URL access is blocked
-
-- user-level overrides work
-
-- reset to role template works
+Approve to proceed.

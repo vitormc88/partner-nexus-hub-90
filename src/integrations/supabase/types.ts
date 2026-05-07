@@ -519,6 +519,7 @@ export type Database = {
           product_type: string | null
           sector: string | null
           short_name: string | null
+          source_deal_id: string | null
           state_region: string | null
           status: string
           updated_at: string
@@ -555,6 +556,7 @@ export type Database = {
           product_type?: string | null
           sector?: string | null
           short_name?: string | null
+          source_deal_id?: string | null
           state_region?: string | null
           status?: string
           updated_at?: string
@@ -591,6 +593,7 @@ export type Database = {
           product_type?: string | null
           sector?: string | null
           short_name?: string | null
+          source_deal_id?: string | null
           state_region?: string | null
           status?: string
           updated_at?: string
@@ -931,6 +934,7 @@ export type Database = {
           aging_days: number | null
           asset_range: string | null
           assigned_salesperson: string | null
+          client_id: string | null
           company_name: string
           contact_email: string | null
           contact_person_name: string | null
@@ -963,6 +967,7 @@ export type Database = {
           aging_days?: number | null
           asset_range?: string | null
           assigned_salesperson?: string | null
+          client_id?: string | null
           company_name: string
           contact_email?: string | null
           contact_person_name?: string | null
@@ -995,6 +1000,7 @@ export type Database = {
           aging_days?: number | null
           asset_range?: string | null
           assigned_salesperson?: string | null
+          client_id?: string | null
           company_name?: string
           contact_email?: string | null
           contact_person_name?: string | null
@@ -1422,14 +1428,19 @@ export type Database = {
           api_access: boolean
           backoffice_employee_users: number | null
           backoffice_users: number | null
+          billing_frequency: string | null
           client_id: string
+          contract_value: number | null
           created_at: string
           database_type: string | null
           id: string
+          is_draft: boolean
           license_end_date: string | null
           license_model: string | null
           license_start_date: string | null
           mobile_users: number | null
+          notes: string | null
+          num_users: number | null
           periodicity: string | null
           product: string | null
           sat_active: boolean
@@ -1442,14 +1453,19 @@ export type Database = {
           api_access?: boolean
           backoffice_employee_users?: number | null
           backoffice_users?: number | null
+          billing_frequency?: string | null
           client_id: string
+          contract_value?: number | null
           created_at?: string
           database_type?: string | null
           id?: string
+          is_draft?: boolean
           license_end_date?: string | null
           license_model?: string | null
           license_start_date?: string | null
           mobile_users?: number | null
+          notes?: string | null
+          num_users?: number | null
           periodicity?: string | null
           product?: string | null
           sat_active?: boolean
@@ -1462,14 +1478,19 @@ export type Database = {
           api_access?: boolean
           backoffice_employee_users?: number | null
           backoffice_users?: number | null
+          billing_frequency?: string | null
           client_id?: string
+          contract_value?: number | null
           created_at?: string
           database_type?: string | null
           id?: string
+          is_draft?: boolean
           license_end_date?: string | null
           license_model?: string | null
           license_start_date?: string | null
           mobile_users?: number | null
+          notes?: string | null
+          num_users?: number | null
           periodicity?: string | null
           product?: string | null
           sat_active?: boolean

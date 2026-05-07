@@ -53,8 +53,13 @@ export default function Pipeline() {
     const pName = partnerMap.get(d.partner_id || "") || "";
     const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
     const matchPartner = partnerFilter === "all" || pName === partnerFilter;
-    const matchHealth = healthFilter === "all" || healthMap?.get(d.id)?.health === healthFilter;
-    return matchSearch && matchPartner && matchHealth;
+    const h = healthMap?.get(d.id);
+    const matchHealth = healthFilter === "all" || h?.health === healthFilter;
+    const matchSignal =
+      signalFilter === "none" ||
+      (signalFilter === "no-followup" && !!h?.warnings.includes("No follow-up")) ||
+      (signalFilter === "overdue" && !!h?.hasOverdueTask);
+    return matchSearch && matchPartner && matchHealth && matchSignal;
   });
 
   const open = filtered.filter(d => d.status === "Open");

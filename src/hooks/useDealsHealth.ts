@@ -41,9 +41,16 @@ export function useDealsHealth(deals: Deal[]) {
           .order("created_at", { ascending: false }),
       ]);
 
+      // Track ANY last activity (incl system) AND last meaningful human comm separately.
+      // Human comms get priority — they are the real signal of relationship momentum.
       const lastActivity = new Map<string, string>();
+      const lastHumanActivity = new Map<string, string>();
       (activitiesRes.data || []).forEach((a: any) => {
-        if (!lastActivity.has(a.deal_id)) lastActivity.set(a.deal_id, a.created_at);
+        const at = a.activity_date || a.created_at;
+        if (!lastActivity.has(a.deal_id)) lastActivity.set(a.deal_id, at);
+        if (a.activity_type && a.activity_type !== "system" && !lastHumanActivity.has(a.deal_id)) {
+          lastHumanActivity.set(a.deal_id, at);
+        }
       });
 
       const nextFollowUp = new Map<string, string>();

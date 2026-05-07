@@ -514,9 +514,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       }
       const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", leadId);
+      // Log activity (best-effort, no stage change)
+      try {
+        const { logSystemActivity } = await import("@/lib/activity-log");
+        const verb = editingProposal?.id ? "updated" : "generated";
+        logSystemActivity(leadId, `Proposal ${verb}`, `Proposal ${verb} for ${clientName}.`);
+      } catch { /* noop */ }
       qc.invalidateQueries({ queryKey: ["proposals"] });
       qc.invalidateQueries({ queryKey: ["deal", leadId] });
       qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", leadId] });
       return prop as unknown as Proposal;
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");

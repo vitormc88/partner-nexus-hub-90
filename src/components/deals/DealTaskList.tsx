@@ -190,6 +190,16 @@ export function DealTaskList({
         </div>
       )}
 
+      {!isClosed && overdueCount > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-destructive/30 bg-destructive/5 text-xs">
+          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+          <span className="text-foreground font-medium">
+            {overdueCount} overdue {overdueCount === 1 ? "task" : "tasks"}
+          </span>
+          <span className="text-muted-foreground">— resolve before progressing this deal.</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Tasks ({tasks.length})</h3>
         {canEditPipeline && (
@@ -224,6 +234,12 @@ export function DealTaskList({
                     <Badge className={`text-[10px] px-1.5 py-0 ${statusStyle(task.status)}`}>{task.status}</Badge>
                     {!done && (
                       <Badge className={`text-[10px] px-1.5 py-0 ${priorityStyle(task.priority)}`}>{task.priority}</Badge>
+                    )}
+                    {!done && task.category && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{task.category}</Badge>
+                    )}
+                    {!done && isOverdue(task.due_date, false) && (
+                      <Badge className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/20">Overdue</Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">

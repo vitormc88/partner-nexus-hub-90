@@ -4,6 +4,7 @@ import { logSystemActivity } from "@/lib/activity-log";
 
 export const TASK_STATUSES = ["To Do", "In Progress", "Done"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High"] as const;
+export { TASK_CATEGORIES } from "@/lib/followup-defaults";
 
 export type DealTask = {
   id: string;
@@ -15,6 +16,7 @@ export type DealTask = {
   due_date: string | null;
   status: string;
   priority: string;
+  category: string | null;
   is_completed: boolean | null;
   created_by: string | null;
   created_at: string;

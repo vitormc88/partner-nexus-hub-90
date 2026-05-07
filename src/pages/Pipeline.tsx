@@ -39,6 +39,7 @@ export default function Pipeline() {
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState<string>("all");
+  const [signalFilter, setSignalFilter] = useState<"none" | "no-followup" | "overdue">("none");
   const [showCreate, setShowCreate] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();

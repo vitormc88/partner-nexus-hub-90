@@ -1,0 +1,133 @@
+import { useState } from "react";
+import { Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
+import { logSystemActivity } from "@/lib/activity-log";
+import { CreateLicenseDialog } from "./CreateLicenseDialog";
+import { getStageProbability } from "@/data/pipeline-stages";
+
+interface Props {
+  deal: any;
+}
+
+export function MarkAsWonButton({ deal }: Props) {
+  const qc = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [licenseOpen, setLicenseOpen] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+
+  const isWon = deal?.stage === "Won";
+
+  const runWonFlow = async () => {
+    setWorking(true);
+    try {
+      const wasAlreadyWon = isWon;
+
+      // 1. Update stage if not already Won (idempotent)
+      if (!wasAlreadyWon) {
+        const { error } = await supabase
+          .from("deals")
+          .update({
+            stage: "Won",
+            status: "Won",
+            probability: getStageProbability("Won"),
+            stage_entered_at: new Date().toISOString(),
+          })
+          .eq("id", deal.id);
+        if (error) throw error;
+        await logSystemActivity(deal.id, "Lead marked as Won", `Stage changed from ${deal.stage} to Won.`);
+      }
+
+      // 2. Find or create client
+      const { client, created } = await findOrCreateClientFromDeal(deal);
+      setClientId(client.id);
+
+      if (!created) {
+        toast.message("Existing client found — linked to current deal.", { description: client.commercial_name });
+      } else {
+        toast.success(`Client ${client.client_code} created`);
+      }
+
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["deal", deal.id] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", deal.id] });
+
+      // 3. Open license modal (only if no license exists yet for this client)
+      const { count } = await supabase
+        .from("licenses")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", client.id);
+      if ((count ?? 0) === 0) {
+        setLicenseOpen(true);
+      } else {
+        toast.message("Client already has a license — skipping license setup.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to mark as Won");
+    } finally {
+      setWorking(false);
+      setConfirmOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant={isWon ? "outline" : "default"}
+        onClick={() => setConfirmOpen(true)}
+        disabled={working}
+        className={isWon ? "" : "bg-success text-success-foreground hover:bg-success/90"}
+      >
+        <Trophy className="h-3.5 w-3.5 mr-1.5" />
+        {isWon ? "Set Up License" : "Mark as Won"}
+      </Button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isWon ? "Set up license for this won deal?" : "Mark this deal as Won?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isWon
+                ? "We'll open the license setup flow for the linked client."
+                : "This will move the deal to Won, create (or link) a client record, and let you set up the initial license and renewal."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={working}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={working} onClick={(e) => { e.preventDefault(); runWonFlow(); }}>
+              {isWon ? "Continue" : "Yes, mark as Won"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {clientId && (
+        <CreateLicenseDialog
+          open={licenseOpen}
+          onOpenChange={setLicenseOpen}
+          clientId={clientId}
+          dealId={deal.id}
+          onSkip={() => {
+            toast.message("License setup skipped — client will show 'Missing license configuration'.");
+          }}
+        />
+      )}
+    </>
+  );
+}

@@ -517,17 +517,20 @@ export default function ClientDetail() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       {/* Header */}
-      <div className="animate-reveal-up flex items-start justify-between gap-4">
+      <div className="animate-reveal-up flex items-start justify-between gap-4 pb-4 border-b border-border/40">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-0.5"><ArrowLeft className="h-4 w-4" /></Button>
-          <div>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-1"><ArrowLeft className="h-4 w-4" /></Button>
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-foreground tracking-tight">{client.commercial_name}</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">{client.commercial_name}</h1>
               {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
             </div>
-            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-              <span className="font-mono text-xs">{client.client_code}</span><span>•</span><span>{client.country || "—"}</span>
-              {client.sector && <><span>•</span><span>{client.sector}</span></>}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
+              <span className="font-mono">{client.client_code}</span>
+              <span className="opacity-50">·</span>
+              <span>{client.country || "—"}</span>
+              {client.sector && <><span className="opacity-50">·</span><span>{client.sector}</span></>}
+              {(client as any)?.partner?.name && <><span className="opacity-50">·</span><span>{(client as any).partner.name}</span></>}
             </div>
           </div>
         </div>

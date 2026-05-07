@@ -191,6 +191,11 @@ export async function createLicenseAndRenewal(
     payload.renewal_date ||
     computeRenewalDate(payload.contract_start_date, payload.license_model, payload.billing_frequency);
 
+  const recurringValue =
+    payload.recurring_contract_value ?? payload.contract_value ?? null;
+  const initialValue =
+    payload.initial_contract_value ?? payload.contract_value ?? null;
+
   const { data: license, error: licErr } = await supabase
     .from("licenses")
     .insert({
@@ -201,10 +206,13 @@ export async function createLicenseAndRenewal(
       license_end_date: renewalDate,
       periodicity: payload.billing_frequency,
       billing_frequency: payload.billing_frequency,
-      contract_value: payload.contract_value ?? null,
+      contract_value: initialValue,
+      initial_contract_value: initialValue,
+      recurring_contract_value: recurringValue,
       num_users: payload.num_users ?? null,
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
+      source_proposal_id: payload.source_proposal_id ?? null,
     } as any)
     .select()
     .single();
@@ -212,7 +220,6 @@ export async function createLicenseAndRenewal(
 
   let renewal: any = null;
   if (opts.createRenewal && renewalDate) {
-    // get partner_id from client
     const { data: client } = await supabase
       .from("clients")
       .select("partner_id")
@@ -230,10 +237,12 @@ export async function createLicenseAndRenewal(
         partner_id: (client as any)?.partner_id || null,
         renewal_type: renewalType,
         renewal_date: renewalDate,
-        estimated_value: payload.contract_value ?? 0,
+        // ARR / renewals always use recurring values only
+        estimated_value: recurringValue ?? 0,
         billing_frequency: payload.billing_frequency,
         status: computeRenewalStatus(renewalDate),
         notes: payload.notes ?? null,
+        source_proposal_id: payload.source_proposal_id ?? null,
       } as any)
       .select()
       .single();
@@ -244,8 +253,10 @@ export async function createLicenseAndRenewal(
   if (opts.dealId) {
     await logSystemActivity(
       opts.dealId,
-      "License created",
-      `License "${payload.license_type}" (${payload.license_model}) created${renewal ? " with renewal scheduled for " + renewalDate : ""}.`
+      "License operationalized",
+      `License "${payload.license_type}" (${payload.license_model}) operationalized${
+        payload.source_proposal_id ? " from approved proposal" : ""
+      }${renewal ? ` — renewal scheduled for ${renewalDate} at ${recurringValue ?? 0}€/yr recurring` : ""}.`
     );
   }
 

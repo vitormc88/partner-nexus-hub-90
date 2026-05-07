@@ -144,15 +144,25 @@ export default function Pipeline() {
       {/* Operational intelligence */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "90ms" }}>
         {intelKpis.map(kpi => {
-          const isActive = kpi.filter && healthFilter === kpi.filter;
+          const isActive =
+            (kpi.kind === "health" && healthFilter === kpi.key) ||
+            (kpi.kind === "signal" && signalFilter === kpi.key);
+          const onClick = () => {
+            if (kpi.kind === "health") {
+              setHealthFilter(isActive ? "all" : kpi.key);
+              setSignalFilter("none");
+            } else {
+              setSignalFilter(isActive ? "none" : (kpi.key as "no-followup" | "overdue"));
+              setHealthFilter("all");
+            }
+          };
           return (
             <button
               key={kpi.label}
               type="button"
-              onClick={() => kpi.filter && setHealthFilter(isActive ? "all" : kpi.filter!)}
+              onClick={onClick}
               className={cn(
-                "bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 text-left transition-colors",
-                kpi.filter && "hover:bg-secondary/40",
+                "bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 text-left transition-colors hover:bg-secondary/40",
                 isActive && "ring-2 ring-primary/40 border-primary/40"
               )}
             >

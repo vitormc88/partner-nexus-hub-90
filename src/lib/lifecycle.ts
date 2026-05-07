@@ -85,40 +85,109 @@ export interface ProposalDefaults {
   num_users: number | null;
   notes: string;
   source_proposal_id: string;
+  /** Operational defaults (Business-aware). */
+  included_backoffice: number;
+  additional_backoffice: number;
+  included_web: number;
+  additional_web: number;
+  api_enabled: boolean;
+  modules: string[];
+  /** True when proposal compares KeepIT vs UseIT and the caller must explicitly choose. */
+  requires_award_choice: boolean;
 }
 
-/** Inherit operational license defaults from an approved proposal — mirrors Proposal Generator structure. */
-export function proposalToLicenseDefaults(proposal: any): ProposalDefaults {
+/**
+ * Inherit operational license defaults from an approved proposal — mirrors Proposal Generator.
+ * For Business "Compare KeepIT vs UseIT" proposals, the caller MUST pass the awarded option;
+ * otherwise the function returns `requires_award_choice = true` and zeroed commercial values.
+ */
+export function proposalToLicenseDefaults(
+  proposal: any,
+  awarded?: BusinessProposalMode,
+  pricingRules?: PricingRule[],
+): ProposalDefaults {
   const family: ProductFamily =
     (proposal?.product_family as ProductFamily) || "Professional";
 
-  // Professional → SaaS only, never UseIT/KeepIT
-  // Business     → proposal_mode (UseIT/KeepIT) + hosting (SaaS/On-Premise)
   let proposal_mode: BusinessProposalMode | null = null;
   let hosting: Hosting = "SaaS";
   let license_type = "";
   let license_model: LicenseModel = "SaaS";
+  let included_backoffice = 0;
+  let additional_backoffice = 0;
+  let included_web = 0;
+  let additional_web = 0;
+  let api_enabled = false;
+  let modules: string[] = [];
+  let requires_award_choice = false;
+  let initial_contract_value = Number(proposal?.total_year_1 || 0);
+  let recurring_contract_value = Number(proposal?.total_recurring || 0);
 
   if (family === "Business") {
-    proposal_mode = proposal?.license_model === "keepit" ? "KeepIT" : "UseIT";
-    // Business hosting may come from `deployment` (saas/on_premise) or `hosting`
-    const dep = (proposal?.deployment || "").toString().toLowerCase();
+    const cfg = (proposal?.business_config || {}) as Partial<BusinessConfig>;
+    const dep = (proposal?.deployment || cfg?.deployment || "").toString().toLowerCase();
     const host = (proposal?.hosting || "").toString().toLowerCase();
     hosting =
       dep === "on_premise" || host === "on-premise" || host === "on_premise"
         ? "On-Premise"
         : "SaaS";
-    license_type = `Business ${proposal_mode}`;
-    license_model = proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+
+    const isCompare = proposal?.proposal_mode === "compare_keepit_useit";
+    if (isCompare && !awarded) {
+      requires_award_choice = true;
+      proposal_mode = null;
+      license_type = "Business";
+      license_model = "SaaS";
+      initial_contract_value = 0;
+      recurring_contract_value = 0;
+    } else {
+      proposal_mode =
+        awarded ||
+        (proposal?.license_model === "keepit" ? "KeepIT" : "UseIT");
+      license_type = `Business ${proposal_mode}`;
+      license_model = proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+
+      // Recompute totals for the awarded option from business_config when in compare mode
+      if (isCompare && pricingRules && cfg && Object.keys(cfg).length > 0) {
+        const fullCfg: BusinessConfig = { ...DEFAULT_BUSINESS_CONFIG, ...cfg } as BusinessConfig;
+        const opt = computeBusinessOption(
+          pricingRules,
+          fullCfg,
+          (proposal_mode === "KeepIT" ? "keepit" : "useit") as ProposalLicenseModel,
+        );
+        if (opt) {
+          initial_contract_value = opt.totalYear1;
+          recurring_contract_value = opt.totalYear2Plus;
+        }
+      }
+    }
+
+    included_backoffice = BUSINESS_INCLUDED_BACKOFFICE;
+    included_web = BUSINESS_INCLUDED_WEB;
+    additional_backoffice = Math.max(0, Number(cfg?.additionalBackoffice || 0));
+    additional_web = Math.max(0, Number(cfg?.additionalWebUsers || 0));
+    api_enabled = !!cfg?.api;
+    modules = modulesFromBusinessConfig(cfg);
   } else if (family === "Professional") {
     hosting = "SaaS";
-    license_type = `Professional ${proposal?.plan ?? 1}`;
+    const plan = Number(proposal?.plan ?? 1);
+    license_type = `Professional ${plan}`;
     license_model = "SaaS";
+    included_backoffice = 1;
+    included_web = Number(proposal?.web_users || 0) || 1;
+    api_enabled = plan === 3;
+    modules = plan >= 3
+      ? ["Maintenance Module", "Stock Management", "Purchase Orders", "Workflow", "SLA", "Advanced Reports", "Import Tool", "API"]
+      : plan === 2
+      ? ["Maintenance Module", "Stock Management", "Purchase Orders"]
+      : ["Maintenance Module"];
   } else {
-    // START / Express
     hosting = "SaaS";
     license_type = family;
     license_model = "SaaS";
+    included_backoffice = 1;
+    included_web = 1;
+    modules = ["Maintenance Module"];
   }
 
   return {
@@ -129,11 +198,18 @@ export function proposalToLicenseDefaults(proposal: any): ProposalDefaults {
     license_type,
     license_model,
     billing_frequency: "Annual",
-    initial_contract_value: Number(proposal?.total_year_1 || 0),
-    recurring_contract_value: Number(proposal?.total_recurring || 0),
-    num_users: Number(proposal?.web_users || 0) || null,
-    notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}.`,
+    initial_contract_value,
+    recurring_contract_value,
+    num_users: (included_web + additional_web) || null,
+    notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}${requires_award_choice ? " (awaiting awarded option selection)" : ""}.`,
     source_proposal_id: proposal?.id,
+    included_backoffice,
+    additional_backoffice,
+    included_web,
+    additional_web,
+    api_enabled,
+    modules,
+    requires_award_choice,
   };
 }
 

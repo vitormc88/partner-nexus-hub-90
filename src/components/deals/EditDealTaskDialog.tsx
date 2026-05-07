@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
-import { useUpdateDealTask, useDeleteDealTask, TASK_STATUSES, TASK_PRIORITIES, DealTask } from "@/hooks/useDealTasksCRUD";
+import { useUpdateDealTask, useDeleteDealTask, TASK_STATUSES, TASK_PRIORITIES, TASK_CATEGORIES, DealTask } from "@/hooks/useDealTasksCRUD";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ export function EditDealTaskDialog({ open, onOpenChange, task, dealCompanyName, 
   const [dueDate, setDueDate] = useState(task.due_date || "");
   const [status, setStatus] = useState(task.status);
   const [priority, setPriority] = useState(task.priority);
+  const [category, setCategory] = useState((task as any).category || "Follow-up");
 
   useEffect(() => {
     if (open) {
@@ -40,6 +41,7 @@ export function EditDealTaskDialog({ open, onOpenChange, task, dealCompanyName, 
       setDueDate(task.due_date || "");
       setStatus(task.status);
       setPriority(task.priority);
+      setCategory((task as any).category || "Follow-up");
     }
   }, [open, task]);
 
@@ -58,6 +60,7 @@ export function EditDealTaskDialog({ open, onOpenChange, task, dealCompanyName, 
         due_date: dueDate || null,
         status,
         priority,
+        category,
         completed_at: status === "Done" ? (task.completed_at || new Date().toISOString()) : null,
       },
       {
@@ -115,6 +118,17 @@ export function EditDealTaskDialog({ open, onOpenChange, task, dealCompanyName, 
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div>
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TASK_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Assigned To</Label>

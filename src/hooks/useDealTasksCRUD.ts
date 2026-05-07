@@ -4,6 +4,7 @@ import { logSystemActivity } from "@/lib/activity-log";
 
 export const TASK_STATUSES = ["To Do", "In Progress", "Done"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High"] as const;
+export { TASK_CATEGORIES } from "@/lib/followup-defaults";
 
 export type DealTask = {
   id: string;
@@ -15,6 +16,7 @@ export type DealTask = {
   due_date: string | null;
   status: string;
   priority: string;
+  category: string | null;
   is_completed: boolean | null;
   created_by: string | null;
   created_at: string;
@@ -48,6 +50,7 @@ export function useDealTasksEnhanced(dealId: string | undefined) {
         ...t,
         status: (t as any).status || (t.is_completed ? "Done" : "To Do"),
         priority: (t as any).priority || "Medium",
+        category: (t as any).category || null,
         assigned_user_id: (t as any).assigned_user_id || null,
         assigned_user: (t as any).assigned_user_id ? userMap.get((t as any).assigned_user_id) || null : null,
       })) as DealTask[];
@@ -66,6 +69,7 @@ export function useCreateDealTask() {
       due_date?: string | null;
       status?: string;
       priority?: string;
+      category?: string | null;
       created_by?: string;
       assigned_user_name?: string | null;
     }) => {
@@ -79,6 +83,7 @@ export function useCreateDealTask() {
           due_date: task.due_date || null,
           status: task.status || "To Do",
           priority: task.priority || "Medium",
+          category: task.category || null,
           created_by: task.created_by || null,
         } as any)
         .select("*")
@@ -97,6 +102,8 @@ export function useCreateDealTask() {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }
@@ -111,6 +118,7 @@ export function useUpdateDealTask() {
       priority?: string;
       title?: string;
       description?: string;
+      category?: string | null;
       assigned_user_id?: string | null;
       due_date?: string | null;
       completed_at?: string | null;
@@ -161,6 +169,8 @@ export function useUpdateDealTask() {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }
@@ -176,6 +186,8 @@ export function useDeleteDealTask() {
     onSuccess: (dealId) => {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", dealId] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", dealId] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", dealId] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }

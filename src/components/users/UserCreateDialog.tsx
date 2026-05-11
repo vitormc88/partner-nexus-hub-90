@@ -30,6 +30,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
   const [manualMode, setManualMode] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const qc = useQueryClient();
 
   const { data: partners } = useQuery({

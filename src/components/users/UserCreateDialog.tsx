@@ -56,6 +56,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
   const handleCreate = async () => {
     if (!fullName.trim()) { toast.error("Full name is required"); return; }
     if (!email.trim()) { toast.error("Email is required"); return; }
+    if (!isEmailValid(email)) { setEmailTouched(true); toast.error("Please enter a valid email address"); return; }
     if (isPartnerRole && partnerId === "none") { toast.error("Partner is required for partner users"); return; }
 
     if (manualMode) {

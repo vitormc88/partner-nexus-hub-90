@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
 import { LogOut, UserCog } from "lucide-react";

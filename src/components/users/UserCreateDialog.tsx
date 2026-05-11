@@ -51,6 +51,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
     setManualMode(false);
     setPassword("");
     setConfirmPassword("");
+    setEmailTouched(false);
   };
 
   const handleCreate = async () => {

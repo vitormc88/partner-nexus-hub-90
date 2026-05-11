@@ -22,6 +22,8 @@ export interface UserProfile {
   is_active: boolean | null;
   last_login_at: string | null;
   invitation_status: string | null;
+  invitation_sent_at?: string | null;
+  invitation_accepted_at?: string | null;
   created_at: string | null;
   roles: string[];
   partner_name?: string;

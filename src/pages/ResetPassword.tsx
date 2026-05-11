@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getAuthFlowState } from "@/lib/auth-flow";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -13,12 +14,10 @@ export default function ResetPassword() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
+    const flow = getAuthFlowState();
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const search = new URLSearchParams(window.location.search);
-    const type = hashParams.get("type") || search.get("type");
     const errorCode = hashParams.get("error_code") || search.get("error_code");
-    const accessToken = hashParams.get("access_token");
 
     if (errorCode) {
       setTokenValid(false);
@@ -26,7 +25,7 @@ export default function ResetPassword() {
       return;
     }
 
-    if (type === "invite" || type === "signup") setIsInvite(true);
+    setIsInvite(flow.isInviteFlow);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       // Supabase auto-establishes a recovery session from the URL hash. We
@@ -39,7 +38,7 @@ export default function ResetPassword() {
       }
     });
 
-    if (accessToken) {
+    if (flow.shouldForcePasswordSetup) {
       setTokenValid(true);
       setChecking(false);
     }

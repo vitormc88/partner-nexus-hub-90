@@ -90,6 +90,17 @@ Deno.serve(async (req) => {
     if (!email || !fullName || !role) return Response.json({ error: "Full name, email, and role are required" }, { status: 400, headers: corsHeaders });
     if (!isHq && !partnerId) return Response.json({ error: "Partner is required for partner users" }, { status: 400, headers: corsHeaders });
 
+    // Pre-check: does an auth user with this email already exist?
+    const { data: existingList } = await adminClient.auth.admin.listUsers();
+    const existingAuthUser = existingList?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+    if (existingAuthUser) {
+      return Response.json({
+        error: "A user with this email already exists",
+        code: "user_already_exists",
+        userId: existingAuthUser.id,
+      }, { status: 409, headers: corsHeaders });
+    }
+
     let userId: string;
     const now = new Date().toISOString();
 

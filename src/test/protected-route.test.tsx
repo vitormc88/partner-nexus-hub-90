@@ -14,11 +14,23 @@ vi.mock("@/hooks/useUsers", () => ({
   useMyPermissions: () => mockUseMyPermissions(),
 }));
 
+vi.mock("@/lib/auth-flow", () => ({
+  getAuthFlowState: vi.fn(() => ({
+    hasTokens: false,
+    isInviteFlow: false,
+    isRecoveryFlow: false,
+    shouldForcePasswordSetup: false,
+  })),
+  getResetPasswordTarget: vi.fn(() => "/reset-password"),
+}));
+
 describe("ProtectedRoute", () => {
   beforeEach(() => {
     mockUseAuth.mockReturnValue({
       session: { user: { id: "user-1" } },
       isLoading: false,
+      isAuthReady: true,
+      isInviteOrRecoveryFlow: false,
       isAdmin: false,
       profile: { is_hq: false },
     });
@@ -105,5 +117,28 @@ describe("ProtectedRoute", () => {
 
     expect(await screen.findByText("Dashboard content")).toBeInTheDocument();
     expect(screen.queryByText("Analytics content")).not.toBeInTheDocument();
+  });
+
+  it("forces invite or recovery sessions to reset-password before app access", async () => {
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "user-1" } },
+      isLoading: false,
+      isAuthReady: true,
+      isInviteOrRecoveryFlow: true,
+      isAdmin: false,
+      profile: { is_hq: false },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<ProtectedRoute><div>Dashboard content</div></ProtectedRoute>} />
+          <Route path="/reset-password" element={<div>Reset Password</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Reset Password")).toBeInTheDocument();
+    expect(screen.queryByText("Dashboard content")).not.toBeInTheDocument();
   });
 });

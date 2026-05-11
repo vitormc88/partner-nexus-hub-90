@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
 import { getFirstAllowedModule, getRouteModule, hasModuleAccess } from "@/lib/module-access";
+import { getAuthFlowState, getResetPasswordTarget } from "@/lib/auth-flow";
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -19,7 +20,7 @@ const AccessDenied = ({ message }: { message: string }) => (
 );
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, isLoading, isAdmin, profile } = useAuth();
+  const { session, isLoading, isAuthReady, isInviteOrRecoveryFlow, isAdmin, profile } = useAuth();
   const location = useLocation();
   const {
     data: myPerms,
@@ -28,8 +29,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isResolved: permsResolved,
   } = useMyPermissions();
   const isPartnerUser = profile?.is_hq === false;
+  const authFlow = getAuthFlowState();
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading || !isAuthReady) return <LoadingSpinner />;
+
+  if ((isInviteOrRecoveryFlow || authFlow.shouldForcePasswordSetup) && location.pathname !== "/reset-password") {
+    return <Navigate to={getResetPasswordTarget()} replace />;
+  }
+
   if (!session) return <Navigate to="/auth" replace />;
 
   // Force invited users who haven't completed password setup back to /reset-password.

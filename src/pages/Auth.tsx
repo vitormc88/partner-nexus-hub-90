@@ -4,23 +4,29 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { getAppUrl, getAppRedirectUrl } from "@/lib/app-url";
+import { getAuthFlowState, getResetPasswordTarget } from "@/lib/auth-flow";
 
 type AuthView = "login" | "signup" | "forgot";
 
 export default function Auth() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isAuthReady, isInviteOrRecoveryFlow } = useAuth();
   const [view, setView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (isLoading) {
+  if (isLoading || !isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  const authFlow = getAuthFlowState();
+  if (isInviteOrRecoveryFlow || authFlow.shouldForcePasswordSetup) {
+    return <Navigate to={getResetPasswordTarget()} replace />;
   }
 
   if (session) return <Navigate to="/" replace />;

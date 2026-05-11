@@ -9,7 +9,7 @@
  * production URL so emails sent during development still link users to the
  * real app.
  */
-const PRODUCTION_URL = "https://partner-nexus-hub-90.lovable.app";
+const PRODUCTION_URL = "https://partneros-manwinwin.lovable.app";
 
 function isPreviewOrEditorHost(origin: string): boolean {
   if (!origin) return true;

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
+import { getAuthFlowState } from "@/lib/auth-flow";
 
 interface Profile {
   id: string;
@@ -20,6 +21,8 @@ interface AuthContextType {
   profile: Profile | null;
   roles: string[];
   isLoading: boolean;
+  isAuthReady: boolean;
+  isInviteOrRecoveryFlow: boolean;
   isHQ: boolean;
   isAdmin: boolean;
   signOut: () => Promise<void>;
@@ -32,6 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   roles: [],
   isLoading: true,
+  isAuthReady: false,
+  isInviteOrRecoveryFlow: false,
   isHQ: false,
   isAdmin: false,
   signOut: async () => {},
@@ -44,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isInviteOrRecoveryFlow, setIsInviteOrRecoveryFlow] = useState(false);
   const queryClient = useQueryClient();
 
   const fetchProfile = async (userId: string) => {
@@ -70,8 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    const syncAuthFlow = () => {
+      const flow = getAuthFlowState();
+      setIsInviteOrRecoveryFlow(flow.shouldForcePasswordSetup);
+      return flow;
+    };
+
+    syncAuthFlow();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        const flow = syncAuthFlow();
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -87,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // profile is still marked "pending", flip it to "active". This
             // covers the manual-creation bug where the profile timestamp
             // wasn't stamped at create time.
-            if (event === "SIGNED_IN" && !window.location.pathname.startsWith("/reset-password")) {
+            if (event === "SIGNED_IN" && !flow.shouldForcePasswordSetup && !window.location.pathname.startsWith("/reset-password")) {
               const { data: p } = await supabase
                 .from("profiles")
                 .select("invitation_status")
@@ -106,29 +122,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             setIsLoading(false);
+            setIsAuthReady(true);
           }, 0);
         } else {
           setProfile(null);
           setRoles([]);
           setIsLoading(false);
+          setIsAuthReady(true);
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      syncAuthFlow();
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         Promise.all([
           fetchProfile(session.user.id),
           fetchRoles(session.user.id),
-        ]).then(() => setIsLoading(false));
+        ]).then(() => {
+          setIsLoading(false);
+          setIsAuthReady(true);
+        });
       } else {
         setIsLoading(false);
+        setIsAuthReady(true);
       }
     });
 
-    return () => subscription.unsubscribe();
+    const handleUrlChange = () => {
+      syncAuthFlow();
+    };
+
+    window.addEventListener("hashchange", handleUrlChange);
+    window.addEventListener("popstate", handleUrlChange);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("hashchange", handleUrlChange);
+      window.removeEventListener("popstate", handleUrlChange);
+    };
   }, []);
 
   const isHQ = profile?.is_hq === true && roles.some(r => ["hq_admin", "hq_standard"].includes(r));
@@ -144,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, roles, isLoading, isHQ, isAdmin, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ session, user, profile, roles, isLoading, isAuthReady, isInviteOrRecoveryFlow, isHQ, isAdmin, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

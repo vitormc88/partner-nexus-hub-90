@@ -136,7 +136,20 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
             </div>
             <div>
               <Label>Email *</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@company.com" />
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="john@company.com"
+                aria-invalid={emailTouched && !isEmailValid(email)}
+                onBlur={() => setEmailTouched(true)}
+                className={emailTouched && !isEmailValid(email) ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {emailTouched && email.length > 0 && !isEmailValid(email) && (
+                <p className="mt-1 text-[11px] text-destructive">
+                  Invalid email format. Use the form name@example.com (international domains like .vn, .co.uk are supported).
+                </p>
+              )}
             </div>
           </div>
 

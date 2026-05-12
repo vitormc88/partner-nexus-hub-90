@@ -229,40 +229,67 @@ export type Database = {
       }
       announcements: {
         Row: {
+          archived_at: string | null
           audience_scope: string | null
           body: string | null
           category: string | null
           created_at: string | null
+          created_by: string | null
           id: string
           is_active: boolean | null
           partner_id: string | null
+          pinned: boolean
           published_at: string | null
           published_by: string | null
+          status: string
+          summary: string | null
+          target_audience: string
+          target_country: string | null
+          target_partnership_level: string | null
           title: string
+          updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           audience_scope?: string | null
           body?: string | null
           category?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           is_active?: boolean | null
           partner_id?: string | null
+          pinned?: boolean
           published_at?: string | null
           published_by?: string | null
+          status?: string
+          summary?: string | null
+          target_audience?: string
+          target_country?: string | null
+          target_partnership_level?: string | null
           title: string
+          updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           audience_scope?: string | null
           body?: string | null
           category?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           is_active?: boolean | null
           partner_id?: string | null
+          pinned?: boolean
           published_at?: string | null
           published_by?: string | null
+          status?: string
+          summary?: string | null
+          target_audience?: string
+          target_country?: string | null
+          target_partnership_level?: string | null
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {

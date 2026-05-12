@@ -71,7 +71,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />
               <Route path="/training" element={<ComingSoon />} />
-              <Route path="/community" element={<ComingSoon />} />
+              <Route path="/community" element={<Community />} />
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/settings" element={<Settings />}>
                 <Route path="general" element={<SettingsComingSoon title="General Settings" />} />

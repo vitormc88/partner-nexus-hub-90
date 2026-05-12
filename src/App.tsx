@@ -24,6 +24,7 @@ import Certifications from "@/pages/Certifications";
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
+import Announcements from "@/pages/Announcements";
 import ComingSoon from "@/pages/ComingSoon";
 import IncomingLeads from "@/pages/IncomingLeads";
 import LeadDetail from "@/pages/LeadDetail";

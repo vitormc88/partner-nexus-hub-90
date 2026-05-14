@@ -198,7 +198,7 @@ export default function Pipeline() {
         </select>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-4 animate-reveal-up" style={{ animationDelay: "180ms" }}>
+      <div className="flex gap-3 overflow-x-auto pb-4 pr-4 snap-x scroll-px-4 animate-reveal-up" style={{ animationDelay: "180ms" }}>
         {ACTIVE_STAGES.map(stage => {
           const stageDeals = filtered.filter(d => d.stage === stage.key);
           const stageValue = stageDeals.reduce((s, d) => s + (d.expected_value || 0), 0);

@@ -61,9 +61,11 @@ export default function Pipeline() {
     return matchSearch && matchPartner && matchHealth && matchSignal;
   });
 
-  const open = filtered.filter(d => d.status === "Open");
-  const won = filtered.filter(d => d.status === "Won");
-  const lost = filtered.filter(d => d.status === "Lost");
+  // Single source of truth: "open" = status Open AND stage is a rendered active Kanban stage.
+  // Anything else (legacy/unknown stages, Won, Lost) is excluded from open KPIs.
+  const open = filtered.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
+  const won = filtered.filter(d => d.status === "Won" && d.stage === "Won");
+  const lost = filtered.filter(d => d.status === "Lost" && d.stage === "Lost");
   const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
   const weightedPipeline = open
     .filter(d => (d.expected_value || 0) > 0)

@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
+import { MarkAsLostButton } from "@/components/deals/MarkAsLostButton";
+import { LossBanner } from "@/components/deals/LossBanner";
 import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
 import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
@@ -223,6 +225,7 @@ export default function DealDetail() {
         {!editing && (
           <div className="flex items-center gap-2">
             {deal.stage !== "Lost" && <MarkAsWonButton deal={deal} />}
+            {deal.stage !== "Won" && deal.stage !== "Lost" && <MarkAsLostButton deal={deal} />}
             <Button size="sm" onClick={() => setShowCreateProposal(true)}>
               <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
             </Button>
@@ -251,6 +254,7 @@ export default function DealDetail() {
 
 
       {deal.status === "Open" && <DealHealthBanner deal={deal} />}
+      {deal.stage === "Lost" && <LossBanner dealId={deal.id} />}
 
       <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <TabsList className="w-full justify-start bg-secondary/50 rounded-lg">

@@ -1753,6 +1753,74 @@ export type Database = {
           },
         ]
       }
+      opportunity_loss_details: {
+        Row: {
+          competitor_name: string | null
+          competitor_other: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          loss_category: string
+          lost_at: string
+          lost_by: string | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          competitor_name?: string | null
+          competitor_other?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          loss_category: string
+          lost_at?: string
+          lost_by?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          competitor_name?: string | null
+          competitor_other?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          loss_category?: string
+          lost_at?: string
+          lost_by?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      opportunity_loss_reasons: {
+        Row: {
+          created_at: string
+          id: string
+          loss_detail_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          loss_detail_id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loss_detail_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_loss_reasons_loss_detail_id_fkey"
+            columns: ["loss_detail_id"]
+            isOneToOne: false
+            referencedRelation: "opportunity_loss_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_badges: {
         Row: {
           awarded_at: string

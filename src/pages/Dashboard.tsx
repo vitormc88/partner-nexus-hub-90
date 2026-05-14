@@ -10,7 +10,7 @@ import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
-import { getStageProbability } from "@/data/pipeline-stages";
+import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
@@ -27,8 +27,9 @@ export default function Dashboard() {
   }, [clients]);
 
   // Revenue & Pipeline from deals (same logic as Pipeline module)
-  const wonDeals = deals.filter(d => d.status === "Won");
-  const openDeals = deals.filter(d => d.status === "Open");
+  // Same definitions as Pipeline page so KPIs match the visible Kanban
+  const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
+  const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
   const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
   const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
 

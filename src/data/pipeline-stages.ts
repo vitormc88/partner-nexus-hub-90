@@ -25,6 +25,19 @@ export const PIPELINE_STAGES: { key: DealStage; label: string; color: string; pr
 
 export const ACTIVE_STAGES = PIPELINE_STAGES.filter(s => s.key !== "Won" && s.key !== "Lost");
 
+const KNOWN_STAGE_KEYS = new Set<string>(PIPELINE_STAGES.map(s => s.key));
+const ACTIVE_STAGE_KEYS = new Set<string>(ACTIVE_STAGES.map(s => s.key));
+
+/** True if a deal's stage is a recognized active (non-Won/Lost) pipeline stage. */
+export function isActivePipelineStage(stage: string | null | undefined): boolean {
+  return !!stage && ACTIVE_STAGE_KEYS.has(stage);
+}
+
+/** True if a deal's stage is any recognized pipeline stage (including Won/Lost). */
+export function isKnownPipelineStage(stage: string | null | undefined): boolean {
+  return !!stage && KNOWN_STAGE_KEYS.has(stage);
+}
+
 export function getStageProbability(stage: string): number {
   return PIPELINE_STAGES.find(s => s.key === stage)?.probability ?? 0;
 }

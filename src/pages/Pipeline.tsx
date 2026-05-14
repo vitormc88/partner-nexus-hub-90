@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus, Flame, Clock, BellOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, isActivePipelineStage, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
@@ -61,9 +61,11 @@ export default function Pipeline() {
     return matchSearch && matchPartner && matchHealth && matchSignal;
   });
 
-  const open = filtered.filter(d => d.status === "Open");
-  const won = filtered.filter(d => d.status === "Won");
-  const lost = filtered.filter(d => d.status === "Lost");
+  // Single source of truth: "open" = status Open AND stage is a rendered active Kanban stage.
+  // Anything else (legacy/unknown stages, Won, Lost) is excluded from open KPIs.
+  const open = filtered.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
+  const won = filtered.filter(d => d.status === "Won" && d.stage === "Won");
+  const lost = filtered.filter(d => d.status === "Lost" && d.stage === "Lost");
   const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
   const weightedPipeline = open
     .filter(d => (d.expected_value || 0) > 0)
@@ -196,7 +198,7 @@ export default function Pipeline() {
         </select>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-4 animate-reveal-up" style={{ animationDelay: "180ms" }}>
+      <div className="flex gap-3 overflow-x-auto pb-4 pr-4 snap-x scroll-px-4 animate-reveal-up" style={{ animationDelay: "180ms" }}>
         {ACTIVE_STAGES.map(stage => {
           const stageDeals = filtered.filter(d => d.stage === stage.key);
           const stageValue = stageDeals.reduce((s, d) => s + (d.expected_value || 0), 0);

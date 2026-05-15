@@ -70,9 +70,8 @@ export default function Pipeline() {
   const authValue = (d: typeof open[number]) =>
     (d.total_value && Number(d.total_value) !== 0 ? Number(d.total_value) : Number(d.expected_value || 0));
   // Canonical probability: explicit deal probability if set, otherwise stage probability.
-  // NO health/hot/stalled modifiers — must match v_analytics_pipeline_summary.
-  const canonicalProb = (d: typeof open[number]) =>
-    (d.probability && d.probability > 0 ? d.probability : getStageProbability(d.stage));
+  // Single source of truth — must match SQL pipeline_stage_probability + resolveDealProbability.
+  const canonicalProb = (d: typeof open[number]) => resolveDealProbability(d);
   const totalPipeline = open.reduce((s, d) => s + authValue(d), 0);
   const weightedPipeline = open.reduce((s, d) => s + authValue(d) * (canonicalProb(d) / 100), 0);
   const closedCount = won.length + lost.length;

@@ -10,6 +10,8 @@ import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus, 
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, isActivePipelineStage, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
+import { useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { getOwnerDisplay, getOwnershipStatus, ownershipStatusColor, ownershipStatusLabel } from "@/lib/owner-display";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";

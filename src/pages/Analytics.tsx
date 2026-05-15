@@ -5,6 +5,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PIPELINE_STAGES } from "@/data/pipeline-stages";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   usePipelineStageBreakdown,
   useSalesPerformance,
@@ -12,6 +13,7 @@ import {
   useRenewalsAnalytics,
   useRevenueByCountry,
   useOutcomes,
+  useDealReconciliation,
   lastUpdatedLabel,
 } from "@/hooks/useAnalytics";
 

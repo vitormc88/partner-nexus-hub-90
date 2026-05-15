@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
+import { useAssignableUsers, useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { getOwnerDisplay, getOwnershipStatus, ownershipStatusColor, ownershipStatusLabel } from "@/lib/owner-display";
 import { useDealContacts, useDealActivities } from "@/hooks/useCommissions";
 import { useDealTasksEnhanced } from "@/hooks/useDealTasksCRUD";
 import { Badge } from "@/components/ui/badge";

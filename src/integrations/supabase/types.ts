@@ -3405,6 +3405,16 @@ export type Database = {
         }
         Relationships: []
       }
+      v_analytics_pipeline_summary: {
+        Row: {
+          avg_deal_size: number | null
+          open_deals: number | null
+          pipeline_value: number | null
+          weighted_pipeline: number | null
+          win_rate: number | null
+        }
+        Relationships: []
+      }
       v_analytics_renewals_summary: {
         Row: {
           lost: number | null
@@ -3528,6 +3538,7 @@ export type Database = {
         Returns: number
       }
       normalize_country: { Args: { _input: string }; Returns: string }
+      pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

@@ -92,6 +92,7 @@ export default function DealDetail() {
       industry: deal.industry || "",
       lead_source: deal.lead_source || "",
       partner_id: deal.partner_id || "",
+      assigned_user_id: (deal as any).assigned_user_id || null,
       assigned_salesperson: deal.assigned_salesperson || "",
       stage: deal.stage,
       expected_value: deal.expected_value || 0,

@@ -66,13 +66,15 @@ export default function Pipeline() {
   const open = filtered.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
   const won = filtered.filter(d => d.status === "Won" && d.stage === "Won");
   const lost = filtered.filter(d => d.status === "Lost" && d.stage === "Lost");
-  const totalPipeline = open.reduce((s, d) => s + (d.expected_value || 0), 0);
-  const weightedPipeline = open
-    .filter(d => (d.expected_value || 0) > 0)
-    .reduce((s, d) => {
-      const eff = healthMap?.get(d.id)?.effectiveProbability ?? getStageProbability(d.stage);
-      return s + (d.expected_value || 0) * (eff / 100);
-    }, 0);
+  // Canonical authoritative value: prefer total_value, fallback to expected_value
+  const authValue = (d: typeof open[number]) =>
+    (d.total_value && Number(d.total_value) !== 0 ? Number(d.total_value) : Number(d.expected_value || 0));
+  // Canonical probability: explicit deal probability if set, otherwise stage probability.
+  // NO health/hot/stalled modifiers — must match v_analytics_pipeline_summary.
+  const canonicalProb = (d: typeof open[number]) =>
+    (d.probability && d.probability > 0 ? d.probability : getStageProbability(d.stage));
+  const totalPipeline = open.reduce((s, d) => s + authValue(d), 0);
+  const weightedPipeline = open.reduce((s, d) => s + authValue(d) * (canonicalProb(d) / 100), 0);
   const closedCount = won.length + lost.length;
   const winRate = closedCount > 0 ? Math.round((won.length / closedCount) * 100) : 0;
 

@@ -319,6 +319,48 @@ export default function Analytics() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Admin-only reconciliation panel — helps audit Analytics numbers against raw deals */}
+      {isAdmin && (
+        <details className="bg-card rounded-xl border shadow-sm">
+          <summary className="cursor-pointer p-4 text-sm font-semibold text-foreground flex items-center justify-between">
+            <span>Data Reconciliation <span className="text-xs font-normal text-muted-foreground ml-2">HQ Admin only · 50 most recent deals</span></span>
+            <Badge variant="outline" className="text-[10px]">Diagnostic</Badge>
+          </summary>
+          <div className="overflow-x-auto border-t">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/50">
+                <tr className="border-b">
+                  {["Company","Status","Stage","Country (raw → normalized)","Salesperson","Value (auth)","Weighted","In Revenue","In Pipeline","Closed at"].map(h => (
+                    <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {(reconciliation.data || []).map(r => (
+                  <tr key={r.id} className="hover:bg-secondary/30">
+                    <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
+                    <td className="px-3 py-2"><Badge variant={r.status === "Won" ? "success" : r.status === "Lost" ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge></td>
+                    <td className="px-3 py-2 text-muted-foreground">{r.stage}</td>
+                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                      {r.country_raw || "—"} {r.country_raw !== r.country_normalized && <span className="text-foreground">→ {r.country_normalized || "—"}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{r.salesperson}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmtEuro(r.authoritative_value)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmtEuro(r.weighted_value)}</td>
+                    <td className="px-3 py-2 text-center">{r.in_revenue ? "✓" : "—"}</td>
+                    <td className="px-3 py-2 text-center">{r.in_pipeline ? "✓" : "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.status_changed_at ? new Date(r.status_changed_at).toLocaleDateString() : "—"}</td>
+                  </tr>
+                ))}
+                {(reconciliation.data || []).length === 0 && (
+                  <tr><td colSpan={10} className="p-0"><EmptyState message="No deals to reconcile" /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
     </div>
   );
 }

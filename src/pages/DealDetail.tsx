@@ -428,7 +428,7 @@ export default function DealDetail() {
                   { icon: User, label: "Contact Person", value: (deal as any).contact_person_name || "—" },
                   { icon: Building2, label: "Company", value: deal.company_name },
                   { icon: MapPin, label: "Country", value: deal.country || "—" },
-                  { icon: User, label: "Assigned To", value: deal.assigned_salesperson || "—" },
+                  { icon: User, label: "Assigned To", value: getOwnerDisplay(deal as any, profilesMap) },
                   { icon: User, label: "Lead Source", value: deal.lead_source || "—" },
                   { icon: Building2, label: "Sector", value: (deal as any).sector || deal.industry || "—" },
                   { icon: Mail, label: "Email", value: (deal as any).contact_email || "—" },

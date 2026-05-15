@@ -23,7 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, type DealStage } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";

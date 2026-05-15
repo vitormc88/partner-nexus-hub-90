@@ -69,6 +69,17 @@ export default function DealDetail() {
 
   const dealPartnerId = editForm.partner_id || deal?.partner_id || null;
   const { data: partnerUsers = [] } = usePartnerUsers(dealPartnerId);
+  const { data: assignableUsers = [] } = useAssignableUsers();
+  const { data: profilesMap } = useAllProfilesMap();
+  // Owner picker source: HQ-aware partner-scoped union (HQ sees everyone, partners see own org)
+  const ownerCandidates = (() => {
+    const ids = new Set<string>();
+    const merged: { id: string; full_name: string | null; email: string }[] = [];
+    [...assignableUsers, ...partnerUsers].forEach((u: any) => {
+      if (!ids.has(u.id)) { ids.add(u.id); merged.push(u); }
+    });
+    return merged;
+  })();
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });

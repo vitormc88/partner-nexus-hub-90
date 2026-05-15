@@ -52,7 +52,9 @@ export default function Analytics() {
   const outcomes = useOutcomes();
 
   // Order pipeline-stage data by canonical stage order
-  const stageOrder = new Map(PIPELINE_STAGES.filter(s => s.key !== "Won" && s.key !== "Lost").map((s, i) => [s.key, i]));
+  const stageOrder = new Map<string, number>(
+    PIPELINE_STAGES.filter(s => s.key !== "Won" && s.key !== "Lost").map((s, i) => [s.key as string, i])
+  );
   const stageData = (pipelineStage.data || []).slice().sort((a, b) => (stageOrder.get(a.stage) ?? 99) - (stageOrder.get(b.stage) ?? 99));
 
   // Derived overview totals from views

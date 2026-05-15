@@ -120,7 +120,11 @@ export default function DealDetail() {
       industry: editForm.industry || editForm.sector || null,
       lead_source: editForm.lead_source || null,
       partner_id: editForm.partner_id || null,
-      assigned_salesperson: editForm.assigned_salesperson || null,
+      assigned_user_id: editForm.assigned_user_id || null,
+      assigned_salesperson:
+        (editForm.assigned_user_id
+          ? (ownerCandidates.find(u => u.id === editForm.assigned_user_id)?.full_name || null)
+          : (editForm.assigned_salesperson || null)),
       stage: editForm.stage,
       expected_value: parseFloat(editForm.expected_value) || 0,
       probability: stageChanged ? getStageProbability(editForm.stage) : (parseInt(editForm.probability) || 0),

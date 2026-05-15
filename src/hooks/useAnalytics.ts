@@ -253,6 +253,46 @@ export function useRevenueAndPipelineMonthly() {
   };
 }
 
+export interface DealReconciliationRow {
+  id: string;
+  company_name: string;
+  status: string;
+  stage: string;
+  country_raw: string | null;
+  country_normalized: string | null;
+  partner_id: string | null;
+  salesperson: string;
+  expected_value: number;
+  total_value: number;
+  authoritative_value: number;
+  probability: number;
+  weighted_value: number;
+  in_revenue: boolean;
+  in_pipeline: boolean;
+  won_at: string | null;
+  lost_at: string | null;
+  status_changed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useDealReconciliation(enabled: boolean) {
+  return useQuery({
+    queryKey: ["analytics", "deal-reconciliation"],
+    enabled,
+    staleTime: ANALYTICS_STALE_MS,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("v_analytics_deal_reconciliation" as any)
+        .select("*")
+        .order("status_changed_at", { ascending: false, nullsFirst: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []) as unknown as DealReconciliationRow[];
+    },
+  });
+}
+
 /** Format "Last updated X ago" from React Query's dataUpdatedAt. */
 export function lastUpdatedLabel(dataUpdatedAt: number | undefined): string {
   if (!dataUpdatedAt) return "Just now";

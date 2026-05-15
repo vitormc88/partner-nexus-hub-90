@@ -419,20 +419,73 @@ export default function DealDetail() {
                 ))}
               </div>
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
-                    { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
-                    { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                    { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },
-                  ].map(m => (
-                    <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
-                      <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>
-                      <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                {deal.status === "Won" ? (
+                  <>
+                    <h3 className="text-sm font-semibold text-foreground">Won Deal Metrics</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(() => {
+                        const wonValue = (deal as any).total_value && Number((deal as any).total_value) > 0
+                          ? Number((deal as any).total_value)
+                          : expectedValue;
+                        const wonAt = (deal as any).won_at || (deal as any).status_changed_at || deal.updated_at;
+                        const cycleMs = wonAt && deal.created_at ? new Date(wonAt).getTime() - new Date(deal.created_at).getTime() : 0;
+                        const cycleDays = cycleMs > 0 ? Math.round(cycleMs / 86400000) : null;
+                        return [
+                          { label: "Won Value", value: wonValue > 0 ? `€${wonValue.toLocaleString()}` : "—", color: "text-emerald-600" },
+                          { label: "Won Date", value: wonAt ? new Date(wonAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
+                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Sales Cycle", value: cycleDays !== null ? `${cycleDays} day${cycleDays === 1 ? "" : "s"}` : "—", color: "text-foreground" },
+                          { label: "Proposals", value: String(proposals.length), color: "text-foreground" },
+                          { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
+                        ];
+                      })().map(m => (
+                        <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
+                          <p className={`text-base font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                          <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : deal.status === "Lost" ? (
+                  <>
+                    <h3 className="text-sm font-semibold text-foreground">Lost Deal Metrics</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(() => {
+                        const lostValue = expectedValue;
+                        const lostAt = (deal as any).lost_at || (deal as any).status_changed_at || deal.updated_at;
+                        return [
+                          { label: "Lost Value", value: lostValue > 0 ? `€${lostValue.toLocaleString()}` : "—", color: "text-destructive" },
+                          { label: "Lost Date", value: lostAt ? new Date(lostAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
+                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
+                        ];
+                      })().map(m => (
+                        <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
+                          <p className={`text-base font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                          <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Loss category, reasons and competitor are shown in the banner above.</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
+                        { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
+                        { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
+                        { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },
+                      ].map(m => (
+                        <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
+                          <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                          <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {deal.description && (
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground mb-1">Description</p>

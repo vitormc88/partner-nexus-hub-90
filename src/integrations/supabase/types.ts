@@ -693,6 +693,13 @@ export type Database = {
             foreignKeyName: "commissions_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "v_analytics_outcomes"
             referencedColumns: ["id"]
           },
@@ -916,6 +923,13 @@ export type Database = {
             foreignKeyName: "deal_activities_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "v_analytics_outcomes"
             referencedColumns: ["id"]
           },
@@ -961,6 +975,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
             referencedColumns: ["id"]
           },
           {
@@ -1021,6 +1042,13 @@ export type Database = {
             foreignKeyName: "deal_registrations_conflict_deal_id_fkey"
             columns: ["conflict_deal_id"]
             isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_registrations_conflict_deal_id_fkey"
+            columns: ["conflict_deal_id"]
+            isOneToOne: false
             referencedRelation: "v_analytics_outcomes"
             referencedColumns: ["id"]
           },
@@ -1029,6 +1057,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_registrations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
             referencedColumns: ["id"]
           },
           {
@@ -1095,6 +1130,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
             referencedColumns: ["id"]
           },
           {
@@ -1519,6 +1561,13 @@ export type Database = {
             columns: ["converted_to_deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_leads_converted_to_deal_id_fkey"
+            columns: ["converted_to_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
             referencedColumns: ["id"]
           },
           {
@@ -3276,6 +3325,31 @@ export type Database = {
         }
         Relationships: []
       }
+      v_analytics_deal_reconciliation: {
+        Row: {
+          authoritative_value: number | null
+          company_name: string | null
+          country_normalized: string | null
+          country_raw: string | null
+          created_at: string | null
+          expected_value: number | null
+          id: string | null
+          in_pipeline: boolean | null
+          in_revenue: boolean | null
+          lost_at: string | null
+          partner_id: string | null
+          probability: number | null
+          salesperson: string | null
+          stage: string | null
+          status: string | null
+          status_changed_at: string | null
+          total_value: number | null
+          updated_at: string | null
+          weighted_value: number | null
+          won_at: string | null
+        }
+        Relationships: []
+      }
       v_analytics_outcomes: {
         Row: {
           closed_at: string | null
@@ -3453,6 +3527,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_country: { Args: { _input: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

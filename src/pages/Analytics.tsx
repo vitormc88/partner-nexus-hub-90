@@ -224,7 +224,7 @@ export default function Analytics() {
                       <td className="px-5 py-3 font-medium text-foreground">
                         <div className="flex items-center gap-2">
                           <span>{s.sales_name}</span>
-                          {s.is_unlinked && <Badge variant="outline" className="text-[10px]">Unlinked</Badge>}
+                          {isAdmin && s.is_unlinked && <Badge variant="outline" className="text-[10px] opacity-60" title="No linked user profile (HQ-only diagnostic)">Unlinked</Badge>}
                         </div>
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(s.won_revenue)}</td>

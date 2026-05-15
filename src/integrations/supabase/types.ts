@@ -306,6 +306,13 @@ export type Database = {
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "announcements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
         ]
       }
       audit_logs: {
@@ -682,6 +689,13 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "commissions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       community_comments: {
@@ -898,6 +912,13 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       deal_contacts: {
@@ -940,6 +961,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
             referencedColumns: ["id"]
           },
         ]
@@ -990,10 +1018,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_registrations_conflict_deal_id_fkey"
+            columns: ["conflict_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deal_registrations_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_registrations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
             referencedColumns: ["id"]
           },
         ]
@@ -1055,6 +1097,13 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deal_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       deals: {
@@ -1062,6 +1111,7 @@ export type Database = {
           aging_days: number | null
           asset_range: string | null
           assigned_salesperson: string | null
+          assigned_user_id: string | null
           client_id: string | null
           company_name: string
           contact_email: string | null
@@ -1077,6 +1127,7 @@ export type Database = {
           job_role: string | null
           last_activity_at: string | null
           lead_source: string | null
+          lost_at: string | null
           maintenance_team_size: string | null
           notes: string | null
           num_assets: number | null
@@ -1088,13 +1139,16 @@ export type Database = {
           stage: string
           stage_entered_at: string | null
           status: string
+          status_changed_at: string | null
           total_value: number | null
           updated_at: string
+          won_at: string | null
         }
         Insert: {
           aging_days?: number | null
           asset_range?: string | null
           assigned_salesperson?: string | null
+          assigned_user_id?: string | null
           client_id?: string | null
           company_name: string
           contact_email?: string | null
@@ -1110,6 +1164,7 @@ export type Database = {
           job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
+          lost_at?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
           num_assets?: number | null
@@ -1121,13 +1176,16 @@ export type Database = {
           stage?: string
           stage_entered_at?: string | null
           status?: string
+          status_changed_at?: string | null
           total_value?: number | null
           updated_at?: string
+          won_at?: string | null
         }
         Update: {
           aging_days?: number | null
           asset_range?: string | null
           assigned_salesperson?: string | null
+          assigned_user_id?: string | null
           client_id?: string | null
           company_name?: string
           contact_email?: string | null
@@ -1143,6 +1201,7 @@ export type Database = {
           job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
+          lost_at?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
           num_assets?: number | null
@@ -1154,10 +1213,27 @@ export type Database = {
           stage?: string
           stage_entered_at?: string | null
           status?: string
+          status_changed_at?: string | null
           total_value?: number | null
           updated_at?: string
+          won_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deals_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       document_categories: {
         Row: {
@@ -1273,6 +1349,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
           },
         ]
       }
@@ -1439,6 +1522,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "incoming_leads_converted_to_deal_id_fkey"
+            columns: ["converted_to_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "incoming_leads_linked_partner_id_fkey"
             columns: ["linked_partner_id"]
             isOneToOne: false
@@ -1451,6 +1541,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_leads_linked_partner_id_fkey"
+            columns: ["linked_partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
           },
         ]
       }
@@ -2038,6 +2135,13 @@ export type Database = {
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "partner_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
         ]
       }
       partner_onboarding: {
@@ -2523,6 +2627,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
           },
         ]
       }
@@ -3162,6 +3273,105 @@ export type Database = {
           partner_id: string | null
           pipeline: number | null
           revenue: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_outcomes: {
+        Row: {
+          closed_at: string | null
+          id: string | null
+          partner_id: string | null
+          status: string | null
+          value: number | null
+        }
+        Insert: {
+          closed_at?: never
+          id?: string | null
+          partner_id?: string | null
+          status?: string | null
+          value?: never
+        }
+        Update: {
+          closed_at?: never
+          id?: string | null
+          partner_id?: string | null
+          status?: string | null
+          value?: never
+        }
+        Relationships: []
+      }
+      v_analytics_partner_summary: {
+        Row: {
+          client_count: number | null
+          company_name: string | null
+          country: string | null
+          open_deal_count: number | null
+          partner_id: string | null
+          pipeline: number | null
+          revenue: number | null
+          won_deal_count: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_pipeline_monthly: {
+        Row: {
+          month_key: string | null
+          month_label: string | null
+          open_deal_count: number | null
+          pipeline_value: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_pipeline_stage: {
+        Row: {
+          deal_count: number | null
+          stage: string | null
+          total_value: number | null
+          weighted_value: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_renewals_summary: {
+        Row: {
+          lost: number | null
+          overdue: number | null
+          success_rate: number | null
+          total: number | null
+          upcoming: number | null
+          won: number | null
+          won_value: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_revenue_by_country: {
+        Row: {
+          country: string | null
+          revenue: number | null
+          won_deal_count: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_revenue_monthly: {
+        Row: {
+          month_key: string | null
+          month_label: string | null
+          revenue: number | null
+          won_deal_count: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_sales_performance: {
+        Row: {
+          is_unlinked: boolean | null
+          lost_count: number | null
+          open_count: number | null
+          pipeline_value: number | null
+          sales_key: string | null
+          sales_name: string | null
+          user_id: string | null
+          weighted_pipeline: number | null
+          won_count: number | null
+          won_revenue: number | null
         }
         Relationships: []
       }

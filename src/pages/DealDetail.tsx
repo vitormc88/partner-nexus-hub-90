@@ -236,9 +236,14 @@ export default function DealDetail() {
             <h1 className="text-xl font-bold text-foreground tracking-tight truncate">{deal.company_name}</h1>
             <Badge variant={deal.status === "Won" ? "success" : deal.status === "Lost" ? "destructive" : "outline"}>{deal.stage}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {(deal as any).contact_person_name ? `${(deal as any).contact_person_name} · ` : ""}
-            {deal.assigned_salesperson || "Unassigned"}
+          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
+            {(deal as any).contact_person_name ? <span>{(deal as any).contact_person_name} ·</span> : null}
+            <span>{getOwnerDisplay(deal as any, profilesMap)}</span>
+            {(() => {
+              const s = getOwnershipStatus(deal as any, profilesMap);
+              if (s === "assigned") return null;
+              return <span className={`text-[10px] border px-1.5 py-0 rounded-full ${ownershipStatusColor(s)}`}>{ownershipStatusLabel(s)}</span>;
+            })()}
           </p>
         </div>
         {!editing && (

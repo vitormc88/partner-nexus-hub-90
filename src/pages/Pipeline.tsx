@@ -45,6 +45,7 @@ export default function Pipeline() {
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
   const { data: healthMap } = useDealsHealth(deals);
+  const { data: profilesMap } = useAllProfilesMap();
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
@@ -52,7 +53,10 @@ export default function Pipeline() {
 
   const filtered = deals.filter(d => {
     const pName = partnerMap.get(d.partner_id || "") || "";
-    const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
+    const ownerDisplay = getOwnerDisplay(d as any, profilesMap).toLowerCase();
+    const matchSearch =
+      d.company_name.toLowerCase().includes(search.toLowerCase()) ||
+      ownerDisplay.includes(search.toLowerCase());
     const matchPartner = partnerFilter === "all" || pName === partnerFilter;
     const h = healthMap?.get(d.id);
     const matchHealth = healthFilter === "all" || h?.health === healthFilter;

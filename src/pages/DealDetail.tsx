@@ -201,7 +201,8 @@ export default function DealDetail() {
     .filter((proposal) => proposal.status !== "Lost")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
   const expectedValue = latestProposal?.total_year_1 ?? deal.expected_value ?? 0;
-  const weightedValue = expectedValue > 0 ? Math.round((expectedValue * getStageProbability(deal.stage)) / 100) : 0;
+  const resolvedProb = resolveDealProbability(deal);
+  const weightedValue = expectedValue > 0 ? Math.round((expectedValue * resolvedProb) / 100) : 0;
 
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === deal.stage);
 

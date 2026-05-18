@@ -11,11 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+} from "@/components/ui/accordion";
 import {
   ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2, XCircle,
-  Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle, ListChecks,
-  HelpCircle, Target, Mail, Phone, Globe, Briefcase,
+  Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
+  HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
+  Wand2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -26,9 +29,10 @@ import { AddLeadTaskDialog } from "@/components/leads/AddLeadTaskDialog";
 import { cn } from "@/lib/utils";
 import {
   QUALIFICATION_STAGES, type QualificationStage,
-  TIMD_CATEGORIES, CATEGORY_STATUSES, statusValue,
-  timdCompletion, fitScore, missingInformation, nextBestActions,
-  suggestedQuestions, contextualGuidance, FIT_FACTORS,
+  TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
+  resolvedStatus, autoStatusFromNotes,
+  timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,
+  suggestedQuestions, contextualGuidance, qualificationSignals, lastMeaningfulDiscovery, FIT_FACTORS,
   CURRENT_PROCESS_OPTIONS, MAIN_CHALLENGE_OPTIONS, EXISTING_SYSTEM_OPTIONS, DATA_VISIBILITY_OPTIONS,
 } from "@/lib/qualification";
 
@@ -46,11 +50,11 @@ export default function LeadDetail() {
   const isHQUser = isHQ || isAdmin;
   const activePartners = partners.filter((p) => p.is_active);
 
-  // Editable buffer for the whole record (qualification + assignment + notes).
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [openTimd, setOpenTimd] = useState<string>("");
 
   useEffect(() => {
     if (lead) {
@@ -69,8 +73,11 @@ export default function LeadDetail() {
 
   const timd = useMemo(() => timdCompletion(draft), [draft]);
   const fit = useMemo(() => fitScore(draft), [draft]);
+  const signals = useMemo(() => qualificationSignals(draft), [draft]);
   const missing = useMemo(() => missingInformation(draft), [draft]);
   const actions = useMemo(() => nextBestActions(draft), [draft]);
+  const topAction = useMemo(() => topNextAction(draft), [draft]);
+  const discovery = useMemo(() => lastMeaningfulDiscovery(draft), [draft]);
   const questions = useMemo(() => suggestedQuestions(draft), [draft]);
   const guidance = useMemo(() => contextualGuidance(draft), [draft]);
 
@@ -135,7 +142,7 @@ export default function LeadDetail() {
   const canConvert = stage === "Qualified" && !isConverted && isHQUser;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
       {/* HEADER */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3">
@@ -170,59 +177,77 @@ export default function LeadDetail() {
         disabled={isConverted}
       />
 
-      {/* TOP ACTIONS */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button onClick={markQualified} disabled={updateLead.isPending || isConverted || stage === "Qualified"}>
-          <CheckCircle2 className="h-4 w-4" />
-          Mark as Qualified
-        </Button>
-        <Button variant="outline" onClick={markDisqualified} disabled={updateLead.isPending || isConverted}>
-          <XCircle className="h-4 w-4" />
-          Disqualify
-        </Button>
-        <Button variant="outline" onClick={() => setShowAddTask(true)}>
-          <Plus className="h-4 w-4" />
-          Create Task
-        </Button>
-        <Button
-          variant={canConvert ? "default" : "outline"}
-          onClick={() => setShowConvert(true)}
-          disabled={!isHQUser || isConverted}
-          className={cn(!canConvert && "opacity-80")}
-        >
-          <ArrowRight className="h-4 w-4" />
-          Convert to Opportunity
-        </Button>
-        <div className="flex-1" />
-        <Button variant="default" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
-          <Save className="h-4 w-4" />
-          Save changes
-        </Button>
-      </div>
-
       {/* TWO-COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* MAIN */}
-        <div className="space-y-6 min-w-0">
-          {/* OVERVIEW CARD */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Lead Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                <Info icon={Building2} label="Company" value={draft.company_name} />
-                <Info icon={Users} label="Contact" value={draft.contact_name} />
-                <Info icon={Briefcase} label="Job role" value={draft.job_role} />
-                <Info icon={Mail} label="Email" value={draft.email} />
-                <Info icon={Phone} label="Phone" value={draft.phone} />
-                <Info icon={Globe} label="Country" value={draft.country} />
-                <Info icon={Target} label="Source" value={draft.lead_source} />
-                <Info label="Asset range" value={draft.asset_range} />
-                <Info label="Maintenance team" value={draft.maintenance_team_size} />
-                <Info label="Sector" value={draft.sector} />
-                <Info label="SharpSpring ID" value={draft.sharpspring_id} />
+        <div className="space-y-5 min-w-0">
+          {/* NEXT BEST ACTION — hero */}
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2.5 text-primary shrink-0">
+                  <Target className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary mb-1">
+                    Next best action
+                  </div>
+                  <div className="text-lg font-semibold leading-snug">{topAction.title}</div>
+                  <p className="text-sm text-muted-foreground mt-1">{topAction.reason}</p>
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <Button size="sm" onClick={() => setShowAddTask(true)}>
+                      <Plus className="h-3.5 w-3.5" /> Create task
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={canConvert ? "default" : "outline"}
+                      onClick={() => setShowConvert(true)}
+                      disabled={!isHQUser || isConverted}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" /> Convert to opportunity
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={markQualified}
+                      disabled={updateLead.isPending || isConverted || stage === "Qualified"}>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Mark qualified
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={markDisqualified}
+                      disabled={updateLead.isPending || isConverted}>
+                      <XCircle className="h-3.5 w-3.5" /> Disqualify
+                    </Button>
+                    <div className="flex-1" />
+                    <Button size="sm" variant="outline" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
+                      <Save className="h-3.5 w-3.5" /> Save
+                    </Button>
+                  </div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* LAST MEANINGFUL DISCOVERY */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Compass className="h-4 w-4 text-muted-foreground" />
+                Last meaningful discovery
+              </CardTitle>
+              <span className="text-[11px] text-muted-foreground">Built from captured data</span>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {discovery.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  Nothing captured yet. Start a discovery call to surface the lead's real situation.
+                </p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {discovery.map((d, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
+                      <span className="leading-snug">{d}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
 
@@ -230,126 +255,187 @@ export default function LeadDetail() {
           <Tabs defaultValue="qualification" className="w-full">
             <TabsList>
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
+              <TabsTrigger value="situation">Situation</TabsTrigger>
+              <TabsTrigger value="overview">Lead info</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="assignment">Assignment</TabsTrigger>
             </TabsList>
 
             {/* QUALIFICATION TAB */}
-            <TabsContent value="qualification" className="space-y-6 mt-4">
-              {/* FIT SCORE */}
-              <Card>
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">Lead Fit</CardTitle>
-                  <FitBadge label={fit.label} tone={fit.tone} score={fit.score} total={fit.total} />
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {FIT_FACTORS.map((f) => (
-                    <label
-                      key={f.key}
-                      className="flex items-center gap-2 rounded-md border bg-card p-3 text-sm cursor-pointer hover:bg-accent/40 transition"
-                    >
-                      <Checkbox
-                        checked={!!draft[f.key]}
-                        onCheckedChange={(v) => set({ [f.key]: !!v })}
-                      />
-                      <span>{f.label}</span>
-                    </label>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* TIMD-LITE */}
+            <TabsContent value="qualification" className="space-y-5 mt-4">
+              {/* TIMD ACCORDION */}
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-base">Qualification Checklist</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">Interest · Timing · Budget · Decision making</p>
+                    <CardTitle className="text-sm">Qualification checklist</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Interest · Timing · Budget · Decision
+                    </p>
                   </div>
-                  <div className="w-40">
-                    <div className="text-xs text-muted-foreground mb-1 text-right">{timd.percent}% complete</div>
-                    <Progress value={timd.percent} className="h-2" />
+                  <div className="w-36">
+                    <div className="text-[11px] text-muted-foreground mb-1 text-right">{timd.percent}% complete</div>
+                    <Progress value={timd.percent} className="h-1.5" />
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {TIMD_CATEGORIES.map((c) => {
-                    const Icon = TIMD_ICONS[c.icon as keyof typeof TIMD_ICONS];
-                    const status = statusValue(draft[`${c.key}_status`]);
-                    return (
-                      <div key={c.key} className="rounded-md border p-3">
-                        <div className="flex items-center justify-between gap-3 mb-2">
-                          <div className="flex items-center gap-2 font-medium text-sm">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            {c.label}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {CATEGORY_STATUSES.map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => set({ [`${c.key}_status`]: s })}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-full text-xs border transition",
-                                  status === s
-                                    ? statusPill(s)
-                                    : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70",
+                <CardContent className="pt-0">
+                  <Accordion
+                    type="single"
+                    collapsible
+                    value={openTimd}
+                    onValueChange={setOpenTimd}
+                    className="divide-y border-t"
+                  >
+                    {TIMD_CATEGORIES.map((c) => {
+                      const Icon = TIMD_ICONS[c.icon as keyof typeof TIMD_ICONS];
+                      const notes = draft[`${c.key}_notes`] || "";
+                      const stored = draft[`${c.key}_status`];
+                      const status = resolvedStatus(stored, notes);
+                      const isAuto = !stored || stored === "missing"
+                        ? autoStatusFromNotes(notes) === status && !stored
+                        : false;
+                      return (
+                        <AccordionItem key={c.key} value={c.key} className="border-b-0 last:border-b-0">
+                          <AccordionTrigger className="hover:no-underline py-3 px-1">
+                            <div className="flex items-center justify-between gap-3 flex-1 pr-2">
+                              <div className="flex items-center gap-2.5">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">{c.label}</span>
+                                {notes.trim() && (
+                                  <span className="text-xs text-muted-foreground truncate max-w-[260px] hidden md:inline">
+                                    — {notes.trim().slice(0, 60)}{notes.trim().length > 60 ? "…" : ""}
+                                  </span>
                                 )}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <Textarea
-                          value={draft[`${c.key}_notes`] || ""}
-                          onChange={(e) => set({ [`${c.key}_notes`]: e.target.value })}
-                          placeholder={`Notes on ${c.label.toLowerCase()}…`}
-                          rows={2}
-                          className="text-sm"
-                        />
-                      </div>
-                    );
-                  })}
+                              </div>
+                              <StatusPill status={status} auto={isAuto} />
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-1 pb-4">
+                            <Textarea
+                              value={notes}
+                              onChange={(e) => set({ [`${c.key}_notes`]: e.target.value })}
+                              placeholder={c.prompt}
+                              rows={2}
+                              className="text-sm resize-none"
+                            />
+                            <div className="mt-2 flex items-center justify-between gap-3 flex-wrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">
+                                  Status
+                                </span>
+                                {CATEGORY_STATUSES.map((s) => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => set({ [`${c.key}_status`]: s })}
+                                    className={cn(
+                                      "px-2 py-0.5 rounded-full text-[11px] border transition capitalize",
+                                      stored === s
+                                        ? statusPillClass(s)
+                                        : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70",
+                                    )}
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                                {stored && stored !== "missing" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => set({ [`${c.key}_status`]: null })}
+                                    className="text-[11px] text-muted-foreground hover:text-foreground ml-1 inline-flex items-center gap-1"
+                                    title="Use auto-detected status"
+                                  >
+                                    <Wand2 className="h-3 w-3" /> auto
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {c.questions?.length ? (
+                              <div className="mt-3 rounded-md bg-muted/40 p-2.5">
+                                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                                  Try asking
+                                </div>
+                                <ul className="space-y-1 text-xs text-muted-foreground">
+                                  {c.questions.map((q, i) => (
+                                    <li key={i}>“{q}”</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
                 </CardContent>
               </Card>
 
-              {/* CURRENT SITUATION SNAPSHOT */}
+              {/* QUALIFICATION SIGNALS */}
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Current Situation</CardTitle>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Qualification signals</CardTitle>
+                  <FitBadge label={fit.label} tone={fit.tone} score={fit.score} total={fit.total} />
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PickerField
-                    label="Current process"
-                    value={draft.current_process}
-                    options={CURRENT_PROCESS_OPTIONS}
-                    onChange={(v) => set({ current_process: v })}
-                  />
-                  <PickerField
-                    label="Main challenge"
-                    value={draft.main_challenge}
-                    options={MAIN_CHALLENGE_OPTIONS}
-                    onChange={(v) => set({ main_challenge: v })}
-                  />
-                  <PickerField
-                    label="Existing system"
-                    value={draft.existing_system}
-                    options={EXISTING_SYSTEM_OPTIONS}
-                    onChange={(v) => set({ existing_system: v })}
-                  />
-                  <PickerField
-                    label="Data visibility"
-                    value={draft.data_visibility}
-                    options={DATA_VISIBILITY_OPTIONS}
-                    onChange={(v) => set({ data_visibility: v })}
-                  />
+                  {/* Positive signals */}
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-success font-semibold mb-2">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Positive signals
+                    </div>
+                    {signals.positive.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">None captured yet.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {signals.positive.map((s) => (
+                          <li key={s.key} className="text-sm flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" /> {s.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {/* Risks */}
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-warning-foreground font-semibold mb-2">
+                      <ShieldAlert className="h-3.5 w-3.5" /> Potential risks
+                    </div>
+                    {signals.risks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No risks detected.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {signals.risks.slice(0, 6).map((s) => (
+                          <li key={s.key} className="text-sm flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-3.5 w-3.5 text-warning-foreground shrink-0" /> {s.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </CardContent>
+                <div className="px-6 pb-4 -mt-2">
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer hover:text-foreground">Adjust signals manually</summary>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {FIT_FACTORS.map((f) => (
+                        <label key={f.key} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="rounded border-input"
+                            checked={!!draft[f.key]}
+                            onChange={(e) => set({ [f.key]: e.target.checked })}
+                          />
+                          <span>{f.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                </div>
               </Card>
 
               {stage === "Disqualified" && (
                 <Card className="border-destructive/30 bg-destructive/5">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base text-destructive">Disqualification reason</CardTitle>
+                    <CardTitle className="text-sm text-destructive">Disqualification reason</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Textarea
@@ -363,17 +449,61 @@ export default function LeadDetail() {
               )}
             </TabsContent>
 
+            {/* SITUATION TAB */}
+            <TabsContent value="situation" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Current situation</CardTitle>
+                  <p className="text-xs text-muted-foreground">How they operate today.</p>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <PickerField label="Current process" value={draft.current_process}
+                    options={CURRENT_PROCESS_OPTIONS} onChange={(v) => set({ current_process: v })} />
+                  <PickerField label="Main challenge" value={draft.main_challenge}
+                    options={MAIN_CHALLENGE_OPTIONS} onChange={(v) => set({ main_challenge: v })} />
+                  <PickerField label="Existing system" value={draft.existing_system}
+                    options={EXISTING_SYSTEM_OPTIONS} onChange={(v) => set({ existing_system: v })} />
+                  <PickerField label="Data visibility" value={draft.data_visibility}
+                    options={DATA_VISIBILITY_OPTIONS} onChange={(v) => set({ data_visibility: v })} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* OVERVIEW */}
+            <TabsContent value="overview" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Lead overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <Info icon={Building2} label="Company" value={draft.company_name} />
+                    <Info icon={Users} label="Contact" value={draft.contact_name} />
+                    <Info icon={Briefcase} label="Job role" value={draft.job_role} />
+                    <Info icon={Mail} label="Email" value={draft.email} />
+                    <Info icon={Phone} label="Phone" value={draft.phone} />
+                    <Info icon={Globe} label="Country" value={draft.country} />
+                    <Info icon={Target} label="Source" value={draft.lead_source} />
+                    <Info label="Asset range" value={draft.asset_range} />
+                    <Info label="Maintenance team" value={draft.maintenance_team_size} />
+                    <Info label="Sector" value={draft.sector} />
+                    <Info label="SharpSpring ID" value={draft.sharpspring_id} />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* NOTES TAB */}
             <TabsContent value="notes" className="mt-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Internal notes</CardTitle>
+                  <CardTitle className="text-sm">Internal notes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Textarea
                     value={draft.notes || ""}
                     onChange={(e) => set({ notes: e.target.value })}
-                    rows={10}
+                    rows={8}
                     placeholder="Add internal notes about this lead…"
                   />
                 </CardContent>
@@ -397,7 +527,7 @@ export default function LeadDetail() {
             <TabsContent value="assignment" className="mt-4 space-y-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Assignment</CardTitle>
+                  <CardTitle className="text-sm">Assignment</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -479,13 +609,16 @@ export default function LeadDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Next best action */}
-              <AsstSection icon={Target} title="Next best action">
+              {/* Next best actions */}
+              <AsstSection icon={Target} title="What to do next">
                 <ul className="space-y-1.5 text-sm">
                   {actions.map((a, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                      <span>{a}</span>
+                      <span className={cn(
+                        "mt-1.5 h-1.5 w-1.5 rounded-full shrink-0",
+                        i === 0 ? "bg-primary" : "bg-muted-foreground/40",
+                      )} />
+                      <span className={i === 0 ? "font-medium" : "text-muted-foreground"}>{a}</span>
                     </li>
                   ))}
                 </ul>
@@ -503,7 +636,7 @@ export default function LeadDetail() {
                 {missing.length === 0 ? (
                   <p className="text-xs text-muted-foreground">All key information captured.</p>
                 ) : (
-                  <ul className="space-y-1 text-sm">
+                  <ul className="space-y-1 text-xs">
                     {missing.map((m, i) => (
                       <li key={i} className="text-muted-foreground">• {m}</li>
                     ))}
@@ -511,41 +644,58 @@ export default function LeadDetail() {
                 )}
               </AsstSection>
 
-              {/* Suggested questions */}
+              {/* Contextual guidance — pains + prompts + positioning */}
+              {guidance && (
+                <AsstSection icon={Lightbulb} title={guidance.title}>
+                  {guidance.pains?.length ? (
+                    <div className="mb-2">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Common pains
+                      </div>
+                      <ul className="space-y-0.5 text-xs">
+                        {guidance.pains.map((g, i) => (
+                          <li key={i} className="text-muted-foreground">• {g}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {guidance.prompts?.length ? (
+                    <div className="mb-2">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Discovery prompts
+                      </div>
+                      <ul className="space-y-0.5 text-xs">
+                        {guidance.prompts.map((g, i) => (
+                          <li key={i} className="text-muted-foreground">“{g}”</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {guidance.positioning?.length ? (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Positioning angles
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {guidance.positioning.map((g, i) => (
+                          <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </AsstSection>
+              )}
+
+              {/* Generic suggested questions (fallback / always-on) */}
               <AsstSection icon={HelpCircle} title="Suggested questions">
-                <ul className="space-y-1.5 text-sm">
-                  {questions.map((q, i) => (
+                <ul className="space-y-1 text-xs">
+                  {questions.slice(0, 4).map((q, i) => (
                     <li key={i} className="text-muted-foreground leading-snug">“{q}”</li>
                   ))}
                 </ul>
               </AsstSection>
-
-              {/* Contextual guidance */}
-              {guidance && (
-                <AsstSection icon={Lightbulb} title={guidance.title}>
-                  <ul className="space-y-1 text-sm">
-                    {guidance.items.map((g, i) => (
-                      <li key={i} className="text-muted-foreground">• {g}</li>
-                    ))}
-                  </ul>
-                </AsstSection>
-              )}
-
-              {/* Conversion guidance */}
-              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-                <div className="flex items-center gap-2 font-medium">
-                  <ListChecks className="h-3.5 w-3.5" />
-                  Ready to convert?
-                </div>
-                {missing.length > 0 ? (
-                  <p className="text-muted-foreground">
-                    Qualification incomplete — {missing.length} item{missing.length > 1 ? "s" : ""} still missing.
-                    Conversion is allowed but not recommended yet.
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground">Looks good. You can convert this lead to an opportunity.</p>
-                )}
-              </div>
             </CardContent>
           </Card>
         </aside>
@@ -603,7 +753,6 @@ function PickerField({
 function QualificationJourney({
   current, onChange, disabled,
 }: { current: QualificationStage; onChange: (s: QualificationStage) => void; disabled?: boolean }) {
-  // Show only the journey stages (exclude Disqualified — it's an off-path terminal).
   const stages = QUALIFICATION_STAGES.filter((s) => s !== "Disqualified");
   const currentIdx = stages.indexOf(current as any);
   return (
@@ -667,10 +816,22 @@ function FitBadge({ label, tone, score, total }: {
   );
 }
 
-function statusPill(s: string) {
+function statusPillClass(s: string) {
   if (s === "complete") return "bg-success/15 text-success border-success/30";
   if (s === "partial") return "bg-warning/20 text-warning-foreground border-warning/30";
   return "bg-destructive/10 text-destructive border-destructive/30";
+}
+
+function StatusPill({ status, auto }: { status: CategoryStatus; auto?: boolean }) {
+  return (
+    <span className={cn(
+      "px-2 py-0.5 rounded-full text-[11px] border capitalize flex items-center gap-1",
+      statusPillClass(status),
+    )}>
+      {auto && <Wand2 className="h-2.5 w-2.5 opacity-70" />}
+      {status}
+    </span>
+  );
 }
 
 function AsstSection({

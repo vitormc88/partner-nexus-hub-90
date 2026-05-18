@@ -1564,69 +1564,129 @@ export type Database = {
       incoming_leads: {
         Row: {
           asset_range: string | null
+          budget_notes: string | null
+          budget_status: string | null
           company_name: string | null
           contact_name: string | null
           converted_to_deal_id: string | null
           country: string | null
           created_at: string
+          current_process: string | null
+          data_visibility: string | null
+          decision_notes: string | null
+          decision_status: string | null
+          disqualified_reason: string | null
           email: string | null
+          existing_system: string | null
+          fit_current_process_identified: boolean
+          fit_decision_maker_identified: boolean
+          fit_operational_maturity: boolean
+          fit_pain_identified: boolean
+          fit_system_dissatisfaction: boolean
+          fit_urgency_identified: boolean
           id: string
+          interest_notes: string | null
+          interest_status: string | null
           job_role: string | null
           lead_owner_type: string | null
           lead_source: string | null
           linked_partner_id: string | null
           linked_partner_name: string | null
+          main_challenge: string | null
           maintenance_team_size: string | null
           notes: string | null
           phone: string | null
+          qualification_stage: string
           routing_reason: string | null
           sector: string | null
           sharpspring_id: string | null
           status: string
+          timing_notes: string | null
+          timing_status: string | null
         }
         Insert: {
           asset_range?: string | null
+          budget_notes?: string | null
+          budget_status?: string | null
           company_name?: string | null
           contact_name?: string | null
           converted_to_deal_id?: string | null
           country?: string | null
           created_at?: string
+          current_process?: string | null
+          data_visibility?: string | null
+          decision_notes?: string | null
+          decision_status?: string | null
+          disqualified_reason?: string | null
           email?: string | null
+          existing_system?: string | null
+          fit_current_process_identified?: boolean
+          fit_decision_maker_identified?: boolean
+          fit_operational_maturity?: boolean
+          fit_pain_identified?: boolean
+          fit_system_dissatisfaction?: boolean
+          fit_urgency_identified?: boolean
           id?: string
+          interest_notes?: string | null
+          interest_status?: string | null
           job_role?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
           linked_partner_id?: string | null
           linked_partner_name?: string | null
+          main_challenge?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
           phone?: string | null
+          qualification_stage?: string
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
           status?: string
+          timing_notes?: string | null
+          timing_status?: string | null
         }
         Update: {
           asset_range?: string | null
+          budget_notes?: string | null
+          budget_status?: string | null
           company_name?: string | null
           contact_name?: string | null
           converted_to_deal_id?: string | null
           country?: string | null
           created_at?: string
+          current_process?: string | null
+          data_visibility?: string | null
+          decision_notes?: string | null
+          decision_status?: string | null
+          disqualified_reason?: string | null
           email?: string | null
+          existing_system?: string | null
+          fit_current_process_identified?: boolean
+          fit_decision_maker_identified?: boolean
+          fit_operational_maturity?: boolean
+          fit_pain_identified?: boolean
+          fit_system_dissatisfaction?: boolean
+          fit_urgency_identified?: boolean
           id?: string
+          interest_notes?: string | null
+          interest_status?: string | null
           job_role?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
           linked_partner_id?: string | null
           linked_partner_name?: string | null
+          main_challenge?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
           phone?: string | null
+          qualification_stage?: string
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
           status?: string
+          timing_notes?: string | null
+          timing_status?: string | null
         }
         Relationships: [
           {

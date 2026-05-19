@@ -957,3 +957,44 @@ function AsstSection({
     </div>
   );
 }
+
+function CollapsibleSection({
+  icon: Icon, title, count, defaultOpen, emptyHint, compact, children,
+}: {
+  icon?: any; title: string; count?: number; defaultOpen?: boolean;
+  emptyHint?: string; compact?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  const isEmpty = count === 0;
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className={cn("rounded-md border bg-card/40", compact && "border-dashed")}>
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-2.5 py-2 hover:bg-muted/40 rounded-md">
+        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {Icon && <Icon className="h-3.5 w-3.5" />}
+          <span className="normal-case tracking-normal text-foreground">{title}</span>
+          {typeof count === "number" && count > 0 && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{count}</Badge>
+          )}
+        </div>
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-2.5 pb-2.5 pt-1">
+        {isEmpty && emptyHint ? (
+          <p className="text-xs text-muted-foreground italic">{emptyHint}</p>
+        ) : (
+          children
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function Subsection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-2 last:mb-0">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
+      {children}
+    </div>
+  );
+}
+

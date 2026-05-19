@@ -32,9 +32,12 @@ import {
   TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
   resolvedStatus, autoStatusFromNotes,
   timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,
-  suggestedQuestions, contextualGuidance, qualificationSignals, lastMeaningfulDiscovery, FIT_FACTORS,
+  suggestedQuestions, qualificationSignals, lastMeaningfulDiscovery, FIT_FACTORS,
   CURRENT_PROCESS_OPTIONS, MAIN_CHALLENGE_OPTIONS, EXISTING_SYSTEM_OPTIONS, DATA_VISIBILITY_OPTIONS,
+  contextualGuidanceAll, discoveryInsights, positioningHelp, likelyRisks, knowledgeSnippets,
 } from "@/lib/qualification";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
 
 const TIMD_ICONS = { Sparkles, Clock, Wallet, Users } as const;
 
@@ -79,7 +82,11 @@ export default function LeadDetail() {
   const topAction = useMemo(() => topNextAction(draft), [draft]);
   const discovery = useMemo(() => lastMeaningfulDiscovery(draft), [draft]);
   const questions = useMemo(() => suggestedQuestions(draft), [draft]);
-  const guidance = useMemo(() => contextualGuidance(draft), [draft]);
+  const guidanceBlocks = useMemo(() => contextualGuidanceAll(draft), [draft]);
+  const insights = useMemo(() => discoveryInsights(draft), [draft]);
+  const positioning = useMemo(() => positioningHelp(draft), [draft]);
+  const risks = useMemo(() => likelyRisks(draft), [draft]);
+  const snippets = useMemo(() => knowledgeSnippets(draft), [draft]);
 
   const handleSave = (extra: Record<string, any> = {}) => {
     if (!lead) return;
@@ -607,9 +614,12 @@ export default function LeadDetail() {
                 <Sparkles className="h-4 w-4 text-primary" />
                 Qualification Assistant
               </CardTitle>
+              <p className="text-[11px] text-muted-foreground">
+                Contextual coaching. Updates as you capture discovery.
+              </p>
             </CardHeader>
-            <CardContent className="space-y-5">
-              {/* Next best actions */}
+            <CardContent className="space-y-3">
+              {/* What to do next — always open */}
               <AsstSection icon={Target} title="What to do next">
                 <ul className="space-y-1.5 text-sm">
                   {actions.map((a, i) => (
@@ -627,79 +637,176 @@ export default function LeadDetail() {
                 </Button>
               </AsstSection>
 
-              {/* Missing information */}
-              <AsstSection
+              {/* Discovery Insights */}
+              <CollapsibleSection
+                icon={SearchIcon}
+                title="Discovery insights"
+                count={insights.length}
+                defaultOpen={insights.length > 0}
+                emptyHint="Capture current process, system or challenge to surface insights."
+              >
+                <ul className="space-y-1">
+                  {insights.map((i) => (
+                    <li key={i.id} className="flex items-start gap-2 text-xs">
+                      <span className={cn(
+                        "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
+                        i.tone === "positive" && "bg-success",
+                        i.tone === "warning" && "bg-warning",
+                        i.tone === "neutral" && "bg-muted-foreground/50",
+                      )} />
+                      <span className={i.tone === "warning" ? "text-foreground" : "text-muted-foreground"}>
+                        {i.label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
+
+              {/* Missing info */}
+              <CollapsibleSection
                 icon={AlertCircle}
                 title="Missing information"
-                badge={missing.length ? String(missing.length) : undefined}
+                count={missing.length}
+                defaultOpen={missing.length > 0 && missing.length <= 4}
+                emptyHint="All key information captured."
               >
-                {missing.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">All key information captured.</p>
-                ) : (
-                  <ul className="space-y-1 text-xs">
-                    {missing.map((m, i) => (
-                      <li key={i} className="text-muted-foreground">• {m}</li>
-                    ))}
-                  </ul>
-                )}
-              </AsstSection>
+                <ul className="space-y-1 text-xs">
+                  {missing.map((m, i) => (
+                    <li key={i} className="text-muted-foreground">• {m}</li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
 
-              {/* Contextual guidance — pains + prompts + positioning */}
-              {guidance && (
-                <AsstSection icon={Lightbulb} title={guidance.title}>
-                  {guidance.pains?.length ? (
-                    <div className="mb-2">
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Common pains
-                      </div>
-                      <ul className="space-y-0.5 text-xs">
-                        {guidance.pains.map((g, i) => (
-                          <li key={i} className="text-muted-foreground">• {g}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {guidance.prompts?.length ? (
-                    <div className="mb-2">
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Discovery prompts
-                      </div>
-                      <ul className="space-y-0.5 text-xs">
-                        {guidance.prompts.map((g, i) => (
-                          <li key={i} className="text-muted-foreground">“{g}”</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {guidance.positioning?.length ? (
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Positioning angles
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {guidance.positioning.map((g, i) => (
-                          <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                            {g}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </AsstSection>
+              {/* Contextual guidance — one collapsible per block */}
+              {guidanceBlocks.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Lightbulb className="h-3.5 w-3.5" />
+                    Contextual guidance
+                  </div>
+                  {guidanceBlocks.map((g, idx) => (
+                    <CollapsibleSection
+                      key={g.id}
+                      title={g.title}
+                      count={(g.pains?.length || 0) + (g.prompts?.length || 0)}
+                      defaultOpen={idx === 0}
+                      compact
+                    >
+                      {g.pains?.length ? (
+                        <Subsection label="Common pains">
+                          <ul className="space-y-0.5 text-xs">
+                            {g.pains.map((p, i) => (
+                              <li key={i} className="text-muted-foreground">• {p}</li>
+                            ))}
+                          </ul>
+                        </Subsection>
+                      ) : null}
+                      {g.prompts?.length ? (
+                        <Subsection label="Discovery prompts">
+                          <ul className="space-y-0.5 text-xs">
+                            {g.prompts.map((p, i) => (
+                              <li key={i} className="text-muted-foreground">“{p}”</li>
+                            ))}
+                          </ul>
+                        </Subsection>
+                      ) : null}
+                      {g.positioning?.length ? (
+                        <Subsection label="Positioning angles">
+                          <div className="flex flex-wrap gap-1">
+                            {g.positioning.map((p, i) => (
+                              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                {p}
+                              </span>
+                            ))}
+                          </div>
+                        </Subsection>
+                      ) : null}
+                      {g.modules?.length ? (
+                        <Subsection label="Relevant modules">
+                          <div className="flex flex-wrap gap-1">
+                            {g.modules.map((m, i) => (
+                              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                        </Subsection>
+                      ) : null}
+                    </CollapsibleSection>
+                  ))}
+                </div>
               )}
 
-              {/* Generic suggested questions (fallback / always-on) */}
-              <AsstSection icon={HelpCircle} title="Suggested questions">
+              {/* Positioning help */}
+              {positioning.length > 0 && (
+                <CollapsibleSection
+                  icon={Megaphone}
+                  title="What to emphasize"
+                  count={positioning.length}
+                  defaultOpen={false}
+                >
+                  <ul className="space-y-2">
+                    {positioning.map((p) => (
+                      <li key={p.id} className="text-xs">
+                        <div className="font-medium text-foreground">{p.emphasis}</div>
+                        <div className="text-muted-foreground leading-snug">{p.reason}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleSection>
+              )}
+
+              {/* Likely risks */}
+              {risks.length > 0 && (
+                <CollapsibleSection
+                  icon={ShieldAlert}
+                  title="Likely risks"
+                  count={risks.length}
+                  defaultOpen={false}
+                >
+                  <ul className="space-y-2">
+                    {risks.map((r) => (
+                      <li key={r.id} className="text-xs">
+                        <div className="font-medium text-foreground">{r.label}</div>
+                        <div className="text-muted-foreground leading-snug">{r.hint}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleSection>
+              )}
+
+              {/* Knowledge snippets */}
+              {snippets.length > 0 && (
+                <CollapsibleSection
+                  icon={BookOpen}
+                  title="Positioning snippets"
+                  count={snippets.length}
+                  defaultOpen={false}
+                >
+                  <ul className="space-y-2">
+                    {snippets.map((s) => (
+                      <li key={s.id} className="text-xs">
+                        <div className="font-medium text-foreground">{s.title}</div>
+                        <div className="text-muted-foreground leading-snug">{s.body}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleSection>
+              )}
+
+              {/* Suggested questions — always last, collapsed */}
+              <CollapsibleSection icon={HelpCircle} title="Suggested questions" defaultOpen={false}>
                 <ul className="space-y-1 text-xs">
-                  {questions.slice(0, 4).map((q, i) => (
+                  {questions.slice(0, 6).map((q, i) => (
                     <li key={i} className="text-muted-foreground leading-snug">“{q}”</li>
                   ))}
                 </ul>
-              </AsstSection>
+              </CollapsibleSection>
             </CardContent>
           </Card>
         </aside>
       </div>
+
 
       {/* Dialogs */}
       {lead && (
@@ -850,3 +957,44 @@ function AsstSection({
     </div>
   );
 }
+
+function CollapsibleSection({
+  icon: Icon, title, count, defaultOpen, emptyHint, compact, children,
+}: {
+  icon?: any; title: string; count?: number; defaultOpen?: boolean;
+  emptyHint?: string; compact?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  const isEmpty = count === 0;
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className={cn("rounded-md border bg-card/40", compact && "border-dashed")}>
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-2.5 py-2 hover:bg-muted/40 rounded-md">
+        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {Icon && <Icon className="h-3.5 w-3.5" />}
+          <span className="normal-case tracking-normal text-foreground">{title}</span>
+          {typeof count === "number" && count > 0 && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{count}</Badge>
+          )}
+        </div>
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-2.5 pb-2.5 pt-1">
+        {isEmpty && emptyHint ? (
+          <p className="text-xs text-muted-foreground italic">{emptyHint}</p>
+        ) : (
+          children
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function Subsection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-2 last:mb-0">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
+      {children}
+    </div>
+  );
+}
+

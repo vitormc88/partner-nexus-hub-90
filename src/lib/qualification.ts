@@ -306,3 +306,313 @@ export function contextualGuidance(lead: Record<string, any>): {
       return null;
   }
 }
+
+/* =====================================================================
+ * CONTEXTUAL GUIDANCE ENGINE — rule-based, deterministic, no AI.
+ * Multiple guidance blocks combined from current_process + existing_system
+ * + main_challenge so the assistant evolves as data is captured.
+ * ===================================================================== */
+
+export type GuidanceBlock = {
+  id: string;
+  title: string;
+  source: "process" | "system" | "challenge" | "context";
+  pains?: string[];
+  prompts?: string[];
+  positioning?: string[];
+  modules?: string[];
+};
+
+function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlock | null {
+  switch (challenge) {
+    case "Reactive maintenance":
+      return {
+        id: "challenge-reactive",
+        source: "challenge",
+        title: "Reactive maintenance environment",
+        pains: [
+          "Excessive unplanned downtime",
+          "Firefighting culture across teams",
+          "Unpredictable planning and overtime costs",
+          "Poor visibility on recurring failures",
+        ],
+        prompts: [
+          "What percentage of work is reactive today?",
+          "How are preventive tasks planned and executed?",
+          "Which assets fail most often — and why?",
+          "How is downtime tracked and reported?",
+        ],
+        positioning: [
+          "Preventive maintenance planning",
+          "Recurring failure analysis",
+          "Downtime reduction",
+          "Maintenance scheduling",
+          "KPI visibility",
+        ],
+        modules: ["Preventive Maintenance", "Work Orders", "Reports & KPI"],
+      };
+    case "Downtime":
+      return {
+        id: "challenge-downtime",
+        source: "challenge",
+        title: "Downtime is the pain",
+        pains: [
+          "Production losses from unplanned stops",
+          "Slow technician response times",
+          "Limited root-cause analysis",
+        ],
+        prompts: [
+          "What's the cost of one hour of downtime?",
+          "How quickly are failures detected and assigned?",
+          "Do you run root-cause analysis on critical failures?",
+        ],
+        positioning: ["Faster work-order dispatch", "MTBF / MTTR tracking", "Predictive insights"],
+        modules: ["Work Orders", "Mobile", "Reports & KPI"],
+      };
+    case "No maintenance history":
+      return {
+        id: "challenge-history",
+        source: "challenge",
+        title: "No maintenance history",
+        pains: [
+          "Decisions made from memory, not data",
+          "No traceability of past interventions",
+          "Hard to justify investments",
+        ],
+        prompts: [
+          "How do you know what was done on each asset?",
+          "How do you defend audits today?",
+          "How long would you need to reconstruct a year of history?",
+        ],
+        positioning: ["Centralized maintenance history", "Asset lifecycle traceability", "Audit-ready records"],
+        modules: ["Asset Management", "Work Orders", "Reports & KPI"],
+      };
+    case "No visibility":
+    case "Reporting difficulty":
+      return {
+        id: "challenge-visibility",
+        source: "challenge",
+        title: "Limited operational visibility",
+        pains: [
+          "Management lacks reliable KPIs",
+          "Reports built manually in spreadsheets",
+          "No single source of truth across sites",
+        ],
+        prompts: [
+          "What KPIs does management ask for today?",
+          "How long does it take to build a monthly report?",
+          "Can you compare performance across sites?",
+        ],
+        positioning: ["Dashboards & KPIs", "Multi-site visibility", "Automated reporting", "Standardized metrics"],
+        modules: ["Reports & KPI", "Dashboards"],
+      };
+    case "Compliance / Audit":
+      return {
+        id: "challenge-compliance",
+        source: "challenge",
+        title: "Compliance and audit pressure",
+        pains: ["Manual evidence collection", "Risk of non-conformities", "Slow audit preparation"],
+        prompts: [
+          "What regulations or standards apply here?",
+          "How do you collect audit evidence today?",
+          "Have you had findings in recent audits?",
+        ],
+        positioning: ["Audit trail", "Standard operating procedures", "Document control"],
+        modules: ["Work Orders", "Document Management"],
+      };
+    case "Cost control":
+      return {
+        id: "challenge-cost",
+        source: "challenge",
+        title: "Cost control challenge",
+        pains: ["Maintenance spend not tied to assets", "Spare parts overstock or rupture", "No cost-per-asset view"],
+        prompts: [
+          "Can you see cost per asset or per line?",
+          "How is spare parts inventory controlled?",
+          "Are work-order costs captured systematically?",
+        ],
+        positioning: ["Cost-per-asset tracking", "Stock optimization", "Budget control"],
+        modules: ["Stock Management", "Reports & KPI"],
+      };
+    default:
+      return null;
+  }
+}
+
+function guidanceForSystem(system: string | null | undefined): GuidanceBlock | null {
+  switch (system) {
+    case "Other CMMS":
+      return {
+        id: "system-old-cmms",
+        source: "system",
+        title: "Replacing an existing CMMS",
+        pains: ["Low user adoption", "Outdated UI", "Weak mobility", "Reports unusable by management"],
+        prompts: [
+          "What do users dislike most today?",
+          "Are technicians actually using the system?",
+          "Why are you considering change now?",
+        ],
+        positioning: ["User-friendly adoption", "Mobility for technicians", "Modern workflows", "Implementation support"],
+        modules: ["Mobile", "Work Orders", "Reports & KPI"],
+      };
+    case "Custom in-house":
+      return {
+        id: "system-custom",
+        source: "system",
+        title: "Custom in-house tool",
+        pains: ["Dependency on a single developer", "No roadmap or updates", "Hard to scale"],
+        prompts: [
+          "Who maintains the tool today?",
+          "What happens if that person leaves?",
+          "Can it scale to other sites or teams?",
+        ],
+        positioning: ["Standard product with roadmap", "Vendor support", "Lower TCO long-term"],
+      };
+    default:
+      return null;
+  }
+}
+
+export function contextualGuidanceAll(lead: Record<string, any>): GuidanceBlock[] {
+  const blocks: GuidanceBlock[] = [];
+  const p = contextualGuidance(lead);
+  if (p) blocks.push({ id: "process", source: "process", ...p });
+  const s = guidanceForSystem(lead.existing_system);
+  if (s) blocks.push(s);
+  const c = guidanceForChallenge(lead.main_challenge);
+  if (c) blocks.push(c);
+  return blocks;
+}
+
+/* ---------- Discovery Insights ---------- */
+
+export type DiscoveryInsight = { id: string; label: string; tone: "neutral" | "positive" | "warning" };
+
+export function discoveryInsights(lead: Record<string, any>): DiscoveryInsight[] {
+  const out: DiscoveryInsight[] = [];
+  if (lead.current_process === "Excel" || lead.current_process === "Paper")
+    out.push({ id: "manual", label: `Maintenance managed in ${lead.current_process}`, tone: "warning" });
+  if (lead.current_process === "ERP")
+    out.push({ id: "erp", label: "Maintenance handled inside an ERP", tone: "neutral" });
+  if (lead.current_process === "None")
+    out.push({ id: "none", label: "No structured maintenance process", tone: "warning" });
+  if (lead.main_challenge === "Reactive maintenance")
+    out.push({ id: "reactive", label: "Reactive maintenance environment", tone: "warning" });
+  else if (lead.main_challenge)
+    out.push({ id: `chal`, label: `Main pain: ${String(lead.main_challenge).toLowerCase()}`, tone: "neutral" });
+  if (lead.existing_system && lead.existing_system !== "None")
+    out.push({ id: "system", label: `Existing system: ${lead.existing_system}`, tone: "neutral" });
+  if (lead.data_visibility === "Low")
+    out.push({ id: "vis-low", label: "Low operational data visibility", tone: "warning" });
+  if (lead.data_visibility === "High")
+    out.push({ id: "vis-high", label: "Strong operational data visibility", tone: "positive" });
+  if (lead.asset_range)
+    out.push({ id: "assets", label: `Asset base: ${lead.asset_range}`, tone: "neutral" });
+  if (lead.maintenance_team_size)
+    out.push({ id: "team", label: `Maintenance team: ${lead.maintenance_team_size}`, tone: "neutral" });
+  if (resolvedStatus(lead.decision_status, lead.decision_notes) !== "complete")
+    out.push({ id: "no-dm", label: "Decision maker not yet confirmed", tone: "warning" });
+  if (resolvedStatus(lead.timing_status, lead.timing_notes) === "complete")
+    out.push({ id: "timing", label: "Clear timeline and urgency", tone: "positive" });
+  if (lead.fit_pain_identified)
+    out.push({ id: "pain", label: "Operational pain validated", tone: "positive" });
+  return out.slice(0, 8);
+}
+
+/* ---------- Positioning Help ---------- */
+
+export type PositioningHint = { id: string; emphasis: string; reason: string };
+
+export function positioningHelp(lead: Record<string, any>): PositioningHint[] {
+  const out: PositioningHint[] = [];
+  if (lead.current_process === "Excel" || lead.current_process === "Paper")
+    out.push({
+      id: "preventive",
+      emphasis: "Preventive maintenance workflows",
+      reason: `Managing maintenance in ${lead.current_process} — no structured prevention today.`,
+    });
+  if (lead.main_challenge === "No visibility" || lead.main_challenge === "Reporting difficulty")
+    out.push({
+      id: "kpi",
+      emphasis: "Dashboards, KPIs and analytics",
+      reason: "Reporting and visibility flagged as the main pain.",
+    });
+  if (lead.maintenance_team_size && /[5-9]|[1-9]\d/.test(String(lead.maintenance_team_size)))
+    out.push({
+      id: "mobility",
+      emphasis: "Mobile work orders for technicians",
+      reason: "Sizeable maintenance team — mobility unlocks productivity.",
+    });
+  if (lead.asset_range && /\d{3,}/.test(String(lead.asset_range)))
+    out.push({
+      id: "assets",
+      emphasis: "Asset hierarchy and criticality",
+      reason: "Large asset base requires structured asset management.",
+    });
+  if (lead.existing_system === "Other CMMS" || lead.existing_system === "Custom in-house")
+    out.push({
+      id: "adoption",
+      emphasis: "User-friendly adoption",
+      reason: "Replacing a system — adoption is the #1 risk to mitigate.",
+    });
+  if (lead.main_challenge === "Cost control")
+    out.push({
+      id: "stock",
+      emphasis: "Stock and spare parts control",
+      reason: "Cost control flagged — spare parts are usually a quick win.",
+    });
+  if (lead.main_challenge === "Compliance / Audit")
+    out.push({
+      id: "audit",
+      emphasis: "Audit trail and traceability",
+      reason: "Compliance pressure — emphasize evidence and traceability.",
+    });
+  return out;
+}
+
+/* ---------- Likely Risks ---------- */
+
+export type RiskHint = { id: string; label: string; hint: string };
+
+export function likelyRisks(lead: Record<string, any>): RiskHint[] {
+  const out: RiskHint[] = [];
+  if (resolvedStatus(lead.timing_status, lead.timing_notes) === "missing")
+    out.push({ id: "no-urgency", label: "No urgency identified", hint: "Deals without timing stall." });
+  if (resolvedStatus(lead.decision_status, lead.decision_notes) !== "complete")
+    out.push({ id: "no-dm", label: "Decision maker unclear", hint: "Map the buying committee early." });
+  if (resolvedStatus(lead.budget_status, lead.budget_notes) === "missing")
+    out.push({ id: "no-budget", label: "Budget unclear", hint: "Explore how similar investments get approved." });
+  if (!lead.fit_pain_identified)
+    out.push({ id: "no-pain", label: "Operational pain not validated", hint: "Without pain there's no project." });
+  if (lead.data_visibility === "Low" && !lead.main_challenge)
+    out.push({ id: "low-maturity", label: "Low operational maturity", hint: "Expect a longer education cycle." });
+  if (lead.lead_source === "Website" && !lead.contact_name)
+    out.push({ id: "exploratory", label: "Exploratory inbound lead", hint: "Qualify intent before investing time." });
+  return out;
+}
+
+/* ---------- Knowledge Snippets (ManWinWin positioning) ---------- */
+
+export type KnowledgeSnippet = { id: string; title: string; body: string };
+
+const SNIPPET_LIBRARY: Record<string, KnowledgeSnippet> = {
+  preventive: { id: "preventive", title: "Preventive maintenance", body: "Plan recurring interventions by time, usage or condition — reduce failures before they happen." },
+  kpi: { id: "kpi", title: "KPI visibility", body: "Out-of-the-box dashboards for MTBF, MTTR, compliance rate and backlog — no spreadsheets." },
+  mobility: { id: "mobility", title: "Technician mobility", body: "Mobile work orders with QR codes, photos and signatures — technicians work where assets are." },
+  stock: { id: "stock", title: "Spare parts visibility", body: "Stock control tied to work orders — avoid both rupture and overstock." },
+  multisite: { id: "multisite", title: "Multi-site management", body: "Centralized configuration with site-level autonomy — standardize KPIs across operations." },
+  adoption: { id: "adoption", title: "User-friendly adoption", body: "Designed for technicians, not IT — fast onboarding and high daily usage." },
+  assets: { id: "assets", title: "Asset hierarchy", body: "Structure assets by site, line and criticality — drive priorities from data." },
+};
+
+export function knowledgeSnippets(lead: Record<string, any>): KnowledgeSnippet[] {
+  const ids = new Set<string>();
+  if (["Excel", "Paper", "None"].includes(lead.current_process)) ids.add("preventive");
+  if (lead.main_challenge === "No visibility" || lead.main_challenge === "Reporting difficulty") ids.add("kpi");
+  if (lead.maintenance_team_size) ids.add("mobility");
+  if (lead.main_challenge === "Cost control") ids.add("stock");
+  if (lead.asset_range && /\d{3,}/.test(String(lead.asset_range))) ids.add("assets");
+  if (["Other CMMS", "Custom in-house"].includes(lead.existing_system)) ids.add("adoption");
+  if (lead.fit_operational_maturity) ids.add("multisite");
+  return Array.from(ids).map((id) => SNIPPET_LIBRARY[id]).filter(Boolean);
+}

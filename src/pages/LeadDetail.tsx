@@ -972,3 +972,98 @@ function Subsection({ label, children }: { label: string; children: React.ReactN
   );
 }
 
+type AsstAccordionSection = {
+  value: string;
+  icon?: any;
+  title: string;
+  count?: number;
+  empty?: string;
+  render: () => React.ReactNode;
+};
+
+function SingleAccordion({ sections, defaultValue }: { sections: AsstAccordionSection[]; defaultValue?: string }) {
+  const [open, setOpen] = useState<string>(defaultValue || "");
+  return (
+    <div className="space-y-1.5">
+      {sections.map((s) => {
+        const isOpen = open === s.value;
+        const isEmpty = s.count === 0;
+        return (
+          <div key={s.value} className="rounded-md border bg-card/40">
+            <button
+              type="button"
+              onClick={() => setOpen(isOpen ? "" : s.value)}
+              className="flex w-full items-center justify-between px-2.5 py-2 hover:bg-muted/40 rounded-md"
+            >
+              <div className="flex items-center gap-1.5 text-xs">
+                {s.icon && <s.icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                <span className="font-medium text-foreground">{s.title}</span>
+                {typeof s.count === "number" && s.count > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{s.count}</Badge>
+                )}
+              </div>
+              <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+            </button>
+            {isOpen && (
+              <div className="px-2.5 pb-2.5 pt-1">
+                {isEmpty && s.empty ? (
+                  <p className="text-xs text-muted-foreground italic">{s.empty}</p>
+                ) : (
+                  s.render()
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TopList({
+  items, limit = 3, quote, className,
+}: { items: string[]; limit?: number; quote?: boolean; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? items : items.slice(0, limit);
+  const hidden = items.length - shown.length;
+  return (
+    <>
+      <ul className={cn("space-y-0.5", className)}>
+        {shown.map((p, i) => (
+          <li key={i}>{quote ? `“${p}”` : `• ${p}`}</li>
+        ))}
+      </ul>
+      {(hidden > 0 || expanded) && items.length > limit && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-[11px] text-primary hover:underline"
+        >
+          {expanded ? "Show less" : `Show ${hidden} more`}
+        </button>
+      )}
+    </>
+  );
+}
+
+function ChipList({ items, tone }: { items: string[]; tone: "primary" | "muted" }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.map((p, i) => (
+        <span
+          key={i}
+          className={cn(
+            "text-[11px] px-1.5 py-0.5 rounded border",
+            tone === "primary"
+              ? "bg-primary/10 text-primary border-primary/20"
+              : "bg-muted text-muted-foreground border-border",
+          )}
+        >
+          {p}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+

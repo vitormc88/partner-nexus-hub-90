@@ -19,44 +19,44 @@ export const TIMD_CATEGORIES = [
     key: "interest",
     label: "Interest",
     icon: "Sparkles",
-    prompt: "What business problem are they trying to solve?",
+    prompt: "What's the business problem they're trying to solve?",
     questions: [
-      "What triggered this initiative now?",
-      "What does success look like in 6–12 months?",
-      "How are you handling this today?",
+      "What made you start looking at this now?",
+      "If this works out, what would be different in a year?",
+      "How are you handling this day to day right now?",
     ],
   },
   {
     key: "timing",
     label: "Timing",
     icon: "Clock",
-    prompt: "How urgent is this for them — and why?",
+    prompt: "How urgent is this — and why now?",
     questions: [
-      "Is there a hard deadline driving this?",
-      "When would you want to go live?",
-      "What happens if nothing changes in 6 months?",
+      "Is there a date you'd ideally want to be live by?",
+      "What's pushing this forward internally?",
+      "If nothing changes in six months, what happens?",
     ],
   },
   {
     key: "budget",
     label: "Money / Budget",
     icon: "Wallet",
-    prompt: "What budget conversations have they had internally?",
+    prompt: "What's the budget conversation looking like internally?",
     questions: [
-      "Is there a budget allocated for this initiative?",
-      "How are similar investments approved here?",
-      "What's the cost of not solving this?",
+      "Have you set aside budget for this, or is it still being scoped?",
+      "How do projects like this usually get approved here?",
+      "What's it costing you to live with the current situation?",
     ],
   },
   {
     key: "decision",
     label: "Decision Making",
     icon: "Users",
-    prompt: "Who decides — and who else is involved?",
+    prompt: "Who else needs to be part of this decision?",
     questions: [
-      "Who else is involved in this decision?",
-      "Who would be the executive sponsor?",
-      "What's your typical decision process?",
+      "Besides you, who else would weigh in?",
+      "Is there a sponsor at the leadership level?",
+      "What does your typical buying process look like?",
     ],
   },
 ] as const;
@@ -223,12 +223,12 @@ export function lastMeaningfulDiscovery(lead: Record<string, any>): string[] {
 
 export function suggestedQuestions(lead: Record<string, any>): string[] {
   return [
-    "How are you managing maintenance today?",
-    "What are the main operational challenges you face?",
-    "Is there an existing CMMS or ERP in place?",
-    "What triggered this initiative now?",
-    "Who else is involved in the decision?",
-    "What does success look like in 6–12 months?",
+    "How are you managing maintenance day to day?",
+    "What's the part of the operation that frustrates you most?",
+    "Are you using any system today — even spreadsheets?",
+    "What made you start looking at this now?",
+    "Besides you, who else would weigh in on a decision like this?",
+    "If this worked well, what would change in six months?",
   ];
 }
 
@@ -252,9 +252,9 @@ export function contextualGuidance(lead: Record<string, any>): {
           "High risk of data loss",
         ],
         prompts: [
-          "How do you track preventive maintenance today?",
-          "How do you analyze recurring failures?",
-          "Is information centralized across teams?",
+          "How do you keep track of preventive work today?",
+          "When something keeps failing, how do you usually investigate it?",
+          "How do different teams share maintenance information today?",
         ],
         positioning: [
           "Preventive maintenance workflows",
@@ -269,9 +269,9 @@ export function contextualGuidance(lead: Record<string, any>): {
         title: "Replacing an existing CMMS",
         pains: ["Low adoption", "Outdated UX", "Reports not usable by management", "Limited mobility"],
         prompts: [
-          "What's missing or frustrating today?",
-          "Is adoption strong across the team?",
-          "What would justify a migration?",
+          "What part of the current system frustrates the team the most?",
+          "Are technicians actually using it day to day?",
+          "What would it take internally to justify moving away from it?",
         ],
         positioning: ["Modern UX", "Mobile-first technicians", "Faster onboarding", "Actionable analytics"],
       };
@@ -285,9 +285,9 @@ export function contextualGuidance(lead: Record<string, any>): {
           "Poor asset hierarchy / criticality",
         ],
         prompts: [
-          "How are technicians capturing work in the field?",
-          "Do you have a preventive maintenance plan?",
-          "How is asset criticality managed?",
+          "How do technicians log what they do when they're on the floor?",
+          "Is there a real preventive plan today, or is it mostly reactive?",
+          "How do you decide which assets get attention first?",
         ],
         positioning: ["Specialized CMMS layer", "Integrates with ERP", "Stronger preventive workflows"],
       };
@@ -296,9 +296,9 @@ export function contextualGuidance(lead: Record<string, any>): {
         title: "Greenfield opportunity",
         pains: ["No baseline data", "Unclear scope risk", "Change management critical"],
         prompts: [
-          "What's the expected scope and asset base?",
-          "Is there a sponsor and budget owner?",
-          "Could we start with a pilot area?",
+          "Roughly how many assets and sites would be in scope?",
+          "Is there someone internally who already champions this?",
+          "Would it make sense to start small — one site or one line?",
         ],
         positioning: ["Quick-win pilot", "Phased rollout", "Best-practice templates"],
       };
@@ -319,9 +319,28 @@ export type GuidanceBlock = {
   source: "process" | "system" | "challenge" | "context";
   pains?: string[];
   prompts?: string[];
-  positioning?: string[];
+  positioning?: string[]; // legacy combined list (kept for back-compat)
+  businessValue?: string[]; // outcomes
+  capabilities?: string[]; // product features
   modules?: string[];
 };
+
+// Heuristic split for legacy `positioning` lists into business value vs capability.
+const VALUE_HINTS = [
+  "reduce", "improve", "standardiz", "visibility", "control", "lower", "faster",
+  "adoption", "lifecycle", "traceability", "ready", "audit trail", "support",
+  "onboarding", "tco", "scale",
+];
+export function splitPositioning(items: string[] | undefined): { businessValue: string[]; capabilities: string[] } {
+  const businessValue: string[] = [];
+  const capabilities: string[] = [];
+  for (const it of items || []) {
+    const v = it.toLowerCase();
+    if (VALUE_HINTS.some((h) => v.includes(h))) businessValue.push(it);
+    else capabilities.push(it);
+  }
+  return { businessValue, capabilities };
+}
 
 function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlock | null {
   switch (challenge) {
@@ -337,10 +356,10 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
           "Poor visibility on recurring failures",
         ],
         prompts: [
-          "What percentage of work is reactive today?",
-          "How are preventive tasks planned and executed?",
-          "Which assets fail most often — and why?",
-          "How is downtime tracked and reported?",
+          "Roughly how much of the work is firefighting vs planned?",
+          "How are preventive tasks scheduled today?",
+          "Which assets give you the most trouble?",
+          "How do you currently measure downtime?",
         ],
         positioning: [
           "Preventive maintenance planning",
@@ -362,9 +381,9 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
           "Limited root-cause analysis",
         ],
         prompts: [
-          "What's the cost of one hour of downtime?",
-          "How quickly are failures detected and assigned?",
-          "Do you run root-cause analysis on critical failures?",
+          "What does an hour of downtime cost you, roughly?",
+          "When something breaks, how quickly does the right person know?",
+          "For the big failures, do you go back and figure out why?",
         ],
         positioning: ["Faster work-order dispatch", "MTBF / MTTR tracking", "Predictive insights"],
         modules: ["Work Orders", "Mobile", "Reports & KPI"],
@@ -380,9 +399,9 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
           "Hard to justify investments",
         ],
         prompts: [
-          "How do you know what was done on each asset?",
-          "How do you defend audits today?",
-          "How long would you need to reconstruct a year of history?",
+          "If I asked what was done on a specific machine last month, could you tell me?",
+          "How do you prepare when an audit comes up?",
+          "If you needed a year of history tomorrow, how long would that take to pull together?",
         ],
         positioning: ["Centralized maintenance history", "Asset lifecycle traceability", "Audit-ready records"],
         modules: ["Asset Management", "Work Orders", "Reports & KPI"],
@@ -399,9 +418,9 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
           "No single source of truth across sites",
         ],
         prompts: [
-          "What KPIs does management ask for today?",
-          "How long does it take to build a monthly report?",
-          "Can you compare performance across sites?",
+          "How do you currently measure maintenance performance?",
+          "How much time goes into the monthly maintenance report?",
+          "Can you easily compare how different sites are doing?",
         ],
         positioning: ["Dashboards & KPIs", "Multi-site visibility", "Automated reporting", "Standardized metrics"],
         modules: ["Reports & KPI", "Dashboards"],
@@ -413,9 +432,9 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
         title: "Compliance and audit pressure",
         pains: ["Manual evidence collection", "Risk of non-conformities", "Slow audit preparation"],
         prompts: [
-          "What regulations or standards apply here?",
-          "How do you collect audit evidence today?",
-          "Have you had findings in recent audits?",
+          "What standards or audits do you have to comply with?",
+          "How do you gather the evidence auditors ask for today?",
+          "Have any recent audits flagged anything painful?",
         ],
         positioning: ["Audit trail", "Standard operating procedures", "Document control"],
         modules: ["Work Orders", "Document Management"],
@@ -427,9 +446,9 @@ function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlo
         title: "Cost control challenge",
         pains: ["Maintenance spend not tied to assets", "Spare parts overstock or rupture", "No cost-per-asset view"],
         prompts: [
-          "Can you see cost per asset or per line?",
-          "How is spare parts inventory controlled?",
-          "Are work-order costs captured systematically?",
+          "Can you see what each asset or line is actually costing you?",
+          "How do you manage spare parts — overstock or rupture issues?",
+          "Do work orders capture real costs, or is that done separately?",
         ],
         positioning: ["Cost-per-asset tracking", "Stock optimization", "Budget control"],
         modules: ["Stock Management", "Reports & KPI"],
@@ -448,9 +467,9 @@ function guidanceForSystem(system: string | null | undefined): GuidanceBlock | n
         title: "Replacing an existing CMMS",
         pains: ["Low user adoption", "Outdated UI", "Weak mobility", "Reports unusable by management"],
         prompts: [
-          "What do users dislike most today?",
-          "Are technicians actually using the system?",
-          "Why are you considering change now?",
+          "What do people complain about most with the current tool?",
+          "Are technicians really using it, or working around it?",
+          "What's pushing you to look at alternatives now?",
         ],
         positioning: ["User-friendly adoption", "Mobility for technicians", "Modern workflows", "Implementation support"],
         modules: ["Mobile", "Work Orders", "Reports & KPI"],
@@ -462,9 +481,9 @@ function guidanceForSystem(system: string | null | undefined): GuidanceBlock | n
         title: "Custom in-house tool",
         pains: ["Dependency on a single developer", "No roadmap or updates", "Hard to scale"],
         prompts: [
-          "Who maintains the tool today?",
-          "What happens if that person leaves?",
-          "Can it scale to other sites or teams?",
+          "Who keeps the in-house tool running today?",
+          "What happens to it if that person moves on?",
+          "Could it actually scale to other sites or teams?",
         ],
         positioning: ["Standard product with roadmap", "Vendor support", "Lower TCO long-term"],
       };

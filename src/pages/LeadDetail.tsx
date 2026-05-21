@@ -339,7 +339,7 @@ export default function LeadDetail() {
                     key={s}
                     type="button"
                     disabled={isConverted}
-                    onClick={() => set({ qualification_stage: s })}
+                    onClick={() => setStage(s as QualificationStage)}
                     className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-medium border transition",
                       isActive && "bg-primary text-primary-foreground border-primary",

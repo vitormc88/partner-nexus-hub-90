@@ -37,7 +37,7 @@ import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { cn } from "@/lib/utils";
 import {
-  QUALIFICATION_STAGES, type QualificationStage,
+  QUALIFICATION_STAGES, type QualificationStage, normalizeStage,
   TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
   resolvedStatus, autoStatusFromNotes,
   timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,

@@ -1061,6 +1061,13 @@ export default function LeadDetail() {
         onOpenChange={setShowNurture}
         leadId={lead.id}
       />
+      <SendEmailDialog
+        open={showSendEmail}
+        onOpenChange={setShowSendEmail}
+        to={draft.email}
+        contactName={draft.contact_name}
+        companyName={draft.company_name}
+      />
       <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -188,6 +188,12 @@ export default function LeadDetail() {
   const markDisqualified = () =>
     handleSave({ qualification_stage: "Disqualified", status: "Rejected" });
 
+  // Stage button click — also keeps lifecycle status aligned.
+  const setStage = (s: QualificationStage) => {
+    set({ qualification_stage: s, status: lifecycleFromStage(s) });
+  };
+
+
   const handleDelete = () => {
     if (!lead) return;
     deleteLead.mutate(lead.id, {

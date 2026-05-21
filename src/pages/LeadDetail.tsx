@@ -706,7 +706,7 @@ export default function LeadDetail() {
                     </p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setShowLogContact(true)} disabled={isConverted}>
-                    <PhoneCall className="h-3.5 w-3.5" /> Log contact
+                    <PhoneCall className="h-3.5 w-3.5" /> Log activity
                   </Button>
                 </CardHeader>
                 <CardContent>

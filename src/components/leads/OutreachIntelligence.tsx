@@ -44,12 +44,14 @@ const momentumTone = {
   neutral: "bg-muted text-muted-foreground border-border",
 } as const;
 
-export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivity }: Props) {
+export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivity, onCreateTask }: Props) {
   const momentum = momentumSignal(attempts, lead.last_contact_at);
   const next = nextOutreach(attempts, lead.last_contact_at);
   const micro = microDiscoverySuggestions(lead, 3);
   const plays = recommendedPlays(lead, attempts);
+  const recovery = momentumRecoveryHints(attempts);
   const ChannelIcon = channelIcon[next.channel];
+
 
   return (
     <Card className="border-primary/15 bg-card/60">

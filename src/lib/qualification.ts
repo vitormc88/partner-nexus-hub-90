@@ -902,7 +902,7 @@ export function qualificationReadiness(lead: Record<string, any>): {
   const items: ReadinessItem[] = [
     { key: "pain", label: "Operational pain identified", done: !!lead.fit_pain_identified },
     { key: "dm", label: "Decision maker identified", done: !!lead.fit_decision_maker_identified },
-    { key: "discovery", label: "Discovery completed",
+    { key: "discovery", label: "Initial qualification completed",
       done: resolvedStatus(lead.interest_status, lead.interest_notes) !== "missing" },
     { key: "fit", label: "Potential fit validated",
       done: !!(lead.fit_current_process_identified || lead.fit_system_dissatisfaction) },

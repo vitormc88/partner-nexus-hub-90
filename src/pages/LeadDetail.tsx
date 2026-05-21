@@ -19,6 +19,7 @@ import {
   Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
   HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
   Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge,
+  User as UserIcon, History, ListChecks, UserCheck, CheckSquare, CircleDot, Leaf as LeafIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -118,6 +119,26 @@ export default function LeadDetail() {
   );
   const readiness = useMemo(() => qualificationReadiness(draft), [draft]);
   const openTasksCount = useMemo(() => tasks.filter((t: any) => t.status !== "Done").length, [tasks]);
+
+  const allAssignableUsers = useMemo(() => {
+    const list = [...(hqUsers || []), ...(partnerUsers || [])];
+    const seen = new Set<string>();
+    return list.filter((u: any) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
+  }, [hqUsers, partnerUsers]);
+
+  const assignedUser = useMemo(
+    () => allAssignableUsers.find((u: any) => u.id === (draft as any).assigned_user_id) || null,
+    [allAssignableUsers, draft],
+  );
+
+  const timeline = useMemo(
+    () => buildTimeline({ lead: draft, attempts: attempts as any, tasks: tasks as any, assignedUser }),
+    [draft, attempts, tasks, assignedUser],
+  );
 
   const handleSave = (extra: Record<string, any> = {}) => {
     if (!lead) return;
@@ -242,6 +263,13 @@ export default function LeadDetail() {
                 {draft.lead_source && (
                   <span className="inline-flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-muted-foreground" />{draft.lead_source}</span>
                 )}
+                <span className="inline-flex items-center gap-1.5">
+                  <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Owner:</span>
+                  <span className="font-medium">
+                    {assignedUser ? (assignedUser as any).full_name || (assignedUser as any).email : "Unassigned"}
+                  </span>
+                </span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1">
                   {draft.phone && (
@@ -426,12 +454,23 @@ export default function LeadDetail() {
 
           {/* TABS */}
           <Tabs defaultValue="qualification" className="w-full">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
               <TabsTrigger value="situation">Situation</TabsTrigger>
               <TabsTrigger value="overview">Lead info</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="tasks" className="gap-1.5">
+                Tasks
+                {openTasksCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{openTasksCount}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="gap-1.5">
+                Activity
+                {timeline.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{timeline.length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="assignment">Assignment</TabsTrigger>
             </TabsList>
 
@@ -696,6 +735,57 @@ export default function LeadDetail() {
               </Card>
             </TabsContent>
 
+            {/* ACTIVITY TIMELINE — real events only */}
+            <TabsContent value="activity" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <History className="h-4 w-4 text-muted-foreground" /> Activity timeline
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Real operational events stored in the system. No synthetic entries.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowLogContact(true)} disabled={isConverted}>
+                    <PhoneCall className="h-3.5 w-3.5" /> Log contact
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {timeline.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      No operational events yet.
+                    </p>
+                  ) : (
+                    <ol className="relative border-l border-border ml-2 space-y-4">
+                      {timeline.map((ev) => (
+                        <li key={ev.id} className="ml-4">
+                          <span className={cn(
+                            "absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background",
+                            ev.tone === "success" && "bg-success",
+                            ev.tone === "warning" && "bg-warning",
+                            ev.tone === "destructive" && "bg-destructive",
+                            ev.tone === "neutral" && "bg-muted-foreground",
+                            ev.tone === "primary" && "bg-primary",
+                          )} />
+                          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                            <div className="text-sm font-medium leading-snug">{ev.title}</div>
+                            <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                              {format(new Date(ev.at), "dd MMM yyyy · HH:mm")}
+                            </div>
+                          </div>
+                          {ev.detail && (
+                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{ev.detail}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+
             {/* ASSIGNMENT */}
             <TabsContent value="assignment" className="mt-4 space-y-4">
               <Card>
@@ -741,8 +831,48 @@ export default function LeadDetail() {
                       />
                     </div>
                   )}
+
+                  {/* Assigned owner — saved immediately so the trigger fires
+                      and SLA/ownership context updates without a manual Save. */}
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Assigned owner</Label>
+                    <Select
+                      value={(draft as any).assigned_user_id || "__none__"}
+                      onValueChange={(v) => {
+                        const next = v === "__none__" ? null : v;
+                        set({ assigned_user_id: next });
+                        updateLead.mutate(
+                          { id: lead.id, assigned_user_id: next as any },
+                          {
+                            onSuccess: () =>
+                              toast.success(next ? "Owner assigned — notification sent" : "Owner cleared"),
+                            onError: (e: any) => toast.error(e.message),
+                          },
+                        );
+                      }}
+                      disabled={isConverted || allAssignableUsers.length === 0}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Unassigned</SelectItem>
+                        {allAssignableUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name || u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(draft as any).assigned_at && (draft as any).assigned_user_id && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Assigned {formatDistanceToNow(new Date((draft as any).assigned_at), { addSuffix: true })}
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
+
 
               {isAdmin && (
                 <Card className="border-destructive/30">
@@ -958,6 +1088,46 @@ export default function LeadDetail() {
         leadCompanyName={lead.company_name || "Unnamed Lead"}
         linkedPartnerId={lead.linked_partner_id}
       />
+      <LogContactAttemptDialog
+        open={showLogContact}
+        onOpenChange={setShowLogContact}
+        leadId={lead.id}
+      />
+      <DisqualifyLeadDialog
+        open={showDisqualify}
+        onOpenChange={setShowDisqualify}
+        leadId={lead.id}
+      />
+      <MoveToNurtureDialog
+        open={showNurture}
+        onOpenChange={setShowNurture}
+        leadId={lead.id}
+      />
+      <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cover the missing qualification items first</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following items should be covered before this lead enters the pipeline:
+              <ul className="mt-2 list-disc pl-5 space-y-0.5 text-sm">
+                {readiness.missing.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back to qualification</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowConvertGate(false);
+                setShowConvert(true);
+              }}
+            >
+              Convert anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
@@ -1232,3 +1402,151 @@ function ChipList({ items, tone }: { items: string[]; tone: "primary" | "muted" 
 }
 
 
+
+/* ---------- Activity timeline (real events only) ---------- */
+
+type TimelineEvent = {
+  id: string;
+  at: string;
+  title: string;
+  detail?: string;
+  tone: "success" | "warning" | "destructive" | "neutral" | "primary";
+};
+
+const ATTEMPT_LABEL: Record<string, string> = {
+  no_answer: "No answer",
+  left_voicemail: "Left voicemail",
+  reached: "Reached contact",
+  bounced: "Bounced / invalid",
+  replied: "Replied",
+  scheduled: "Meeting scheduled",
+  unreachable: "Marked unreachable",
+  other: "Other outcome",
+};
+
+const CHANNEL_TITLE: Record<string, string> = {
+  call: "Call",
+  email: "Email",
+  linkedin: "LinkedIn",
+  meeting: "Meeting",
+  other: "Contact attempt",
+};
+
+function buildTimeline({
+  lead,
+  attempts,
+  tasks,
+  assignedUser,
+}: {
+  lead: Record<string, any>;
+  attempts: any[];
+  tasks: any[];
+  assignedUser: any;
+}): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  // Lead created — real timestamp on the record.
+  if (lead?.created_at) {
+    events.push({
+      id: `created-${lead.id}`,
+      at: lead.created_at,
+      title: "Lead created",
+      detail: lead.lead_source ? `Source: ${lead.lead_source}` : undefined,
+      tone: "neutral",
+    });
+  }
+
+  // Assignment — only if we have an actual assigned_at stamp.
+  if (lead?.assigned_at && lead?.assigned_user_id) {
+    events.push({
+      id: `assigned-${lead.assigned_at}`,
+      at: lead.assigned_at,
+      title: "Owner assigned",
+      detail: assignedUser
+        ? `Assigned to ${assignedUser.full_name || assignedUser.email}`
+        : undefined,
+      tone: "primary",
+    });
+  }
+
+  // Contact attempts.
+  for (const a of attempts || []) {
+    const channel = CHANNEL_TITLE[a.channel] || "Contact attempt";
+    const outcome = ATTEMPT_LABEL[a.outcome] || a.outcome;
+    const tone: TimelineEvent["tone"] =
+      a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled"
+        ? "success"
+        : a.outcome === "unreachable" || a.outcome === "bounced"
+        ? "destructive"
+        : "warning";
+    events.push({
+      id: `attempt-${a.id}`,
+      at: a.performed_at,
+      title: `${channel} — ${outcome}`,
+      detail: a.notes || undefined,
+      tone,
+    });
+  }
+
+  // Tasks created and completed.
+  for (const t of tasks || []) {
+    if (t.created_at) {
+      events.push({
+        id: `task-created-${t.id}`,
+        at: t.created_at,
+        title: `Task created: ${t.title}`,
+        detail: t.due_date ? `Due ${t.due_date}` : undefined,
+        tone: "neutral",
+      });
+    }
+    if (t.completed_at) {
+      events.push({
+        id: `task-done-${t.id}`,
+        at: t.completed_at,
+        title: `Task completed: ${t.title}`,
+        tone: "success",
+      });
+    }
+  }
+
+  // Nurture decision (real, only when nurture_until or nurture_reason exist).
+  if (lead?.status === "Nurture" && (lead?.nurture_until || lead?.nurture_reason)) {
+    events.push({
+      id: `nurture-${lead.id}`,
+      at: lead.nurture_until
+        ? new Date(lead.nurture_until + "T00:00:00").toISOString()
+        : lead.last_contact_at || lead.created_at,
+      title: "Moved to nurture",
+      detail: [
+        lead.nurture_reason,
+        lead.nurture_until ? `Follow up on ${lead.nurture_until}` : null,
+      ].filter(Boolean).join(" — "),
+      tone: "warning",
+    });
+  }
+
+  // Disqualified (only if we have a reason recorded).
+  if (lead?.qualification_stage === "Disqualified" && lead?.disqualified_reason) {
+    events.push({
+      id: `disq-${lead.id}`,
+      at: lead.last_contact_at || lead.created_at,
+      title: "Disqualified",
+      detail: lead.disqualified_reason,
+      tone: "destructive",
+    });
+  }
+
+  // Converted to opportunity.
+  if (lead?.converted_to_deal_id) {
+    events.push({
+      id: `conv-${lead.id}`,
+      at: lead.last_contact_at || lead.created_at,
+      title: "Converted to opportunity",
+      tone: "primary",
+    });
+  }
+
+  return events
+    .filter((e) => !!e.at)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}

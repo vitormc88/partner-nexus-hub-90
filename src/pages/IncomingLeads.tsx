@@ -88,7 +88,7 @@ export default function IncomingLeads() {
       .filter(Boolean).some(v => v!.toLowerCase().includes(search.toLowerCase()));
     const matchesOwner = filterOwner === "all" || lead.lead_owner_type === filterOwner;
     const matchesPartner = filterPartner === "all" || lead.linked_partner_id === filterPartner;
-    const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || normalizeLifecycle(lead.status) === filterStatus;
     return matchesSearch && matchesOwner && matchesPartner && matchesStatus;
   });
 

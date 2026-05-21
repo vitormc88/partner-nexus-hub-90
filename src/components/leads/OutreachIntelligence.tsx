@@ -8,7 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   momentumSignal, nextOutreach, microDiscoverySuggestions,
-  recommendedPlays, OUTREACH_PLAYS, type PlayKey,
+  recommendedPlays, OUTREACH_PLAYS, momentumRecoveryHints, type PlayKey,
 } from "@/lib/outreach";
 import type { AttemptLike } from "@/lib/qualification";
 
@@ -17,7 +17,9 @@ interface Props {
   attempts: AttemptLike[];
   onSendEmail: (playKey?: PlayKey) => void;
   onLogActivity: () => void;
+  onCreateTask?: () => void;
 }
+
 
 const channelIcon = {
   call: PhoneCall,
@@ -42,12 +44,14 @@ const momentumTone = {
   neutral: "bg-muted text-muted-foreground border-border",
 } as const;
 
-export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivity }: Props) {
+export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivity, onCreateTask }: Props) {
   const momentum = momentumSignal(attempts, lead.last_contact_at);
   const next = nextOutreach(attempts, lead.last_contact_at);
   const micro = microDiscoverySuggestions(lead, 3);
   const plays = recommendedPlays(lead, attempts);
+  const recovery = momentumRecoveryHints(attempts);
   const ChannelIcon = channelIcon[next.channel];
+
 
   return (
     <Card className="border-primary/15 bg-card/60">
@@ -130,8 +134,27 @@ export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivit
           </div>
         </div>
 
+        {/* Momentum recovery hints — surface only when cadence is weakening */}
+        {recovery.length > 0 && (
+          <div className="rounded-md border border-dashed bg-muted/20 px-2.5 py-1.5">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+              Momentum recovery
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {recovery.map((h, i) => (
+                <span
+                  key={i}
+                  className="text-[11px] px-1.5 py-0.5 rounded border border-border bg-background text-muted-foreground"
+                >
+                  {h}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick actions row */}
-        <div className="flex items-center gap-1.5 pt-0.5">
+        <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
           <Button
             size="sm"
             variant="outline"
@@ -144,7 +167,13 @@ export function OutreachIntelligence({ lead, attempts, onSendEmail, onLogActivit
           <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onLogActivity}>
             <PhoneCall className="h-3 w-3" /> Log result
           </Button>
+          {onCreateTask && recovery.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onCreateTask}>
+              <ArrowRight className="h-3 w-3" /> Plan retry task
+            </Button>
+          )}
         </div>
+
       </CardContent>
     </Card>
   );

@@ -409,3 +409,30 @@ export function recommendedPlays(
   if (last?.channel === "call") return ["call_followup", "value_followup"];
   return ["value_followup", "call_followup", "wrong_contact"];
 }
+
+/* ---------- Momentum recovery hints ----------
+ * Lightweight, non-alarmist suggestions for when cadence weakens.
+ * Returned as short chips; the user decides whether to act. */
+export function momentumRecoveryHints(attempts: AttemptLike[]): string[] {
+  const c = attemptCounts(attempts);
+  if (c.replied > 0) return [];
+  if (c.failed >= 5) {
+    return [
+      "Consider nurture instead of forcing",
+      "Send a low-pressure break-up note",
+      "Confirm the contact is still the right one",
+    ];
+  }
+  if (c.failed >= 3) {
+    return [
+      "Switch channel",
+      "Try an operational-value angle",
+      "Try a different time window",
+    ];
+  }
+  if (c.total >= 2) {
+    return ["Send a short value-led nudge", "Try LinkedIn for variety"];
+  }
+  return [];
+}
+

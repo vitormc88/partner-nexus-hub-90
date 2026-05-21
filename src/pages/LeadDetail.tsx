@@ -18,12 +18,14 @@ import {
   ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2, XCircle,
   Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
   HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
-  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge,
+  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge, Hourglass,
   User as UserIcon, History, ListChecks, UserCheck, CheckSquare, CircleDot, Leaf as LeafIcon,
+
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isSameDay } from "date-fns";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+
 import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
 import { LeadTaskList } from "@/components/leads/LeadTaskList";
 import { AddLeadTaskDialog } from "@/components/leads/AddLeadTaskDialog";
@@ -49,7 +51,9 @@ import {
   contextualGuidanceAll, discoveryInsights, positioningHelp, likelyRisks, knowledgeSnippets,
   splitPositioning,
   cadenceGuidance, attemptCounts, slaBucket, nextBestActionDynamic, qualificationReadiness,
+  waitingState,
 } from "@/lib/qualification";
+
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -74,6 +78,10 @@ export default function LeadDetail() {
 
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [showConvert, setShowConvert] = useState(false);
   const [showConvertGate, setShowConvertGate] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -151,7 +159,12 @@ export default function LeadDetail() {
     [draft, attempts, tasks, assignedUser],
   );
 
-  const handleSave = (extra: Record<string, any> = {}) => {
+  const waiting = useMemo(
+    () => waitingState(draft, attempts as any, tasks as any),
+    [draft, attempts, tasks],
+  );
+
+  const handleSave = (extra: Record<string, any> = {}, opts: { silent?: boolean } = {}) => {
     if (!lead) return;
     const partnerId = draft.linked_partner_id === "__hq__" ? null : draft.linked_partner_id;
     const ownerType = partnerId ? "partner" : "HQ";
@@ -181,14 +194,36 @@ export default function LeadDetail() {
       base.lead_owner_type = ownerType;
       base.routing_reason = draft.routing_reason;
     }
+    setSaveState("saving");
     updateLead.mutate(base, {
       onSuccess: () => {
-        toast.success("Lead updated");
         setDirty(false);
+        setSaveState("saved");
+        setLastSavedAt(new Date());
+        if (!opts.silent) toast.success("Lead updated");
       },
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: any) => {
+        setSaveState("error");
+        toast.error(e.message);
+      },
     });
   };
+
+  // Silent autosave — debounced. Low-risk: only persists fields already in handleSave's
+  // payload (notes, statuses, fit factors, situation pickers). Stage/status transitions
+  // happen via explicit user action (stage buttons / nurture / disqualify dialogs).
+  useEffect(() => {
+    if (!dirty || !lead || isConverted) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      handleSave({}, { silent: true });
+    }, 1500);
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, dirty]);
+
 
   const markQualified = () =>
     handleSave({ qualification_stage: "Qualified", status: "Qualified" });
@@ -284,14 +319,29 @@ export default function LeadDetail() {
             ) : (
               <span className="text-muted-foreground">· no activity yet</span>
             )}
-            <Badge className={cn(
-              "gap-1 text-[10px] h-5 px-1.5 border",
-              sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
-              sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
-              sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
-            )}>
-              <Clock className="h-2.5 w-2.5" /> {sla.label}
-            </Badge>
+            {waiting ? (
+              <Badge
+                className={cn(
+                  "gap-1 text-[10px] h-5 px-1.5 border",
+                  waiting.tone === "positive"
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-muted text-muted-foreground border-border",
+                )}
+                title={waiting.hint}
+              >
+                <Hourglass className="h-2.5 w-2.5" /> {waiting.label}
+              </Badge>
+            ) : (
+              <Badge className={cn(
+                "gap-1 text-[10px] h-5 px-1.5 border",
+                sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
+                sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
+                sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
+              )}>
+                <Clock className="h-2.5 w-2.5" /> {sla.label}
+              </Badge>
+            )}
+
             <div className="flex-1" />
             <span className="inline-flex items-center gap-1.5 text-foreground">
               <Target className="h-3 w-3 text-primary" />
@@ -360,9 +410,28 @@ export default function LeadDetail() {
                 );
               })}
             </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
-              <Save className="h-3.5 w-3.5" /> Save
+            <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1 px-2" aria-live="polite">
+              {saveState === "saving" || (dirty && updateLead.isPending) ? (
+                <>· Saving…</>
+              ) : saveState === "error" ? (
+                <span className="text-destructive">· Save failed</span>
+              ) : dirty ? (
+                <>· Unsaved changes</>
+              ) : lastSavedAt ? (
+                <>· Saved {formatDistanceToNow(lastSavedAt, { addSuffix: true })}</>
+              ) : null}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8"
+              onClick={() => handleSave()}
+              disabled={!dirty || updateLead.isPending}
+              title="Force save now"
+            >
+              <Save className="h-3.5 w-3.5" />
             </Button>
+
           </div>
         </div>
       </div>
@@ -432,7 +501,9 @@ export default function LeadDetail() {
             attempts={attempts as any}
             onSendEmail={(k) => openSendEmail(k)}
             onLogActivity={() => setShowLogContact(true)}
+            onCreateTask={() => setShowAddTask(true)}
           />
+
 
 
           {/* TABS */}

@@ -31,6 +31,8 @@ import { LogContactAttemptDialog } from "@/components/leads/LogContactAttemptDia
 import { DisqualifyLeadDialog } from "@/components/leads/DisqualifyLeadDialog";
 import { MoveToNurtureDialog } from "@/components/leads/MoveToNurtureDialog";
 import { SendEmailDialog } from "@/components/leads/SendEmailDialog";
+import { OutreachIntelligence } from "@/components/leads/OutreachIntelligence";
+import type { PlayKey } from "@/lib/outreach";
 import { useLeadContactAttempts, OUTCOME_LABEL, CHANNEL_LABEL } from "@/hooks/useLeadContactAttempts";
 import { useLeadTasks } from "@/hooks/useLeadTasks";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
@@ -79,6 +81,11 @@ export default function LeadDetail() {
   const [showDisqualify, setShowDisqualify] = useState(false);
   const [showNurture, setShowNurture] = useState(false);
   const [showSendEmail, setShowSendEmail] = useState(false);
+  const [emailPlay, setEmailPlay] = useState<PlayKey | undefined>(undefined);
+  const openSendEmail = (play?: PlayKey) => {
+    setEmailPlay(play);
+    setShowSendEmail(true);
+  };
   const [openTimd, setOpenTimd] = useState<string>("");
 
   const { data: attempts = [] } = useLeadContactAttempts(id);

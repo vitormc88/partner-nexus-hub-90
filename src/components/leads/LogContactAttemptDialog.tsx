@@ -33,11 +33,11 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
       { lead_id: leadId, channel, outcome, notes: notes.trim() || undefined },
       {
         onSuccess: () => {
-          toast.success("Contact attempt logged");
+          toast.success("Activity logged");
           reset();
           onOpenChange(false);
         },
-        onError: (e: any) => toast.error(e.message || "Failed to log attempt"),
+        onError: (e: any) => toast.error(e.message || "Failed to log activity"),
       },
     );
   };
@@ -46,7 +46,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Log contact attempt</DialogTitle>
+          <DialogTitle>Log activity</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -87,7 +87,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={log.isPending}>
-            {log.isPending ? "Saving…" : "Log attempt"}
+            {log.isPending ? "Saving…" : "Log activity"}
           </Button>
         </DialogFooter>
       </DialogContent>

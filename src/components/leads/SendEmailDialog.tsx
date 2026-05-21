@@ -21,27 +21,27 @@ type TemplateKey = "intro" | "followup" | "retry" | "discovery";
 const TEMPLATES: Record<TemplateKey, { label: string; subject: (c: string) => string; body: (n: string, c: string) => string }> = {
   intro: {
     label: "Intro / first touch",
-    subject: (c) => `${c} — quick intro`,
+    subject: () => "Quick intro regarding maintenance operations",
     body: (n, c) =>
-      `Hi ${n || "there"},\n\nThanks for your interest in ManWinWin. I'd love to learn a bit about how ${c || "your team"} currently manages maintenance and where the friction is — usually 15 minutes is enough to know if we're a fit.\n\nWould a short call this week work?\n\nBest,`,
+      `Hi ${n || "there"},\n\nReaching out briefly about how ${c || "your team"} manages maintenance today. If it's a relevant topic, 15 minutes is usually enough to know whether ManWinWin would be a fit.\n\nWould any time this week work?\n\nBest,`,
   },
   followup: {
     label: "Polite follow-up",
-    subject: (c) => `Following up — ${c}`,
+    subject: () => "Quick follow-up regarding maintenance operations",
     body: (n, c) =>
-      `Hi ${n || "there"},\n\nJust circling back on my previous note about ${c || "your maintenance operation"}. Happy to share a couple of quick examples relevant to your sector if useful.\n\nIs there a better time to connect?\n\nBest,`,
+      `Hi ${n || "there"},\n\nCircling back on my previous note. Happy to share a couple of quick examples relevant to ${c || "your sector"} if useful.\n\nIs there a better time to connect?\n\nBest,`,
   },
   retry: {
-    label: "After no-answer call",
-    subject: (c) => `Tried calling — ${c}`,
-    body: (n, c) =>
-      `Hi ${n || "there"},\n\nI tried to reach you by phone earlier. Sending a quick note in case email is easier — I'd just like to understand how ${c || "your team"} runs maintenance today and whether ManWinWin could help.\n\nLet me know a good window for a 15 min call.\n\nBest,`,
+    label: "After unanswered call",
+    subject: () => "Following up after my earlier call",
+    body: (n) =>
+      `Hi ${n || "there"},\n\nTried reaching you by phone earlier — sending a quick note in case email is easier. A few minutes would be enough to understand how you handle maintenance today and whether we can help.\n\nLet me know what works.\n\nBest,`,
   },
   discovery: {
     label: "Discovery call invite",
-    subject: (c) => `Discovery call — ${c}`,
+    subject: () => "Maintenance process discussion",
     body: (n, c) =>
-      `Hi ${n || "there"},\n\nThanks for the chat. As discussed, I'd like to schedule a discovery session to map ${c || "your"} current process, main pain points and decision flow. 30 minutes should be enough.\n\nDoes any of these slots work?\n - \n - \n\nBest,`,
+      `Hi ${n || "there"},\n\nFollowing our exchange, I'd like to schedule a short discovery session to map ${c || "your"} current process, main pain points and decision flow. 30 minutes should be enough.\n\nDoes any of these slots work?\n - \n - \n\nBest,`,
   },
 };
 
@@ -57,10 +57,13 @@ export function SendEmailDialog({ open, onOpenChange, to, contactName, companyNa
   }, [template, contactName, companyName, open]);
 
   const mailtoHref = () => {
-    const params = new URLSearchParams();
-    if (subject) params.set("subject", subject);
-    if (body) params.set("body", body);
-    return `mailto:${to || ""}?${params.toString()}`;
+    // Use encodeURIComponent (spaces → %20) instead of URLSearchParams (spaces → +),
+    // so subjects render as readable text in email clients.
+    const parts: string[] = [];
+    if (subject) parts.push(`subject=${encodeURIComponent(subject)}`);
+    if (body) parts.push(`body=${encodeURIComponent(body)}`);
+    const qs = parts.length ? `?${parts.join("&")}` : "";
+    return `mailto:${encodeURIComponent(to || "").replace(/%40/g, "@")}${qs}`;
   };
 
   const copyAll = async () => {

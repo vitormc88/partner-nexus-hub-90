@@ -65,20 +65,22 @@ export function useLeadContactAttempts(leadId: string | undefined) {
 
 /** Derives a new engagement status from attempts after a fresh one is logged. */
 export function deriveEngagement(
-  attempts: { outcome: ContactOutcome }[],
+  attempts: { outcome: ContactOutcome; channel?: ContactChannel }[],
 ): string {
   if (attempts.length === 0) return "New";
-  const reached = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
+  const replied = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
   const scheduled = attempts.some((a) => a.outcome === "scheduled");
-  const failed = attempts.filter((a) =>
+  const unreachable = attempts.some((a) => a.outcome === "unreachable");
+  const emailSent = attempts.some((a) => a.channel === "email");
+  const failedCalls = attempts.filter((a) =>
     ["no_answer", "left_voicemail", "bounced"].includes(a.outcome),
   ).length;
-  const unreachable = attempts.some((a) => a.outcome === "unreachable");
   if (scheduled) return "Discovery Scheduled";
-  if (reached) return "Engaged";
-  if (unreachable || failed >= 5) return "Unreachable";
-  if (failed >= 3) return "Silent";
-  return "Attempted";
+  if (replied) return "In Conversation";
+  if (unreachable || failedCalls >= 5) return "Unreachable";
+  if (failedCalls >= 3) return "Silent";
+  if (emailSent) return "Outreach Sent";
+  return "Outreach Attempted";
 }
 
 export function useLogContactAttempt() {
@@ -109,7 +111,7 @@ export function useLogContactAttempt() {
       // Fetch existing attempts (including the new one) to derive engagement.
       const { data: all } = await (supabase as any)
         .from("lead_contact_attempts")
-        .select("outcome")
+        .select("outcome, channel")
         .eq("lead_id", args.lead_id);
       const next = deriveEngagement((all || []) as { outcome: ContactOutcome }[]);
 

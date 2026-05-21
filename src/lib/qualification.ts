@@ -3,7 +3,7 @@
 
 export const QUALIFICATION_STAGES = [
   "New",
-  "Qualification",
+  "Attempted",
   "Contacted",
   "Qualified",
   "Converted",
@@ -11,9 +11,30 @@ export const QUALIFICATION_STAGES = [
 ] as const;
 export type QualificationStage = (typeof QUALIFICATION_STAGES)[number];
 
-/** Normalize legacy stages (e.g. "Discovery Call") into the current enum. */
+export const STAGE_LABEL: Record<QualificationStage, string> = {
+  New: "New",
+  Attempted: "Attempted",
+  Contacted: "Contacted",
+  Qualified: "Qualified",
+  Converted: "Converted",
+  Disqualified: "Disqualified",
+};
+
+/** Helpful tooltip describing what each stage really means operationally. */
+export const STAGE_HINT: Record<QualificationStage, string> = {
+  New: "Lead just landed. No outreach yet.",
+  Attempted: "Outreach started (calls, voicemails, emails). No reply yet.",
+  Contacted: "Two-way communication established (reply, conversation or meeting).",
+  Qualified: "Discovery covered. Fit and intent validated.",
+  Converted: "Promoted to an opportunity in the pipeline.",
+  Disqualified: "Closed out — not a fit or unreachable after enough attempts.",
+};
+
+/** Normalize legacy stages into the current enum. */
 export function normalizeStage(s: string | null | undefined): QualificationStage {
   if (s === "Discovery Call") return "Contacted";
+  if (s === "Qualification") return "Attempted";
+  if (s === "In Review") return "Attempted";
   if (s && (QUALIFICATION_STAGES as readonly string[]).includes(s)) return s as QualificationStage;
   return "New";
 }
@@ -87,7 +108,7 @@ export const FIT_FACTORS = [
   { key: "fit_current_process_identified", label: "Current process identified", positive: true },
   { key: "fit_urgency_identified", label: "Urgency discussed", positive: true },
   { key: "fit_decision_maker_identified", label: "Decision maker identified", positive: true },
-  { key: "fit_operational_maturity", label: "Operational maturity", positive: true },
+  { key: "fit_operational_maturity", label: "Maintenance process maturity", positive: true },
   { key: "fit_system_dissatisfaction", label: "Existing system dissatisfaction", positive: true },
 ] as const;
 export type FitFactorKey = (typeof FIT_FACTORS)[number]["key"];
@@ -659,20 +680,23 @@ export type TaskLike = {
   due_date?: string | null;
 };
 
-/** Engagement health derived purely from attempts. */
+/** Engagement health derived purely from outreach attempts and responses. */
 export function engagementHealthFromAttempts(attempts: AttemptLike[]): string {
   if (!attempts || attempts.length === 0) return "New";
-  const reached = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
+  const replied = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
   const scheduled = attempts.some((a) => a.outcome === "scheduled");
   const unreachable = attempts.some((a) => a.outcome === "unreachable");
-  const failed = attempts.filter((a) =>
+  const emailSent = attempts.some((a) => a.channel === "email");
+  const failedCalls = attempts.filter((a) =>
     ["no_answer", "left_voicemail", "bounced"].includes(a.outcome),
   ).length;
+  // True engagement requires a response — failed calls never count as contact.
   if (scheduled) return "Discovery Scheduled";
-  if (reached) return "Engaged";
-  if (unreachable || failed >= 5) return "Unreachable";
-  if (failed >= 3) return "Silent";
-  return "Attempted";
+  if (replied) return "In Conversation";
+  if (unreachable || failedCalls >= 5) return "Unreachable";
+  if (failedCalls >= 3) return "Silent";
+  if (emailSent) return "Outreach Sent";
+  return "Outreach Attempted";
 }
 
 export function attemptCounts(attempts: AttemptLike[]) {
@@ -711,11 +735,11 @@ export function cadenceGuidance(attempts: AttemptLike[]): {
 
   if (counts.total === 0) {
     return {
-      step: "No outbound activity yet",
+      step: "No outreach yet",
       tone: "neutral",
       suggestions: [
-        "Start with a qualification call",
-        "Prepare a short intro email",
+        "Open with a short qualification call",
+        "Or send a short intro email — a couple of operational questions count as micro-discovery",
         "Confirm the right contact is in the record",
       ],
     };
@@ -747,12 +771,12 @@ export function cadenceGuidance(attempts: AttemptLike[]): {
 
   if (counts.total === 1) {
     return {
-      step: "First attempt logged",
+      step: "First outreach logged — no response yet",
       tone: "neutral",
       suggestions: [
         "Retry in 2 days at a different time window",
-        "Send a short intro email between calls",
-        "Try the company main line if direct number failed",
+        "Send a short email with one or two operational questions",
+        "Try the company main line if the direct number failed",
       ],
     };
   }
@@ -878,7 +902,7 @@ export function qualificationReadiness(lead: Record<string, any>): {
   const items: ReadinessItem[] = [
     { key: "pain", label: "Operational pain identified", done: !!lead.fit_pain_identified },
     { key: "dm", label: "Decision maker identified", done: !!lead.fit_decision_maker_identified },
-    { key: "discovery", label: "Discovery completed",
+    { key: "discovery", label: "Initial qualification completed",
       done: resolvedStatus(lead.interest_status, lead.interest_notes) !== "missing" },
     { key: "fit", label: "Potential fit validated",
       done: !!(lead.fit_current_process_identified || lead.fit_system_dissatisfaction) },

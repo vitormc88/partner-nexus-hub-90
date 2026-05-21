@@ -292,7 +292,7 @@ export default function LeadDetail() {
               </Button>
             )}
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
-              <CheckSquare className="h-3.5 w-3.5" /> Log contact
+              <CheckSquare className="h-3.5 w-3.5" /> Log activity
             </Button>
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowSendEmail(true)} disabled={!draft.email}>
               <MailPlus className="h-3.5 w-3.5" /> Send email
@@ -706,7 +706,7 @@ export default function LeadDetail() {
                     </p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setShowLogContact(true)} disabled={isConverted}>
-                    <PhoneCall className="h-3.5 w-3.5" /> Log contact
+                    <PhoneCall className="h-3.5 w-3.5" /> Log activity
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -1173,7 +1173,7 @@ function QualificationJourney({
 function StageBadge({ stage }: { stage: QualificationStage }) {
   const map: Record<QualificationStage, string> = {
     New: "bg-info/10 text-info border-info/20",
-    Qualification: "bg-warning/15 text-warning-foreground border-warning/20",
+    Attempted: "bg-warning/15 text-warning-foreground border-warning/20",
     Contacted: "bg-purple-100 text-purple-800 border-purple-200",
     Qualified: "bg-success/10 text-success border-success/20",
     Converted: "bg-primary/10 text-primary border-primary/20",

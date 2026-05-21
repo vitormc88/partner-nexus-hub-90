@@ -454,12 +454,23 @@ export default function LeadDetail() {
 
           {/* TABS */}
           <Tabs defaultValue="qualification" className="w-full">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
               <TabsTrigger value="situation">Situation</TabsTrigger>
               <TabsTrigger value="overview">Lead info</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="tasks" className="gap-1.5">
+                Tasks
+                {openTasksCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{openTasksCount}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="gap-1.5">
+                Activity
+                {timeline.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{timeline.length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="assignment">Assignment</TabsTrigger>
             </TabsList>
 

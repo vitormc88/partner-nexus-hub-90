@@ -37,6 +37,7 @@ import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
+import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",

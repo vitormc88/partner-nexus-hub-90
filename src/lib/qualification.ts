@@ -161,7 +161,7 @@ export function qualificationSignals(lead: Record<string, any>): {
 
   for (const f of FIT_FACTORS) {
     if (lead[f.key]) positive.push({ key: f.key, label: f.label });
-    else risks.push({ key: f.key, label: `No ${f.label.toLowerCase()}` });
+    else risks.push({ key: f.key, label: `${f.label} — not validated yet` });
   }
   // Add note-based signals
   if (resolvedStatus(lead.budget_status, lead.budget_notes) === "missing")

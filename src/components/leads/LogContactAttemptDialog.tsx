@@ -87,7 +87,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={log.isPending}>
-            {log.isPending ? "Saving…" : "Log attempt"}
+            {log.isPending ? "Saving…" : "Log activity"}
           </Button>
         </DialogFooter>
       </DialogContent>

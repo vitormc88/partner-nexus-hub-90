@@ -12,6 +12,7 @@ export const LEAD_STATUSES = [
   "In Review",
   "Contacted",
   "Qualified",
+  "Nurture",
   "Rejected",
 ] as const;
 

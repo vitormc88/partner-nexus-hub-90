@@ -292,7 +292,7 @@ export default function LeadDetail() {
               </Button>
             )}
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
-              <CheckSquare className="h-3.5 w-3.5" /> Log contact
+              <CheckSquare className="h-3.5 w-3.5" /> Log activity
             </Button>
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowSendEmail(true)} disabled={!draft.email}>
               <MailPlus className="h-3.5 w-3.5" /> Send email

@@ -635,3 +635,326 @@ export function knowledgeSnippets(lead: Record<string, any>): KnowledgeSnippet[]
   if (lead.fit_operational_maturity) ids.add("multisite");
   return Array.from(ids).map((id) => SNIPPET_LIBRARY[id]).filter(Boolean);
 }
+
+/* =====================================================================
+ * OPERATIONAL HELPERS — cadence, SLA, dynamic NBA, readiness, templates.
+ * All pure, deterministic, no AI, no auto-actions.
+ * ===================================================================== */
+
+export type AttemptLike = {
+  outcome: string;
+  channel?: string;
+  performed_at?: string;
+};
+
+export type TaskLike = {
+  status: string;
+  due_date?: string | null;
+};
+
+/** Engagement health derived purely from attempts. */
+export function engagementHealthFromAttempts(attempts: AttemptLike[]): string {
+  if (!attempts || attempts.length === 0) return "New";
+  const reached = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
+  const scheduled = attempts.some((a) => a.outcome === "scheduled");
+  const unreachable = attempts.some((a) => a.outcome === "unreachable");
+  const failed = attempts.filter((a) =>
+    ["no_answer", "left_voicemail", "bounced"].includes(a.outcome),
+  ).length;
+  if (scheduled) return "Discovery Scheduled";
+  if (reached) return "Engaged";
+  if (unreachable || failed >= 5) return "Unreachable";
+  if (failed >= 3) return "Silent";
+  return "Attempted";
+}
+
+export function attemptCounts(attempts: AttemptLike[]) {
+  const calls = attempts.filter((a) => a.channel === "call").length;
+  const emails = attempts.filter((a) => a.channel === "email").length;
+  const linkedin = attempts.filter((a) => a.channel === "linkedin").length;
+  const meetings = attempts.filter((a) => a.channel === "meeting").length;
+  const failed = attempts.filter((a) =>
+    ["no_answer", "left_voicemail", "bounced"].includes(a.outcome),
+  ).length;
+  const replied = attempts.filter((a) => a.outcome === "reached" || a.outcome === "replied").length;
+  return { total: attempts.length, calls, emails, linkedin, meetings, failed, replied };
+}
+
+/** Suggested cadence steps — assistive coaching only, never auto-creates anything. */
+export function cadenceGuidance(attempts: AttemptLike[]): {
+  step: string;
+  suggestions: string[];
+  tone: "neutral" | "warning" | "destructive" | "positive";
+} {
+  const counts = attemptCounts(attempts);
+  const last = attempts[0]; // assumed sorted desc
+  const reached = counts.replied > 0;
+
+  if (reached) {
+    return {
+      step: "Reached — keep momentum",
+      tone: "positive",
+      suggestions: [
+        "Confirm next step in writing",
+        "Send a short recap email",
+        "Book a discovery slot",
+      ],
+    };
+  }
+
+  if (counts.total === 0) {
+    return {
+      step: "No outbound activity yet",
+      tone: "neutral",
+      suggestions: [
+        "Start with a qualification call",
+        "Prepare a short intro email",
+        "Confirm the right contact is in the record",
+      ],
+    };
+  }
+
+  if (counts.failed >= 5) {
+    return {
+      step: "Repeated no-response — decide outcome",
+      tone: "destructive",
+      suggestions: [
+        "Send a final break-up email",
+        "Move to nurture for re-engagement later",
+        "Disqualify as unreachable if no signal",
+      ],
+    };
+  }
+
+  if (counts.failed >= 3) {
+    return {
+      step: "Several attempts without response",
+      tone: "warning",
+      suggestions: [
+        "Try a LinkedIn message or a different contact",
+        "Send a value-oriented email referencing their sector",
+        "Move to nurture if business priorities have shifted",
+      ],
+    };
+  }
+
+  if (counts.total === 1) {
+    return {
+      step: "First attempt logged",
+      tone: "neutral",
+      suggestions: [
+        "Retry in 2 days at a different time window",
+        "Send a short intro email between calls",
+        "Try the company main line if direct number failed",
+      ],
+    };
+  }
+
+  // counts.total === 2
+  return {
+    step: "Two attempts without response",
+    tone: "neutral",
+    suggestions: [
+      last?.channel === "call"
+        ? "Switch to email with a clear value angle"
+        : "Try a call in the morning window",
+      "Add a LinkedIn touch — keep it short",
+      "Confirm contact details are still valid",
+    ],
+  };
+}
+
+/** SLA bucket from creation timestamp. */
+export function slaBucket(createdAt: string | Date | null | undefined, lastContactAt?: string | null): {
+  hoursSinceCreated: number;
+  hoursSinceLastContact: number | null;
+  bucket: "healthy" | "warning" | "critical";
+  label: string;
+} {
+  if (!createdAt) {
+    return { hoursSinceCreated: 0, hoursSinceLastContact: null, bucket: "healthy", label: "—" };
+  }
+  const created = new Date(createdAt).getTime();
+  const now = Date.now();
+  const hoursSinceCreated = Math.round((now - created) / 36e5);
+  const hoursSinceLastContact = lastContactAt
+    ? Math.round((now - new Date(lastContactAt).getTime()) / 36e5)
+    : null;
+
+  // SLA measured against first response — if a contact happened, treat as healthy.
+  let bucket: "healthy" | "warning" | "critical" = "healthy";
+  let label = `${hoursSinceCreated}h since created`;
+  if (lastContactAt) {
+    bucket = "healthy";
+    label = `First contact within ${Math.max(1, Math.round((new Date(lastContactAt).getTime() - created) / 36e5))}h`;
+  } else if (hoursSinceCreated >= 72) {
+    bucket = "critical";
+    label = `${hoursSinceCreated}h with no outbound activity`;
+  } else if (hoursSinceCreated >= 48) {
+    bucket = "warning";
+    label = `${hoursSinceCreated}h with no outbound activity`;
+  } else if (hoursSinceCreated >= 24) {
+    bucket = "warning";
+    label = `${hoursSinceCreated}h since created`;
+  }
+  return { hoursSinceCreated, hoursSinceLastContact, bucket, label };
+}
+
+/** Dynamic Next Best Action — reactive to attempts, tasks and qualification data. */
+export function nextBestActionDynamic(
+  lead: Record<string, any>,
+  attempts: AttemptLike[],
+  tasks: TaskLike[],
+): { title: string; reason: string; cta?: "log_contact" | "create_task" | "convert" | "schedule_discovery" } {
+  const openTasks = tasks.filter((t) => t.status !== "Done");
+  const counts = attemptCounts(attempts);
+  const reached = counts.replied > 0;
+
+  if (counts.total === 0 && openTasks.length === 0) {
+    return {
+      title: "Schedule the first qualification touch",
+      reason: "No outbound attempts or planned tasks yet.",
+      cta: "create_task",
+    };
+  }
+  if (counts.failed >= 5 && !reached) {
+    return {
+      title: "Decide: nurture or disqualify",
+      reason: "Five or more attempts without any response.",
+    };
+  }
+  if (counts.failed >= 3 && !reached) {
+    return {
+      title: "Switch channel and try again",
+      reason: "Multiple failed attempts on the current channel.",
+      cta: "log_contact",
+    };
+  }
+  if (openTasks.length > 0) {
+    return {
+      title: "Execute the next open qualification task",
+      reason: `${openTasks.length} task${openTasks.length > 1 ? "s" : ""} pending.`,
+    };
+  }
+  if (reached) {
+    const readiness = qualificationReadiness(lead);
+    if (readiness.ready) {
+      return {
+        title: "Lead looks ready — review for conversion",
+        reason: "Discovery covered, fit signals captured.",
+        cta: "convert",
+      };
+    }
+    return {
+      title: "Complete the missing qualification points",
+      reason: readiness.missing[0] || "Close the discovery gaps.",
+    };
+  }
+  return {
+    title: "Log your next contact attempt",
+    reason: "Keep the cadence alive.",
+    cta: "log_contact",
+  };
+}
+
+/** Operational readiness — lightweight, no fake scoring. */
+export type ReadinessItem = { key: string; label: string; done: boolean };
+
+export function qualificationReadiness(lead: Record<string, any>): {
+  items: ReadinessItem[];
+  done: number;
+  total: number;
+  pct: number;
+  ready: boolean;
+  missing: string[];
+} {
+  const items: ReadinessItem[] = [
+    { key: "pain", label: "Operational pain identified", done: !!lead.fit_pain_identified },
+    { key: "dm", label: "Decision maker identified", done: !!lead.fit_decision_maker_identified },
+    { key: "discovery", label: "Discovery completed",
+      done: resolvedStatus(lead.interest_status, lead.interest_notes) !== "missing" },
+    { key: "fit", label: "Potential fit validated",
+      done: !!(lead.fit_current_process_identified || lead.fit_system_dissatisfaction) },
+    { key: "next", label: "Next step agreed",
+      done: resolvedStatus(lead.timing_status, lead.timing_notes) !== "missing" },
+  ];
+  const done = items.filter((i) => i.done).length;
+  const total = items.length;
+  const pct = Math.round((done / total) * 100);
+  const missing = items.filter((i) => !i.done).map((i) => i.label);
+  // "Ready" = pain + decision maker + at least one of fit / discovery covered.
+  const ready = !!lead.fit_pain_identified
+    && !!lead.fit_decision_maker_identified
+    && items.find((i) => i.key === "discovery")!.done;
+  return { items, done, total, pct, ready, missing };
+}
+
+/** Qualification-only task templates (no proposal / negotiation / closing). */
+export type LeadTaskTemplate = {
+  id: string;
+  label: string;
+  title: string;
+  priority: "Low" | "Medium" | "High";
+  dueInDays: number;
+  description?: string;
+};
+
+export const LEAD_TASK_TEMPLATES: LeadTaskTemplate[] = [
+  {
+    id: "qual_call",
+    label: "Initial Qualification Call",
+    title: "Initial qualification call",
+    priority: "High",
+    dueInDays: 1,
+    description: "First call to understand context, pain and current process.",
+  },
+  {
+    id: "retry_contact",
+    label: "Retry Contact",
+    title: "Retry contact",
+    priority: "Medium",
+    dueInDays: 2,
+    description: "Retry the previous channel at a different time window.",
+  },
+  {
+    id: "intro_email",
+    label: "Send Intro / Follow-up Email",
+    title: "Send introduction / follow-up email",
+    priority: "Medium",
+    dueInDays: 1,
+    description: "Short email referencing sector and main pain.",
+  },
+  {
+    id: "discovery_call",
+    label: "Discovery Call",
+    title: "Discovery call",
+    priority: "High",
+    dueInDays: 3,
+    description: "Deeper conversation on operations, decision process and timing.",
+  },
+  {
+    id: "qual_review",
+    label: "Qualification Review",
+    title: "Qualification review",
+    priority: "Medium",
+    dueInDays: 2,
+    description: "Internal review of qualification readiness and next step.",
+  },
+  {
+    id: "contact_validation",
+    label: "Validate Contact Details",
+    title: "Validate contact details",
+    priority: "Low",
+    dueInDays: 1,
+    description: "Confirm the right contact, role and channel.",
+  },
+  {
+    id: "dm_confirmation",
+    label: "Decision Maker Confirmation",
+    title: "Confirm decision maker",
+    priority: "High",
+    dueInDays: 3,
+    description: "Identify and confirm who owns the decision internally.",
+  },
+];
+

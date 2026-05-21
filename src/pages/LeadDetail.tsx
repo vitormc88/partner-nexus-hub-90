@@ -1173,7 +1173,7 @@ function QualificationJourney({
 function StageBadge({ stage }: { stage: QualificationStage }) {
   const map: Record<QualificationStage, string> = {
     New: "bg-info/10 text-info border-info/20",
-    Qualification: "bg-warning/15 text-warning-foreground border-warning/20",
+    Attempted: "bg-warning/15 text-warning-foreground border-warning/20",
     Contacted: "bg-purple-100 text-purple-800 border-purple-200",
     Qualified: "bg-success/10 text-success border-success/20",
     Converted: "bg-primary/10 text-primary border-primary/20",

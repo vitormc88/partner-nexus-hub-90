@@ -200,12 +200,10 @@ export default function IncomingLeads() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="New">New</SelectItem>
-            <SelectItem value="Assigned">Assigned</SelectItem>
-            <SelectItem value="In Review">In Review</SelectItem>
-            <SelectItem value="Contacted">Contacted</SelectItem>
-            <SelectItem value="Qualified">Qualified</SelectItem>
-            <SelectItem value="Rejected">Rejected</SelectItem>
+            {LIFECYCLE_STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground ml-auto">

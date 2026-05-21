@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { useCreateLeadTask, TASK_STATUSES, TASK_PRIORITIES } from "@/hooks/useLeadTasks";
+import { LEAD_TASK_TEMPLATES } from "@/lib/qualification";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { useAuth } from "@/contexts/AuthContext";

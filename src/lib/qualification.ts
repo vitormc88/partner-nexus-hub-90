@@ -108,7 +108,7 @@ export const FIT_FACTORS = [
   { key: "fit_current_process_identified", label: "Current process identified", positive: true },
   { key: "fit_urgency_identified", label: "Urgency discussed", positive: true },
   { key: "fit_decision_maker_identified", label: "Decision maker identified", positive: true },
-  { key: "fit_operational_maturity", label: "Operational maturity", positive: true },
+  { key: "fit_operational_maturity", label: "Maintenance process maturity", positive: true },
   { key: "fit_system_dissatisfaction", label: "Existing system dissatisfaction", positive: true },
 ] as const;
 export type FitFactorKey = (typeof FIT_FACTORS)[number]["key"];

@@ -2,30 +2,21 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
+import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CountryCombobox } from "@/components/clients/CountryCombobox";
-import { SectorSelect } from "@/components/clients/SectorSelect";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, CheckCircle2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getStageProbability } from "@/data/pipeline-stages";
+import { ACTIVE_STAGES, getStageProbability } from "@/data/pipeline-stages";
 import type { IncomingLead } from "@/hooks/useIncomingLeads";
-
-const JOB_ROLE_OPTIONS = [
-  "Maintenance Manager",
-  "Plant Manager",
-  "General Manager",
-  "IT Manager",
-  "Unknown",
-];
-const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
-const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
 
 interface Props {
   open: boolean;
@@ -33,63 +24,83 @@ interface Props {
   lead: IncomingLead;
 }
 
+// Stages eligible as the entry point when a lead is already qualified.
+// We never start a converted lead back at "Open Lead".
+const PROMOTION_STAGES = ACTIVE_STAGES.filter(
+  (s) => s.key === "Qualified" || s.key === "Demo" || s.key === "Proposal Sent"
+);
+
+const fitSummary = (lead: IncomingLead) => {
+  const f: string[] = [];
+  if ((lead as any).fit_pain_identified) f.push("Pain validated");
+  if ((lead as any).fit_current_process_identified) f.push("Process mapped");
+  if ((lead as any).fit_urgency_identified) f.push("Urgency");
+  if ((lead as any).fit_decision_maker_identified) f.push("Decision maker");
+  if ((lead as any).fit_operational_maturity) f.push("Operational maturity");
+  if ((lead as any).fit_system_dissatisfaction) f.push("System dissatisfaction");
+  return f;
+};
+
 export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) {
   const navigate = useNavigate();
   const { isHQ, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: partners = [] } = usePartners();
+  const partnerId = lead.linked_partner_id || userPartnerId || "";
+  const { data: partnerUsers = [] } = usePartnerUsers(partnerId || null);
+  const { data: assignableUsers = [] } = useAssignableUsers();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState({
-    contact_person_name: lead.contact_name || "",
-    company_name: lead.company_name || "",
-    partner_id: lead.linked_partner_id || userPartnerId || "",
-    assigned_to: "",
-    country: lead.country || "",
-    lead_source: lead.lead_source || "HQ (Inbound)",
-    contact_email: lead.email || "",
-    contact_phone: lead.phone || "",
-    job_role: lead.job_role || "",
-    sector: lead.sector || "",
-    asset_range: lead.asset_range || "",
-    maintenance_team_size: lead.maintenance_team_size || "",
-    notes: lead.notes || "",
-    expected_value: "",
-  });
+  const ownerCandidates = (() => {
+    const ids = new Set<string>();
+    const merged: { id: string; full_name: string | null; email: string }[] = [];
+    [...assignableUsers, ...partnerUsers].forEach((u: any) => {
+      if (!ids.has(u.id)) { ids.add(u.id); merged.push(u); }
+    });
+    return merged;
+  })();
 
-  const { data: partnerUsers = [] } = usePartnerUsers(form.partner_id || null);
+  const [assignedUserId, setAssignedUserId] = useState<string>((lead as any).assigned_user_id || "");
+  const [stage, setStage] = useState<string>("Qualified");
+  const [expectedValue, setExpectedValue] = useState<string>("");
+  const [strategicNotes, setStrategicNotes] = useState<string>("");
+  const [showDetails, setShowDetails] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const handleCreate = async () => {
-    if (!form.company_name) {
-      toast.error("Company Name is required");
+  const partnerName = partners.find((p) => p.id === partnerId)?.company_name || lead.linked_partner_name || "—";
+  const fits = fitSummary(lead);
+
+  const handlePromote = async () => {
+    if (!lead.company_name) {
+      toast.error("Company name is required on the lead before promotion");
       return;
     }
     setCreating(true);
     try {
-      const assignedUser = partnerUsers.find((u) => u.id === form.assigned_to);
+      const owner = ownerCandidates.find((u) => u.id === assignedUserId);
+
       const { data: deal, error } = await supabase
         .from("deals")
         .insert({
-          company_name: form.company_name,
-          contact_person_name: form.contact_person_name || null,
-          partner_id: userPartnerId || form.partner_id || null,
-          country: form.country || null,
-          industry: form.sector || null,
-          stage: "Open Lead",
-          expected_value: form.expected_value ? parseFloat(form.expected_value) : 0,
-          probability: getStageProbability("Open Lead"),
-          assigned_user_id: assignedUser?.id || null,
-          assigned_salesperson: assignedUser?.full_name || null,
-          lead_source: form.lead_source || "HQ (Inbound)",
-          notes: form.notes || null,
+          company_name: lead.company_name,
+          contact_person_name: lead.contact_name || null,
+          partner_id: partnerId || null,
+          country: lead.country || null,
+          industry: lead.sector || null,
+          stage,
+          expected_value: expectedValue ? parseFloat(expectedValue) : 0,
+          probability: getStageProbability(stage),
+          assigned_user_id: owner?.id || null,
+          assigned_salesperson: owner?.full_name || null,
+          lead_source: lead.lead_source || "HQ (Inbound)",
+          notes: strategicNotes || null,
           status: "Open",
-          contact_email: form.contact_email || null,
-          contact_phone: form.contact_phone || null,
-          job_role: form.job_role || null,
-          sector: form.sector || null,
-          asset_range: form.asset_range || null,
-          maintenance_team_size: form.maintenance_team_size || null,
+          contact_email: lead.email || null,
+          contact_phone: lead.phone || null,
+          job_role: lead.job_role || null,
+          sector: lead.sector || null,
+          asset_range: lead.asset_range || null,
+          maintenance_team_size: lead.maintenance_team_size || null,
           register_date: new Date().toISOString().split("T")[0],
         } as any)
         .select("id")
@@ -97,22 +108,20 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
 
       if (error) throw error;
 
-      // Link lead to created deal
       const { error: updateErr } = await supabase
         .from("incoming_leads")
-        .update({ converted_to_deal_id: deal.id, status: "Qualified" } as any)
+        .update({ converted_to_deal_id: deal.id, status: "Converted" } as any)
         .eq("id", lead.id);
-
       if (updateErr) throw updateErr;
 
-      toast.success("Lead converted to opportunity");
+      toast.success("Promoted to pipeline");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
       queryClient.invalidateQueries({ queryKey: ["incoming_leads"] });
       queryClient.invalidateQueries({ queryKey: ["incoming_lead", lead.id] });
       onOpenChange(false);
       navigate(`/deals/${deal.id}`);
     } catch (e: any) {
-      toast.error(e?.message || "Failed to convert lead");
+      toast.error(e?.message || "Failed to promote lead");
     } finally {
       setCreating(false);
     }
@@ -120,131 +129,110 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Opportunity</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Promote to Pipeline
+          </DialogTitle>
+          <DialogDescription>
+            Review the qualified lead before creating the sales opportunity.
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 mt-2">
-          {/* Ownership */}
-          <div className="grid grid-cols-2 gap-4">
-            {isHQ ? (
-              <div>
-                <Label>Linked Partner</Label>
-                <Select
-                  value={form.partner_id || "none"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, partner_id: v === "none" ? "" : v, assigned_to: "" }))
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
-                    {partners.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div>
-                <Label>Linked Partner</Label>
-                <Input value={partners.find((p) => p.id === userPartnerId)?.company_name || "Your Partner"} disabled />
-              </div>
-            )}
+
+        {/* Validated context — read-only summary */}
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+            Qualified inbound lead
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <div><span className="text-muted-foreground">Company: </span><span className="font-medium">{lead.company_name || "—"}</span></div>
+            <div><span className="text-muted-foreground">Contact: </span><span className="font-medium">{lead.contact_name || "—"}</span></div>
+            <div><span className="text-muted-foreground">Country: </span><span className="font-medium">{lead.country || "—"}</span></div>
+            <div><span className="text-muted-foreground">Sector: </span><span className="font-medium">{lead.sector || "—"}</span></div>
+            <div className="col-span-2"><span className="text-muted-foreground">Partner: </span><span className="font-medium">{partnerName}</span></div>
+          </div>
+          {fits.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {fits.map((f) => (
+                <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success">{f}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Focus inputs only */}
+        <div className="space-y-3 mt-1">
+          <div>
+            <Label>Assigned seller</Label>
+            <Select value={assignedUserId || "none"} onValueChange={(v) => setAssignedUserId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Select owner" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Unassigned —</SelectItem>
+                {ownerCandidates.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Assigned To</Label>
-              <Select
-                value={form.assigned_to || "none"}
-                onValueChange={(v) => setForm((f) => ({ ...f, assigned_to: v === "none" ? "" : v }))}
-                disabled={!form.partner_id && !userPartnerId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={!form.partner_id && !userPartnerId ? "Select a partner first" : "Select user"} />
-                </SelectTrigger>
+              <Label>Expected value (€)</Label>
+              <Input
+                type="number"
+                value={expectedValue}
+                onChange={(e) => setExpectedValue(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Initial stage</Label>
+              <Select value={stage} onValueChange={setStage}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— None —</SelectItem>
-                  {partnerUsers.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
+                  {PROMOTION_STAGES.map((s) => (
+                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Lead details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Name</Label><Input value={form.contact_person_name} onChange={(e) => setForm((f) => ({ ...f, contact_person_name: e.target.value }))} /></div>
-            <div><Label>Company Name *</Label><Input value={form.company_name} onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Country</Label><CountryCombobox value={form.country} onChange={(v) => setForm((f) => ({ ...f, country: v }))} /></div>
-            <div>
-              <Label>Lead Source</Label>
-              <Select value={form.lead_source} onValueChange={(v) => setForm((f) => ({ ...f, lead_source: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Partner (Outbound)">Partner (Outbound)</SelectItem>
-                  <SelectItem value="HQ (Inbound)">HQ (Inbound)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Email</Label><Input type="email" value={form.contact_email} onChange={(e) => setForm((f) => ({ ...f, contact_email: e.target.value }))} /></div>
-            <div><Label>Phone</Label><Input value={form.contact_phone} onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Job Role</Label>
-              <Select value={form.job_role || "none"} onValueChange={(v) => setForm((f) => ({ ...f, job_role: v === "none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Select —</SelectItem>
-                  {JOB_ROLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Sector</Label>
-              <SectorSelect value={form.sector} onChange={(v) => setForm((f) => ({ ...f, sector: v }))} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>No. of Assets</Label>
-              <Select value={form.asset_range || "none"} onValueChange={(v) => setForm((f) => ({ ...f, asset_range: v === "none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Select —</SelectItem>
-                  {ASSET_RANGE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Maintenance Team</Label>
-              <Select value={form.maintenance_team_size || "none"} onValueChange={(v) => setForm((f) => ({ ...f, maintenance_team_size: v === "none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select size" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Select —</SelectItem>
-                  {TEAM_SIZE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div>
-            <Label>Expected Value (€)</Label>
-            <Input
-              type="number"
-              value={form.expected_value}
-              onChange={(e) => setForm((f) => ({ ...f, expected_value: e.target.value }))}
-              placeholder="0"
+            <Label>Strategic notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Textarea
+              value={strategicNotes}
+              onChange={(e) => setStrategicNotes(e.target.value)}
+              rows={2}
+              placeholder="Anything the seller should know on day one…"
             />
           </div>
-          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={3} /></div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={creating}>{creating ? "Converting..." : "Create Opportunity"}</Button>
-          </div>
+
+          <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                <ChevronDown className={`h-3 w-3 transition-transform ${showDetails ? "rotate-180" : ""}`} />
+                {showDetails ? "Hide" : "Show"} pre-filled details
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <div>Email: <span className="text-foreground">{lead.email || "—"}</span></div>
+              <div>Phone: <span className="text-foreground">{lead.phone || "—"}</span></div>
+              <div>Role: <span className="text-foreground">{lead.job_role || "—"}</span></div>
+              <div>Source: <span className="text-foreground">{lead.lead_source || "—"}</span></div>
+              <div>Assets: <span className="text-foreground">{lead.asset_range || "—"}</span></div>
+              <div>Team: <span className="text-foreground">{lead.maintenance_team_size || "—"}</span></div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handlePromote} disabled={creating}>
+            {creating ? "Promoting…" : "Promote to Pipeline"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

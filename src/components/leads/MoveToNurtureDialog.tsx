@@ -19,11 +19,13 @@ export function MoveToNurtureDialog({ open, onOpenChange, leadId }: Props) {
   const updateLead = useUpdateIncomingLead();
 
   const submit = () => {
+    // Nurture is a qualification/status decision only.
+    // Engagement status (Unreachable / Silent / Engaged) is derived from
+    // contact attempts and must NOT be overwritten here.
     updateLead.mutate(
       {
         id: leadId,
         status: "Nurture",
-        engagement_status: "Nurture",
         nurture_reason: reason.trim() || null,
         nurture_until: until || null,
       } as any,

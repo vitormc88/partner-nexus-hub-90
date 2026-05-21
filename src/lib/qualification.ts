@@ -4,12 +4,19 @@
 export const QUALIFICATION_STAGES = [
   "New",
   "Qualification",
-  "Discovery Call",
+  "Contacted",
   "Qualified",
   "Converted",
   "Disqualified",
 ] as const;
 export type QualificationStage = (typeof QUALIFICATION_STAGES)[number];
+
+/** Normalize legacy stages (e.g. "Discovery Call") into the current enum. */
+export function normalizeStage(s: string | null | undefined): QualificationStage {
+  if (s === "Discovery Call") return "Contacted";
+  if (s && (QUALIFICATION_STAGES as readonly string[]).includes(s)) return s as QualificationStage;
+  return "New";
+}
 
 export const CATEGORY_STATUSES = ["missing", "partial", "complete"] as const;
 export type CategoryStatus = (typeof CATEGORY_STATUSES)[number];
@@ -127,18 +134,18 @@ export function timdCompletion(lead: Record<string, any>): {
 export function fitScore(lead: Record<string, any>): {
   score: number;
   total: number;
-  label: "Good Fit" | "Medium Fit" | "Weak Fit";
+  label: "Good Fit" | "Partial Fit" | "Fit pending";
   tone: "success" | "warning" | "destructive";
 } {
   const total = FIT_FACTORS.length;
   const score = FIT_FACTORS.filter((f) => !!lead[f.key]).length;
-  let label: "Good Fit" | "Medium Fit" | "Weak Fit" = "Weak Fit";
-  let tone: "success" | "warning" | "destructive" = "destructive";
+  let label: "Good Fit" | "Partial Fit" | "Fit pending" = "Fit pending";
+  let tone: "success" | "warning" | "destructive" = "warning";
   if (score >= 5) {
     label = "Good Fit";
     tone = "success";
   } else if (score >= 3) {
-    label = "Medium Fit";
+    label = "Partial Fit";
     tone = "warning";
   }
   return { score, total, label, tone };
@@ -154,7 +161,7 @@ export function qualificationSignals(lead: Record<string, any>): {
 
   for (const f of FIT_FACTORS) {
     if (lead[f.key]) positive.push({ key: f.key, label: f.label });
-    else risks.push({ key: f.key, label: `No ${f.label.toLowerCase()}` });
+    else risks.push({ key: f.key, label: `${f.label} — not validated yet` });
   }
   // Add note-based signals
   if (resolvedStatus(lead.budget_status, lead.budget_notes) === "missing")

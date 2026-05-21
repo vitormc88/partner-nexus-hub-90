@@ -21,9 +21,10 @@ import {
   Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge,
   User as UserIcon, History, ListChecks, UserCheck, CheckSquare, CircleDot, Leaf as LeafIcon,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isSameDay } from "date-fns";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+
 import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
 import { LeadTaskList } from "@/components/leads/LeadTaskList";
 import { AddLeadTaskDialog } from "@/components/leads/AddLeadTaskDialog";

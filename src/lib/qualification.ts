@@ -4,12 +4,19 @@
 export const QUALIFICATION_STAGES = [
   "New",
   "Qualification",
-  "Discovery Call",
+  "Contacted",
   "Qualified",
   "Converted",
   "Disqualified",
 ] as const;
 export type QualificationStage = (typeof QUALIFICATION_STAGES)[number];
+
+/** Normalize legacy stages (e.g. "Discovery Call") into the current enum. */
+export function normalizeStage(s: string | null | undefined): QualificationStage {
+  if (s === "Discovery Call") return "Contacted";
+  if (s && (QUALIFICATION_STAGES as readonly string[]).includes(s)) return s as QualificationStage;
+  return "New";
+}
 
 export const CATEGORY_STATUSES = ["missing", "partial", "complete"] as const;
 export type CategoryStatus = (typeof CATEGORY_STATUSES)[number];

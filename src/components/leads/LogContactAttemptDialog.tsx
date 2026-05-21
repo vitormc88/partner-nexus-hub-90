@@ -37,7 +37,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
           reset();
           onOpenChange(false);
         },
-        onError: (e: any) => toast.error(e.message || "Failed to log attempt"),
+        onError: (e: any) => toast.error(e.message || "Failed to log activity"),
       },
     );
   };

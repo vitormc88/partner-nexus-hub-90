@@ -120,6 +120,26 @@ export default function LeadDetail() {
   const readiness = useMemo(() => qualificationReadiness(draft), [draft]);
   const openTasksCount = useMemo(() => tasks.filter((t: any) => t.status !== "Done").length, [tasks]);
 
+  const allAssignableUsers = useMemo(() => {
+    const list = [...(hqUsers || []), ...(partnerUsers || [])];
+    const seen = new Set<string>();
+    return list.filter((u: any) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
+  }, [hqUsers, partnerUsers]);
+
+  const assignedUser = useMemo(
+    () => allAssignableUsers.find((u: any) => u.id === (draft as any).assigned_user_id) || null,
+    [allAssignableUsers, draft],
+  );
+
+  const timeline = useMemo(
+    () => buildTimeline({ lead: draft, attempts: attempts as any, tasks: tasks as any, assignedUser }),
+    [draft, attempts, tasks, assignedUser],
+  );
+
   const handleSave = (extra: Record<string, any> = {}) => {
     if (!lead) return;
     const partnerId = draft.linked_partner_id === "__hq__" ? null : draft.linked_partner_id;

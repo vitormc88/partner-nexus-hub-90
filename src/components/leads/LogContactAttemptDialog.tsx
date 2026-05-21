@@ -46,7 +46,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Log contact attempt</DialogTitle>
+          <DialogTitle>Log activity</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

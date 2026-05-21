@@ -77,6 +77,10 @@ export default function LeadDetail() {
 
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [showConvert, setShowConvert] = useState(false);
   const [showConvertGate, setShowConvertGate] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);

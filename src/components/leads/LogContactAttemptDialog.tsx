@@ -33,7 +33,7 @@ export function LogContactAttemptDialog({ open, onOpenChange, leadId }: Props) {
       { lead_id: leadId, channel, outcome, notes: notes.trim() || undefined },
       {
         onSuccess: () => {
-          toast.success("Contact attempt logged");
+          toast.success("Activity logged");
           reset();
           onOpenChange(false);
         },

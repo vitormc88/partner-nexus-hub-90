@@ -30,6 +30,7 @@ import { AddLeadTaskDialog } from "@/components/leads/AddLeadTaskDialog";
 import { LogContactAttemptDialog } from "@/components/leads/LogContactAttemptDialog";
 import { DisqualifyLeadDialog } from "@/components/leads/DisqualifyLeadDialog";
 import { MoveToNurtureDialog } from "@/components/leads/MoveToNurtureDialog";
+import { SendEmailDialog } from "@/components/leads/SendEmailDialog";
 import { useLeadContactAttempts, OUTCOME_LABEL, CHANNEL_LABEL } from "@/hooks/useLeadContactAttempts";
 import { useLeadTasks } from "@/hooks/useLeadTasks";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";

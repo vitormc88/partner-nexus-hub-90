@@ -263,6 +263,13 @@ export default function LeadDetail() {
                 {draft.lead_source && (
                   <span className="inline-flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-muted-foreground" />{draft.lead_source}</span>
                 )}
+                <span className="inline-flex items-center gap-1.5">
+                  <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Owner:</span>
+                  <span className="font-medium">
+                    {assignedUser ? (assignedUser as any).full_name || (assignedUser as any).email : "Unassigned"}
+                  </span>
+                </span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1">
                   {draft.phone && (

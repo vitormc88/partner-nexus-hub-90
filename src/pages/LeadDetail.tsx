@@ -18,8 +18,9 @@ import {
   ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2, XCircle,
   Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
   HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
-  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge,
+  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge, Hourglass,
   User as UserIcon, History, ListChecks, UserCheck, CheckSquare, CircleDot, Leaf as LeafIcon,
+
 } from "lucide-react";
 import { format, formatDistanceToNow, isSameDay } from "date-fns";
 import { toast } from "sonner";

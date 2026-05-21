@@ -1472,24 +1472,26 @@ function buildTimeline({
     });
   }
 
-  // Contact attempts.
+  // Contact attempts — clearly distinguish attempts vs established conversations.
   for (const a of attempts || []) {
-    const channel = CHANNEL_TITLE[a.channel] || "Contact attempt";
+    const channel = CHANNEL_TITLE[a.channel] || "Contact";
     const outcome = ATTEMPT_LABEL[a.outcome] || a.outcome;
-    const tone: TimelineEvent["tone"] =
-      a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled"
-        ? "success"
-        : a.outcome === "unreachable" || a.outcome === "bounced"
-        ? "destructive"
-        : "warning";
+    const isConversation = a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled";
+    const isFailed = a.outcome === "unreachable" || a.outcome === "bounced";
+    const tone: TimelineEvent["tone"] = isConversation ? "success" : isFailed ? "destructive" : "warning";
+    // Wording: only call it a real "contact" when two-way comms happened.
+    const title = isConversation
+      ? `${channel} — ${outcome}`
+      : `${channel} attempt — ${outcome}`;
     events.push({
       id: `attempt-${a.id}`,
       at: a.performed_at,
-      title: `${channel} — ${outcome}`,
+      title,
       detail: a.notes || undefined,
       tone,
     });
   }
+
 
   // Tasks created and completed.
   for (const t of tasks || []) {

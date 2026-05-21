@@ -501,7 +501,9 @@ export default function LeadDetail() {
             attempts={attempts as any}
             onSendEmail={(k) => openSendEmail(k)}
             onLogActivity={() => setShowLogContact(true)}
+            onCreateTask={() => setShowAddTask(true)}
           />
+
 
 
           {/* TABS */}

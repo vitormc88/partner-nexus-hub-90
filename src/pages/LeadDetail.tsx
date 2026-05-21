@@ -1088,6 +1088,46 @@ export default function LeadDetail() {
         leadCompanyName={lead.company_name || "Unnamed Lead"}
         linkedPartnerId={lead.linked_partner_id}
       />
+      <LogContactAttemptDialog
+        open={showLogContact}
+        onOpenChange={setShowLogContact}
+        leadId={lead.id}
+      />
+      <DisqualifyLeadDialog
+        open={showDisqualify}
+        onOpenChange={setShowDisqualify}
+        leadId={lead.id}
+      />
+      <MoveToNurtureDialog
+        open={showNurture}
+        onOpenChange={setShowNurture}
+        leadId={lead.id}
+      />
+      <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cover the missing qualification items first</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following items should be covered before this lead enters the pipeline:
+              <ul className="mt-2 list-disc pl-5 space-y-0.5 text-sm">
+                {readiness.missing.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back to qualification</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowConvertGate(false);
+                setShowConvert(true);
+              }}
+            >
+              Convert anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

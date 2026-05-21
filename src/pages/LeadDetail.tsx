@@ -395,9 +395,7 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
-              </div>
-            </CardContent>
-          </Card>
+
 
           {/* LAST MEANINGFUL DISCOVERY */}
           <Card>

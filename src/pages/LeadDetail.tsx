@@ -18,14 +18,21 @@ import {
   ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2, XCircle,
   Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
   HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
-  Wand2,
+  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useState, useEffect, useMemo } from "react";
 import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
 import { LeadTaskList } from "@/components/leads/LeadTaskList";
 import { AddLeadTaskDialog } from "@/components/leads/AddLeadTaskDialog";
+import { LogContactAttemptDialog } from "@/components/leads/LogContactAttemptDialog";
+import { DisqualifyLeadDialog } from "@/components/leads/DisqualifyLeadDialog";
+import { MoveToNurtureDialog } from "@/components/leads/MoveToNurtureDialog";
+import { useLeadContactAttempts, OUTCOME_LABEL, CHANNEL_LABEL } from "@/hooks/useLeadContactAttempts";
+import { useLeadTasks } from "@/hooks/useLeadTasks";
+import { usePartnerUsers } from "@/hooks/usePartnerUsers";
+import { useHQUsers } from "@/hooks/useHQUsers";
 import { cn } from "@/lib/utils";
 import {
   QUALIFICATION_STAGES, type QualificationStage,
@@ -36,7 +43,12 @@ import {
   CURRENT_PROCESS_OPTIONS, MAIN_CHALLENGE_OPTIONS, EXISTING_SYSTEM_OPTIONS, DATA_VISIBILITY_OPTIONS,
   contextualGuidanceAll, discoveryInsights, positioningHelp, likelyRisks, knowledgeSnippets,
   splitPositioning,
+  cadenceGuidance, attemptCounts, slaBucket, nextBestActionDynamic, qualificationReadiness,
 } from "@/lib/qualification";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
 
@@ -57,8 +69,17 @@ export default function LeadDetail() {
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
+  const [showConvertGate, setShowConvertGate] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showLogContact, setShowLogContact] = useState(false);
+  const [showDisqualify, setShowDisqualify] = useState(false);
+  const [showNurture, setShowNurture] = useState(false);
   const [openTimd, setOpenTimd] = useState<string>("");
+
+  const { data: attempts = [] } = useLeadContactAttempts(id);
+  const { data: tasks = [] } = useLeadTasks(id);
+  const { data: partnerUsers = [] } = usePartnerUsers(lead?.linked_partner_id || null);
+  const { data: hqUsers = [] } = useHQUsers();
 
   useEffect(() => {
     if (lead) {
@@ -80,7 +101,6 @@ export default function LeadDetail() {
   const signals = useMemo(() => qualificationSignals(draft), [draft]);
   const missing = useMemo(() => missingInformation(draft), [draft]);
   const actions = useMemo(() => nextBestActions(draft), [draft]);
-  const topAction = useMemo(() => topNextAction(draft), [draft]);
   const discovery = useMemo(() => lastMeaningfulDiscovery(draft), [draft]);
   const questions = useMemo(() => suggestedQuestions(draft), [draft]);
   const guidanceBlocks = useMemo(() => contextualGuidanceAll(draft), [draft]);
@@ -88,6 +108,16 @@ export default function LeadDetail() {
   const positioning = useMemo(() => positioningHelp(draft), [draft]);
   const risks = useMemo(() => likelyRisks(draft), [draft]);
   const snippets = useMemo(() => knowledgeSnippets(draft), [draft]);
+
+  const counts = useMemo(() => attemptCounts(attempts as any), [attempts]);
+  const cadence = useMemo(() => cadenceGuidance(attempts as any), [attempts]);
+  const sla = useMemo(() => slaBucket(lead?.created_at, (draft as any).last_contact_at), [lead?.created_at, draft]);
+  const dynamicNba = useMemo(
+    () => nextBestActionDynamic(draft, attempts as any, tasks as any),
+    [draft, attempts, tasks],
+  );
+  const readiness = useMemo(() => qualificationReadiness(draft), [draft]);
+  const openTasksCount = useMemo(() => tasks.filter((t: any) => t.status !== "Done").length, [tasks]);
 
   const handleSave = (extra: Record<string, any> = {}) => {
     if (!lead) return;

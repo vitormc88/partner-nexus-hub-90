@@ -1564,6 +1564,8 @@ export type Database = {
       incoming_leads: {
         Row: {
           asset_range: string | null
+          assigned_at: string | null
+          assigned_user_id: string | null
           budget_notes: string | null
           budget_status: string | null
           company_name: string | null
@@ -1577,6 +1579,7 @@ export type Database = {
           decision_status: string | null
           disqualified_reason: string | null
           email: string | null
+          engagement_status: string | null
           existing_system: string | null
           fit_current_process_identified: boolean
           fit_decision_maker_identified: boolean
@@ -1588,6 +1591,8 @@ export type Database = {
           interest_notes: string | null
           interest_status: string | null
           job_role: string | null
+          last_contact_at: string | null
+          last_outcome: string | null
           lead_owner_type: string | null
           lead_source: string | null
           linked_partner_id: string | null
@@ -1595,6 +1600,8 @@ export type Database = {
           main_challenge: string | null
           maintenance_team_size: string | null
           notes: string | null
+          nurture_reason: string | null
+          nurture_until: string | null
           phone: string | null
           qualification_stage: string
           routing_reason: string | null
@@ -1606,6 +1613,8 @@ export type Database = {
         }
         Insert: {
           asset_range?: string | null
+          assigned_at?: string | null
+          assigned_user_id?: string | null
           budget_notes?: string | null
           budget_status?: string | null
           company_name?: string | null
@@ -1619,6 +1628,7 @@ export type Database = {
           decision_status?: string | null
           disqualified_reason?: string | null
           email?: string | null
+          engagement_status?: string | null
           existing_system?: string | null
           fit_current_process_identified?: boolean
           fit_decision_maker_identified?: boolean
@@ -1630,6 +1640,8 @@ export type Database = {
           interest_notes?: string | null
           interest_status?: string | null
           job_role?: string | null
+          last_contact_at?: string | null
+          last_outcome?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
           linked_partner_id?: string | null
@@ -1637,6 +1649,8 @@ export type Database = {
           main_challenge?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
+          nurture_reason?: string | null
+          nurture_until?: string | null
           phone?: string | null
           qualification_stage?: string
           routing_reason?: string | null
@@ -1648,6 +1662,8 @@ export type Database = {
         }
         Update: {
           asset_range?: string | null
+          assigned_at?: string | null
+          assigned_user_id?: string | null
           budget_notes?: string | null
           budget_status?: string | null
           company_name?: string | null
@@ -1661,6 +1677,7 @@ export type Database = {
           decision_status?: string | null
           disqualified_reason?: string | null
           email?: string | null
+          engagement_status?: string | null
           existing_system?: string | null
           fit_current_process_identified?: boolean
           fit_decision_maker_identified?: boolean
@@ -1672,6 +1689,8 @@ export type Database = {
           interest_notes?: string | null
           interest_status?: string | null
           job_role?: string | null
+          last_contact_at?: string | null
+          last_outcome?: string | null
           lead_owner_type?: string | null
           lead_source?: string | null
           linked_partner_id?: string | null
@@ -1679,6 +1698,8 @@ export type Database = {
           main_challenge?: string | null
           maintenance_team_size?: string | null
           notes?: string | null
+          nurture_reason?: string | null
+          nurture_until?: string | null
           phone?: string | null
           qualification_stage?: string
           routing_reason?: string | null
@@ -1737,6 +1758,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_partner_summary"
             referencedColumns: ["partner_id"]
+          },
+        ]
+      }
+      lead_contact_attempts: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          outcome: string
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          outcome: string
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          outcome?: string
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contact_attempts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "incoming_leads"
+            referencedColumns: ["id"]
           },
         ]
       }

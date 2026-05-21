@@ -37,7 +37,8 @@ import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { cn } from "@/lib/utils";
 import {
-  QUALIFICATION_STAGES, type QualificationStage, normalizeStage,
+  QUALIFICATION_STAGES, type QualificationStage, normalizeStage, lifecycleFromStage,
+  engagementLabel,
   TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
   resolvedStatus, autoStatusFromNotes,
   timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,
@@ -47,6 +48,7 @@ import {
   splitPositioning,
   cadenceGuidance, attemptCounts, slaBucket, nextBestActionDynamic, qualificationReadiness,
 } from "@/lib/qualification";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,

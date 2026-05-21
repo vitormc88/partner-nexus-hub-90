@@ -680,20 +680,23 @@ export type TaskLike = {
   due_date?: string | null;
 };
 
-/** Engagement health derived purely from attempts. */
+/** Engagement health derived purely from outreach attempts and responses. */
 export function engagementHealthFromAttempts(attempts: AttemptLike[]): string {
   if (!attempts || attempts.length === 0) return "New";
-  const reached = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
+  const replied = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
   const scheduled = attempts.some((a) => a.outcome === "scheduled");
   const unreachable = attempts.some((a) => a.outcome === "unreachable");
-  const failed = attempts.filter((a) =>
+  const emailSent = attempts.some((a) => a.channel === "email");
+  const failedCalls = attempts.filter((a) =>
     ["no_answer", "left_voicemail", "bounced"].includes(a.outcome),
   ).length;
+  // True engagement requires a response — failed calls never count as contact.
   if (scheduled) return "Discovery Scheduled";
-  if (reached) return "Engaged";
-  if (unreachable || failed >= 5) return "Unreachable";
-  if (failed >= 3) return "Silent";
-  return "Attempted";
+  if (replied) return "In Conversation";
+  if (unreachable || failedCalls >= 5) return "Unreachable";
+  if (failedCalls >= 3) return "Silent";
+  if (emailSent) return "Outreach Sent";
+  return "Outreach Attempted";
 }
 
 export function attemptCounts(attempts: AttemptLike[]) {

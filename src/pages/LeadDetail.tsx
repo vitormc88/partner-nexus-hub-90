@@ -158,7 +158,12 @@ export default function LeadDetail() {
     [draft, attempts, tasks, assignedUser],
   );
 
-  const handleSave = (extra: Record<string, any> = {}) => {
+  const waiting = useMemo(
+    () => waitingState(draft, attempts as any, tasks as any),
+    [draft, attempts, tasks],
+  );
+
+  const handleSave = (extra: Record<string, any> = {}, opts: { silent?: boolean } = {}) => {
     if (!lead) return;
     const partnerId = draft.linked_partner_id === "__hq__" ? null : draft.linked_partner_id;
     const ownerType = partnerId ? "partner" : "HQ";
@@ -188,14 +193,36 @@ export default function LeadDetail() {
       base.lead_owner_type = ownerType;
       base.routing_reason = draft.routing_reason;
     }
+    setSaveState("saving");
     updateLead.mutate(base, {
       onSuccess: () => {
-        toast.success("Lead updated");
         setDirty(false);
+        setSaveState("saved");
+        setLastSavedAt(new Date());
+        if (!opts.silent) toast.success("Lead updated");
       },
-      onError: (e: any) => toast.error(e.message),
+      onError: (e: any) => {
+        setSaveState("error");
+        toast.error(e.message);
+      },
     });
   };
+
+  // Silent autosave — debounced. Low-risk: only persists fields already in handleSave's
+  // payload (notes, statuses, fit factors, situation pickers). Stage/status transitions
+  // happen via explicit user action (stage buttons / nurture / disqualify dialogs).
+  useEffect(() => {
+    if (!dirty || !lead || isConverted) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      handleSave({}, { silent: true });
+    }, 1500);
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, dirty]);
+
 
   const markQualified = () =>
     handleSave({ qualification_stage: "Qualified", status: "Qualified" });

@@ -1232,6 +1232,35 @@ function AsstSection({
   );
 }
 
+function CompactDisclosure({
+  icon: Icon, title, summary, tone = "neutral", children,
+}: {
+  icon?: any; title: string; summary: string;
+  tone?: "neutral" | "success" | "muted"; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border bg-card">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-2.5 py-1.5 hover:bg-muted/40 rounded-md">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+          <span className="text-xs font-medium text-foreground">{title}</span>
+          <span className={cn(
+            "text-[11px] truncate",
+            tone === "success" && "text-success",
+            tone === "muted" && "text-muted-foreground italic",
+            tone === "neutral" && "text-muted-foreground",
+          )}>· {summary}</span>
+        </div>
+        <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-2.5 pb-2.5 pt-1 border-t">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function CollapsibleSection({
   icon: Icon, title, count, defaultOpen, emptyHint, compact, children,
 }: {

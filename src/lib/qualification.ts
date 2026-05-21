@@ -3,7 +3,7 @@
 
 export const QUALIFICATION_STAGES = [
   "New",
-  "Qualification",
+  "Attempted",
   "Contacted",
   "Qualified",
   "Converted",
@@ -11,9 +11,30 @@ export const QUALIFICATION_STAGES = [
 ] as const;
 export type QualificationStage = (typeof QUALIFICATION_STAGES)[number];
 
-/** Normalize legacy stages (e.g. "Discovery Call") into the current enum. */
+export const STAGE_LABEL: Record<QualificationStage, string> = {
+  New: "New",
+  Attempted: "Attempted",
+  Contacted: "Contacted",
+  Qualified: "Qualified",
+  Converted: "Converted",
+  Disqualified: "Disqualified",
+};
+
+/** Helpful tooltip describing what each stage really means operationally. */
+export const STAGE_HINT: Record<QualificationStage, string> = {
+  New: "Lead just landed. No outreach yet.",
+  Attempted: "Outreach started (calls, voicemails, emails). No reply yet.",
+  Contacted: "Two-way communication established (reply, conversation or meeting).",
+  Qualified: "Discovery covered. Fit and intent validated.",
+  Converted: "Promoted to an opportunity in the pipeline.",
+  Disqualified: "Closed out — not a fit or unreachable after enough attempts.",
+};
+
+/** Normalize legacy stages into the current enum. */
 export function normalizeStage(s: string | null | undefined): QualificationStage {
   if (s === "Discovery Call") return "Contacted";
+  if (s === "Qualification") return "Attempted";
+  if (s === "In Review") return "Attempted";
   if (s && (QUALIFICATION_STAGES as readonly string[]).includes(s)) return s as QualificationStage;
   return "New";
 }

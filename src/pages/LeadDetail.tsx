@@ -310,7 +310,7 @@ export default function LeadDetail() {
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
               <CheckSquare className="h-3.5 w-3.5" /> Log activity
             </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowSendEmail(true)} disabled={!draft.email}>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => openSendEmail()} disabled={!draft.email}>
               <MailPlus className="h-3.5 w-3.5" /> Send email
             </Button>
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowAddTask(true)} disabled={isConverted}>
@@ -424,6 +424,15 @@ export default function LeadDetail() {
               )}
             </CompactDisclosure>
           </div>
+
+          {/* OUTREACH INTELLIGENCE — distinct from Qualification Assistant.
+              Focus: contact strategy, cadence guidance, plays, micro-discovery. */}
+          <OutreachIntelligence
+            lead={draft}
+            attempts={attempts as any}
+            onSendEmail={(k) => openSendEmail(k)}
+            onLogActivity={() => setShowLogContact(true)}
+          />
 
 
           {/* TABS */}
@@ -1083,6 +1092,8 @@ export default function LeadDetail() {
         to={draft.email}
         contactName={draft.contact_name}
         companyName={draft.company_name}
+        lead={draft}
+        initialPlay={emailPlay}
       />
       <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
         <AlertDialogContent>

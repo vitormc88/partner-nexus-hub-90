@@ -57,10 +57,13 @@ export function SendEmailDialog({ open, onOpenChange, to, contactName, companyNa
   }, [template, contactName, companyName, open]);
 
   const mailtoHref = () => {
-    const params = new URLSearchParams();
-    if (subject) params.set("subject", subject);
-    if (body) params.set("body", body);
-    return `mailto:${to || ""}?${params.toString()}`;
+    // Use encodeURIComponent (spaces → %20) instead of URLSearchParams (spaces → +),
+    // so subjects render as readable text in email clients.
+    const parts: string[] = [];
+    if (subject) parts.push(`subject=${encodeURIComponent(subject)}`);
+    if (body) parts.push(`body=${encodeURIComponent(body)}`);
+    const qs = parts.length ? `?${parts.join("&")}` : "";
+    return `mailto:${encodeURIComponent(to || "").replace(/%40/g, "@")}${qs}`;
   };
 
   const copyAll = async () => {

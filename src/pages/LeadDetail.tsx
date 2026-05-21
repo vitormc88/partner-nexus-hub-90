@@ -75,6 +75,7 @@ export default function LeadDetail() {
   const [showLogContact, setShowLogContact] = useState(false);
   const [showDisqualify, setShowDisqualify] = useState(false);
   const [showNurture, setShowNurture] = useState(false);
+  const [showSendEmail, setShowSendEmail] = useState(false);
   const [openTimd, setOpenTimd] = useState<string>("");
 
   const { data: attempts = [] } = useLeadContactAttempts(id);

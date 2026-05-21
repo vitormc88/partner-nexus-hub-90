@@ -735,11 +735,11 @@ export function cadenceGuidance(attempts: AttemptLike[]): {
 
   if (counts.total === 0) {
     return {
-      step: "No outbound activity yet",
+      step: "No outreach yet",
       tone: "neutral",
       suggestions: [
-        "Start with a qualification call",
-        "Prepare a short intro email",
+        "Open with a short qualification call",
+        "Or send a short intro email — a couple of operational questions count as micro-discovery",
         "Confirm the right contact is in the record",
       ],
     };

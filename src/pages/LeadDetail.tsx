@@ -201,256 +201,212 @@ export default function LeadDetail() {
   const canConvert = stage === "Qualified" && !isConverted && isHQUser;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
-      {/* HEADER */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/incoming-leads")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{draft.company_name || "Unnamed Lead"}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Created {format(new Date(lead.created_at), "dd MMM yyyy 'at' HH:mm")}
-              {draft.contact_name ? ` · ${draft.contact_name}` : ""}
-            </p>
-          </div>
+    <div className="pb-6 max-w-[1400px] mx-auto">
+      {/* COMPACT TOP HEADER (non-sticky) */}
+      <div className="px-6 pt-4 pb-2 flex items-center gap-3 flex-wrap">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/incoming-leads")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold tracking-tight truncate">{draft.company_name || "Unnamed Lead"}</h1>
+          <p className="text-[11px] text-muted-foreground leading-tight">
+            Created {format(new Date(lead.created_at), "dd MMM yyyy")}
+            {draft.contact_name ? ` · ${draft.contact_name}` : ""}
+            {draft.job_role ? ` · ${draft.job_role}` : ""}
+          </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <StageBadge stage={stage} />
-          {draft.linked_partner_id && partners.find((p) => p.id === draft.linked_partner_id) ? (
-            <Badge variant="secondary" className="gap-1">
-              <Building2 className="h-3 w-3" />
-              {partners.find((p) => p.id === draft.linked_partner_id)?.company_name}
-            </Badge>
-          ) : (
-            <Badge variant="outline">HQ owned</Badge>
-          )}
-        </div>
+        <div className="flex-1" />
+        <StageBadge stage={stage} />
+        {draft.linked_partner_id && partners.find((p) => p.id === draft.linked_partner_id) ? (
+          <Badge variant="secondary" className="gap-1 text-[11px]">
+            <Building2 className="h-3 w-3" />
+            {partners.find((p) => p.id === draft.linked_partner_id)?.company_name}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-[11px]">HQ owned</Badge>
+        )}
       </div>
 
-      {/* QUALIFICATION JOURNEY */}
-      <QualificationJourney
-        current={stage}
-        onChange={(s) => set({ qualification_stage: s })}
-        disabled={isConverted}
-      />
-
-      {/* TWO-COLUMN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
-        {/* MAIN */}
-        <div className="space-y-5 min-w-0">
-          {/* LEAD CONTACT BAR */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-                {draft.contact_name && (
-                  <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-muted-foreground" />{draft.contact_name}</span>
-                )}
-                {draft.email && (
-                  <a href={`mailto:${draft.email}`} className="inline-flex items-center gap-1.5 hover:text-primary">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />{draft.email}
-                  </a>
-                )}
-                {draft.phone && (
-                  <a href={`tel:${draft.phone}`} className="inline-flex items-center gap-1.5 hover:text-primary">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />{draft.phone}
-                  </a>
-                )}
-                {draft.country && (
-                  <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-muted-foreground" />{draft.country}</span>
-                )}
-                {draft.lead_source && (
-                  <span className="inline-flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-muted-foreground" />{draft.lead_source}</span>
-                )}
-                <span className="inline-flex items-center gap-1.5">
-                  <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Owner:</span>
-                  <span className="font-medium">
-                    {assignedUser ? (assignedUser as any).full_name || (assignedUser as any).email : "Unassigned"}
-                  </span>
-                </span>
-                <div className="flex-1" />
-                <div className="flex items-center gap-1">
-                  {draft.phone && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={`tel:${draft.phone}`}><PhoneCall className="h-3.5 w-3.5" /> Call</a>
-                    </Button>
-                  )}
-                  {draft.email && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={`mailto:${draft.email}`}><MailPlus className="h-3.5 w-3.5" /> Email</a>
-                    </Button>
-                  )}
-                  {draft.email && (
-                    <Button size="sm" variant="ghost" onClick={() => {
-                      navigator.clipboard.writeText(draft.email);
-                      toast.success("Email copied");
-                    }}><Copy className="h-3.5 w-3.5" /></Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ENGAGEMENT & SLA STRIP */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="outline" className="gap-1">
-              <ActivityIcon className="h-3 w-3" /> {(draft as any).engagement_status || "New"}
+      {/* STICKY OPERATIONAL ACTION BAR */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+        <div className="px-6 py-2 space-y-2">
+          {/* Row 1: context + engagement chips + NBA */}
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-[11px]">
+            <div className="flex items-center gap-2.5 text-muted-foreground">
+              {draft.email && (
+                <a href={`mailto:${draft.email}`} className="inline-flex items-center gap-1 hover:text-foreground truncate max-w-[180px]">
+                  <Mail className="h-3 w-3" />{draft.email}
+                </a>
+              )}
+              {draft.phone && (
+                <a href={`tel:${draft.phone}`} className="inline-flex items-center gap-1 hover:text-foreground">
+                  <Phone className="h-3 w-3" />{draft.phone}
+                </a>
+              )}
+              {draft.country && (
+                <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" />{draft.country}</span>
+              )}
+              <span className="inline-flex items-center gap-1">
+                <UserIcon className="h-3 w-3" />
+                {assignedUser ? (assignedUser as any).full_name || (assignedUser as any).email : "Unassigned"}
+              </span>
+            </div>
+            <span className="h-3 w-px bg-border" />
+            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5">
+              <ActivityIcon className="h-2.5 w-2.5" /> {(draft as any).engagement_status || "New"}
             </Badge>
-            <Badge variant="outline" className="gap-1">
-              <PhoneCall className="h-3 w-3" /> {counts.calls} calls
-            </Badge>
-            <Badge variant="outline" className="gap-1">
-              <Mail className="h-3 w-3" /> {counts.emails} emails
-            </Badge>
+            <span className="text-muted-foreground">
+              <PhoneCall className="h-3 w-3 inline mr-0.5" />{counts.calls}
+              <Mail className="h-3 w-3 inline ml-2 mr-0.5" />{counts.emails}
+            </span>
             {(draft as any).last_contact_at ? (
-              <Badge variant="outline">
-                Last activity {formatDistanceToNow(new Date((draft as any).last_contact_at), { addSuffix: true })}
-              </Badge>
+              <span className="text-muted-foreground">
+                · last {formatDistanceToNow(new Date((draft as any).last_contact_at), { addSuffix: true })}
+              </span>
             ) : (
-              <Badge variant="outline" className="text-muted-foreground">No outbound activity yet</Badge>
+              <span className="text-muted-foreground">· no activity yet</span>
             )}
             <Badge className={cn(
-              "gap-1 border",
+              "gap-1 text-[10px] h-5 px-1.5 border",
               sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
               sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
               sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
             )}>
-              <Clock className="h-3 w-3" /> {sla.label}
+              <Clock className="h-2.5 w-2.5" /> {sla.label}
             </Badge>
+            <div className="flex-1" />
+            <span className="inline-flex items-center gap-1.5 text-foreground">
+              <Target className="h-3 w-3 text-primary" />
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Next:</span>
+              <span className="font-medium truncate max-w-[260px]" title={dynamicNba.reason}>{dynamicNba.title}</span>
+            </span>
           </div>
 
-          {/* NEXT BEST ACTION — hero (dynamic) */}
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="rounded-md bg-primary/10 p-2.5 text-primary shrink-0">
-                  <Target className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary mb-1">
-                    Next best action
-                  </div>
-                  <div className="text-lg font-semibold leading-snug">{dynamicNba.title}</div>
-                  <p className="text-sm text-muted-foreground mt-1">{dynamicNba.reason}</p>
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <Button size="sm" onClick={() => setShowLogContact(true)} disabled={isConverted}>
-                      <PhoneCall className="h-3.5 w-3.5" /> Log contact
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowAddTask(true)} disabled={isConverted}>
-                      <Plus className="h-3.5 w-3.5" /> Create task
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={canConvert ? "default" : "outline"}
-                      onClick={() => {
-                        if (!isHQUser || isConverted) return;
-                        if (!readiness.ready) setShowConvertGate(true);
-                        else setShowConvert(true);
-                      }}
-                      disabled={!isHQUser || isConverted}
-                    >
-                      <ArrowRight className="h-3.5 w-3.5" /> Convert to opportunity
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={markQualified}
-                      disabled={updateLead.isPending || isConverted || stage === "Qualified"}>
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Mark qualified
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowNurture(true)} disabled={isConverted}>
-                      <Leaf className="h-3.5 w-3.5" /> Move to nurture
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowDisqualify(true)} disabled={isConverted}>
-                      <XCircle className="h-3.5 w-3.5" /> Disqualify
-                    </Button>
-                    <div className="flex-1" />
-                    <Button size="sm" variant="outline" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
-                      <Save className="h-3.5 w-3.5" /> Save
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Row 2: action buttons + stage progression */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {draft.phone && (
+              <Button size="sm" variant="outline" className="h-8" asChild>
+                <a href={`tel:${draft.phone}`}><PhoneCall className="h-3.5 w-3.5" /> Call</a>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
+              <CheckSquare className="h-3.5 w-3.5" /> Log contact
+            </Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowSendEmail(true)} disabled={!draft.email}>
+              <MailPlus className="h-3.5 w-3.5" /> Send email
+            </Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowAddTask(true)} disabled={isConverted}>
+              <Plus className="h-3.5 w-3.5" /> Task
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowNurture(true)} disabled={isConverted}>
+              <Leaf className="h-3.5 w-3.5" /> Nurture
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowDisqualify(true)} disabled={isConverted}>
+              <XCircle className="h-3.5 w-3.5" /> Disqualify
+            </Button>
+            <Button
+              size="sm"
+              variant={canConvert ? "default" : "outline"}
+              className="h-8"
+              onClick={() => {
+                if (!isHQUser || isConverted) return;
+                if (!readiness.ready) setShowConvertGate(true);
+                else setShowConvert(true);
+              }}
+              disabled={!isHQUser || isConverted}
+            >
+              <ArrowRight className="h-3.5 w-3.5" /> Convert
+            </Button>
+            <div className="flex-1" />
+            <div className="hidden md:flex items-center gap-1 mr-2">
+              {QUALIFICATION_STAGES.filter((s) => s !== "Disqualified").map((s, i, arr) => {
+                const cur = arr.indexOf(stage as any);
+                const isActive = i === cur;
+                const isDone = cur > -1 && i < cur;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={isConverted}
+                    onClick={() => set({ qualification_stage: s })}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-medium border transition",
+                      isActive && "bg-primary text-primary-foreground border-primary",
+                      isDone && !isActive && "bg-success/10 text-success border-success/30",
+                      !isActive && !isDone && "bg-muted text-muted-foreground border-transparent hover:bg-muted/70",
+                      isConverted && "opacity-60 cursor-not-allowed",
+                    )}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
+              <Save className="h-3.5 w-3.5" /> Save
+            </Button>
+          </div>
+        </div>
+      </div>
 
-          {/* CADENCE COACH */}
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-muted-foreground" /> Cadence coach
-              </CardTitle>
-              <Badge variant="outline" className="text-[11px]">{cadence.step}</Badge>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ul className="space-y-1.5 text-sm">
+      {/* TWO-COLUMN LAYOUT */}
+      <div className="px-6 pt-4 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-start">
+        {/* MAIN */}
+        <div className="space-y-3 min-w-0">
+          {/* COMPACT GUIDANCE STRIP: Cadence · Readiness · Discovery */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <CompactDisclosure icon={Gauge} title="Cadence" summary={cadence.step} tone="neutral">
+              <ul className="space-y-1 text-xs">
                 {cadence.suggestions.map((s, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
+                  <li key={i} className="flex gap-1.5">
+                    <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
                     <span className="leading-snug">{s}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-muted-foreground mt-3">
-                Suggestions only — never auto-creates actions.
-              </p>
-            </CardContent>
-          </Card>
+            </CompactDisclosure>
 
-          {/* QUALIFICATION READINESS */}
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Qualification readiness
-              </CardTitle>
-              <span className="text-[11px] text-muted-foreground">{readiness.done}/{readiness.total}</span>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ul className="space-y-1.5 text-sm">
+            <CompactDisclosure
+              icon={ShieldCheck}
+              title="Readiness"
+              summary={`${readiness.done}/${readiness.total}${readiness.ready ? " · ready" : ""}`}
+              tone={readiness.ready ? "success" : "neutral"}
+            >
+              <ul className="space-y-1 text-xs">
                 {readiness.items.map((it) => (
-                  <li key={it.key} className="flex items-center gap-2">
+                  <li key={it.key} className="flex items-center gap-1.5">
                     {it.done
-                      ? <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                      : <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                      : <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />}
                     <span className={it.done ? "" : "text-muted-foreground"}>{it.label}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-muted-foreground mt-3">
-                {readiness.ready
-                  ? "Ready to consider conversion."
-                  : "Cover the missing items before converting to opportunity."}
-              </p>
-            </CardContent>
-          </Card>
+            </CompactDisclosure>
 
-
-
-          {/* LAST MEANINGFUL DISCOVERY */}
-          <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Compass className="h-4 w-4 text-muted-foreground" />
-                Last meaningful discovery
-              </CardTitle>
-              <span className="text-[11px] text-muted-foreground">Built from captured data</span>
-            </CardHeader>
-            <CardContent className="pt-0">
+            <CompactDisclosure
+              icon={Compass}
+              title="Discovery"
+              summary={discovery.length === 0 ? "Not captured yet" : `${discovery.length} insight${discovery.length === 1 ? "" : "s"}`}
+              tone={discovery.length === 0 ? "muted" : "neutral"}
+            >
               {discovery.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  Nothing captured yet. Start a discovery call to surface the lead's real situation.
+                <p className="text-xs text-muted-foreground italic">
+                  Capture current process, system or main challenge to surface insights.
                 </p>
               ) : (
-                <ul className="space-y-1.5 text-sm">
+                <ul className="space-y-1 text-xs">
                   {discovery.map((d, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
+                    <li key={i} className="flex gap-1.5">
+                      <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
                       <span className="leading-snug">{d}</span>
                     </li>
                   ))}
                 </ul>
               )}
-            </CardContent>
-          </Card>
+            </CompactDisclosure>
+          </div>
+
 
           {/* TABS */}
           <Tabs defaultValue="qualification" className="w-full">

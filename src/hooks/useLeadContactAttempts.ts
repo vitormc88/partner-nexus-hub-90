@@ -111,7 +111,7 @@ export function useLogContactAttempt() {
       // Fetch existing attempts (including the new one) to derive engagement.
       const { data: all } = await (supabase as any)
         .from("lead_contact_attempts")
-        .select("outcome")
+        .select("outcome, channel")
         .eq("lead_id", args.lead_id);
       const next = deriveEngagement((all || []) as { outcome: ContactOutcome }[]);
 

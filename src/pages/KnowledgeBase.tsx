@@ -11,6 +11,7 @@ import {
   useDeleteDocument,
 } from "@/hooks/useKnowledgeBase";
 import { supabase } from "@/integrations/supabase/client";
+import { signFileUrl } from "@/lib/storage-url";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -597,7 +598,9 @@ export default function KnowledgeBase() {
       setPreviewLoading(true);
       setPreviewBlobUrl(null);
       try {
-        const res = await fetch(doc.file_url);
+        const signed = await signFileUrl("documents", doc.file_url);
+        if (!signed) throw new Error("Could not sign URL");
+        const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         setPreviewBlobUrl(URL.createObjectURL(blob));
@@ -621,7 +624,9 @@ export default function KnowledgeBase() {
       return;
     }
     try {
-      const res = await fetch(doc.file_url);
+      const signed = await signFileUrl("documents", doc.file_url);
+      if (!signed) throw new Error("Could not sign URL");
+      const res = await fetch(signed);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -810,8 +815,8 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    setFileUrl(urlData.publicUrl);
+    // Store the storage path; the bucket is private and we sign URLs on read.
+    setFileUrl(path);
     setFileType(ext);
     setFileName(file.name);
     setUploading(false);
@@ -936,12 +941,11 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
       const path = `kb/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
       if (uploadError) { failCount++; setProgress(((i + 1) / files.length) * 100); continue; }
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
       const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
       try {
         await new Promise<void>((resolve) => {
           createDocument.mutate({
-            title, file_url: urlData.publicUrl, file_type: ext, file_name: file.name,
+            title, file_url: path, file_type: ext, file_name: file.name,
             file_size_bytes: file.size, category_id: categoryId || undefined, visibility_scope: visibility,
           }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
         });

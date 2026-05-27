@@ -142,10 +142,9 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
           upsert: true,
         });
         if (!upErr) {
-          const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
           await supabase
             .from("proposals")
-            .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+            .update({ docx_url: path, status: "Ready", generated_at: new Date().toISOString() })
             .eq("id", res.prop.id);
           qc.invalidateQueries({ queryKey: ["proposals"] });
         }

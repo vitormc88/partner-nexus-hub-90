@@ -597,7 +597,9 @@ export default function KnowledgeBase() {
       setPreviewLoading(true);
       setPreviewBlobUrl(null);
       try {
-        const res = await fetch(doc.file_url);
+        const signed = await signFileUrl("documents", doc.file_url);
+        if (!signed) throw new Error("Could not sign URL");
+        const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         setPreviewBlobUrl(URL.createObjectURL(blob));
@@ -621,7 +623,9 @@ export default function KnowledgeBase() {
       return;
     }
     try {
-      const res = await fetch(doc.file_url);
+      const signed = await signFileUrl("documents", doc.file_url);
+      if (!signed) throw new Error("Could not sign URL");
+      const res = await fetch(signed);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);

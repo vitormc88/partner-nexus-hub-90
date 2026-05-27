@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCategories,
@@ -791,17 +791,27 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
 
   const categoryOptions = buildCategoryOptions(categories);
 
-  const handleOpen = (o: boolean) => {
-    if (o && editing) {
-      setTitle(editing.title || ""); setDescription(editing.description || ""); setCategoryId(editing.category_id || "");
-      setFileUrl(editing.file_url || ""); setFileType(editing.file_type === "link" ? "link" : (editing.file_type || "file"));
-      setVisibility(editing.visibility_scope || "global"); setTags(editing.tags?.join(", ") || "");
+  // Pre-fill (or reset) state whenever the dialog opens. Using an effect — not
+  // onOpenChange — ensures values are populated when the parent opens the
+  // dialog programmatically (Radix only fires onOpenChange on user-driven
+  // state changes, so the previous handler never ran on edit).
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setTitle(editing.title || "");
+      setDescription(editing.description || "");
+      setCategoryId(editing.category_id || "");
+      setFileUrl(editing.file_url || "");
+      setFileType(editing.file_type === "link" ? "link" : (editing.file_type || "file"));
+      setVisibility(editing.visibility_scope || "global");
+      setTags(Array.isArray(editing.tags) ? editing.tags.join(", ") : "");
       setFileName(editing.file_name || "");
-    } else if (o) {
-      setTitle(""); setDescription(""); setCategoryId(""); setFileUrl(""); setFileType("link"); setVisibility("global"); setTags(""); setFileName("");
+    } else {
+      setTitle(""); setDescription(""); setCategoryId("");
+      setFileUrl(""); setFileType("link"); setVisibility("global");
+      setTags(""); setFileName("");
     }
-    onOpenChange(o);
-  };
+  }, [open, editing]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -842,7 +852,7 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Resource" : "Add Resource"}</DialogTitle>

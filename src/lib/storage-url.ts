@@ -30,6 +30,14 @@ export async function signFileUrl(
     const sidx = path.indexOf(signedMarker);
     if (sidx >= 0) path = path.substring(sidx + signedMarker.length).split("?")[0];
   }
+  // Legacy URLs may have URL-encoded characters (e.g. %20 for spaces) while
+  // the underlying storage object names contain literal characters. Decode so
+  // the signed URL request matches the real object key.
+  try {
+    if (/%[0-9A-Fa-f]{2}/.test(path)) path = decodeURIComponent(path);
+  } catch {
+    /* leave path as-is if it isn't valid percent-encoded */
+  }
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
   if (error || !data) return null;
   return data.signedUrl;

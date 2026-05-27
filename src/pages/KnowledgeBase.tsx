@@ -852,7 +852,7 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Resource" : "Add Resource"}</DialogTitle>

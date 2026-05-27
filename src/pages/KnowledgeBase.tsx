@@ -11,6 +11,7 @@ import {
   useDeleteDocument,
 } from "@/hooks/useKnowledgeBase";
 import { supabase } from "@/integrations/supabase/client";
+import { signFileUrl } from "@/lib/storage-url";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

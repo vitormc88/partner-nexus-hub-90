@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCategories,
@@ -11,6 +11,7 @@ import {
   useDeleteDocument,
 } from "@/hooks/useKnowledgeBase";
 import { supabase } from "@/integrations/supabase/client";
+import { extractStorageReference, signFileUrl } from "@/lib/storage-url";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,7 @@ function getFileTypeVariant(fileType: string | null): "default" | "secondary" | 
 }
 
 export default function KnowledgeBase() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user, profile, roles } = useAuth();
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { data: documents = [], isLoading: docLoading } = useDocuments(selectedCategoryId);
@@ -138,6 +139,29 @@ export default function KnowledgeBase() {
   });
 
   const selectedCategory = categories.find((c: any) => c.id === selectedCategoryId);
+
+  const logKbAccessAttempt = useCallback((action: "preview" | "download", doc: any) => {
+    const ref = extractStorageReference("documents", doc?.file_url || "");
+    console.info("[KB-DIAG] attempt", {
+      action,
+      currentAuthUserId: user?.id ?? null,
+      profileRoles: roles,
+      profileIsHq: profile?.is_hq ?? null,
+      profilePartnerId: profile?.partner_id ?? null,
+      documentId: doc?.id ?? null,
+      documentTitle: doc?.title ?? null,
+      documentVisibilityScope: doc?.visibility_scope ?? null,
+      documentPartnerId: doc?.partner_id ?? null,
+      originalStoredReference: doc?.file_url ?? null,
+      detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
+      storedFileUrl: doc?.file_url ?? null,
+      storedFilePath: doc?.file_path ?? null,
+      storedFileName: doc?.file_name ?? null,
+      extractedBucket: ref.extractedBucket,
+      extractedObjectPath: ref.extractedObjectPath,
+      referenceParseError: ref.parseError,
+    });
+  }, [profile?.is_hq, profile?.partner_id, roles, user?.id]);
 
   // Find which accordion value should be open based on selected category
   const getAccordionDefault = () => {
@@ -555,11 +579,18 @@ export default function KnowledgeBase() {
                 <div className="text-sm text-muted-foreground">Loading preview…</div>
               </div>
             ) : previewBlobUrl ? (
-              <iframe
-                src={previewBlobUrl}
-                className="w-full h-full border-0"
-                title={previewDoc?.title || "Document Preview"}
-              />
+              <object
+                data={`${previewBlobUrl}#toolbar=1&view=FitH`}
+                type="application/pdf"
+                className="w-full h-full"
+                aria-label={previewDoc?.title || "Document Preview"}
+              >
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-full border-0"
+                  title={previewDoc?.title || "Document Preview"}
+                />
+              </object>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <p className="text-sm text-muted-foreground">Preview could not be loaded.</p>
@@ -581,13 +612,27 @@ export default function KnowledgeBase() {
   );
 
   async function handleOpenDoc(doc: any) {
+    logKbAccessAttempt("preview", doc);
     if (!doc.file_url) {
-      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      console.error("[KB-DIAG] missing-file-reference", {
+        action: "preview",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+      });
       toast({ title: "File unavailable", description: "This document has no file or link reference.", variant: "destructive" });
       return;
     }
     const isLink = doc.file_type === "link";
     if (isLink) {
+      console.info("[KB-DIAG] link-open", {
+        action: "preview",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        finalUrlUsedByFrontend: doc.file_url,
+        finalUrlStillUsesPublicObjectEndpoint: doc.file_url.includes("/storage/v1/object/public/"),
+      });
       window.open(doc.file_url, "_blank", "noopener,noreferrer");
       return;
     }
@@ -597,11 +642,47 @@ export default function KnowledgeBase() {
       setPreviewLoading(true);
       setPreviewBlobUrl(null);
       try {
-        const res = await fetch(doc.file_url);
+        const signed = await signFileUrl("documents", doc.file_url, 60 * 60, {
+          context: "knowledge-base",
+          action: "preview",
+          documentId: doc.id,
+        });
+        if (!signed) throw new Error("Could not sign URL");
+        console.info("[KB-DIAG] frontend-url", {
+          action: "preview",
+          currentAuthUserId: user?.id ?? null,
+          documentId: doc?.id ?? null,
+          documentTitle: doc?.title ?? null,
+          finalUrlUsedByFrontend: signed,
+          finalUrlStillUsesPublicObjectEndpoint: signed.includes("/storage/v1/object/public/"),
+        });
+        const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        setPreviewBlobUrl(URL.createObjectURL(blob));
+        const rawBlob = await res.blob();
+        // Force application/pdf MIME so the browser's built-in PDF viewer renders
+        // inside the iframe (Supabase often returns application/octet-stream which
+        // triggers a download instead of inline preview).
+        const pdfBlob = rawBlob.type === "application/pdf"
+          ? rawBlob
+          : new Blob([rawBlob], { type: "application/pdf" });
+        setPreviewBlobUrl(URL.createObjectURL(pdfBlob));
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const likelyCause = message.includes("HTTP 404")
+          ? "likely_object_not_found_after_signing"
+          : message.includes("HTTP 401") || message.includes("HTTP 403")
+            ? "likely_signed_url_access_denied"
+            : message === "Could not sign URL"
+              ? "signing_failed_check_signFileUrl_error"
+              : "unknown";
+        console.error("[KB-DIAG] fetch:error", {
+          action: "preview",
+          currentAuthUserId: user?.id ?? null,
+          documentId: doc?.id ?? null,
+          documentTitle: doc?.title ?? null,
+          fetchErrorMessage: message,
+          likelyCause,
+        });
         console.error("[KnowledgeBase] PDF fetch failed:", err);
         toast({ title: "Preview unavailable", description: "Could not load preview. Try downloading instead.", variant: "destructive" });
         setPreviewDoc(null);
@@ -615,13 +696,33 @@ export default function KnowledgeBase() {
   }
 
   async function handleDownloadDoc(doc: any) {
+    logKbAccessAttempt("download", doc);
     if (!doc.file_url) {
-      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      console.error("[KB-DIAG] missing-file-reference", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+      });
       toast({ title: "File unavailable", description: "This document has no file reference.", variant: "destructive" });
       return;
     }
     try {
-      const res = await fetch(doc.file_url);
+      const signed = await signFileUrl("documents", doc.file_url, 60 * 60, {
+        context: "knowledge-base",
+        action: "download",
+        documentId: doc.id,
+      });
+      if (!signed) throw new Error("Could not sign URL");
+      console.info("[KB-DIAG] frontend-url", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        finalUrlUsedByFrontend: signed,
+        finalUrlStillUsesPublicObjectEndpoint: signed.includes("/storage/v1/object/public/"),
+      });
+      const res = await fetch(signed);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -633,6 +734,22 @@ export default function KnowledgeBase() {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const likelyCause = message.includes("HTTP 404")
+        ? "likely_object_not_found_after_signing"
+        : message.includes("HTTP 401") || message.includes("HTTP 403")
+          ? "likely_signed_url_access_denied"
+          : message === "Could not sign URL"
+            ? "signing_failed_check_signFileUrl_error"
+            : "unknown";
+      console.error("[KB-DIAG] fetch:error", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        fetchErrorMessage: message,
+        likelyCause,
+      });
       console.error("[KnowledgeBase] Download failed:", err);
       toast({ title: "Download failed", description: "This document could not be downloaded. Please try again.", variant: "destructive" });
     }
@@ -786,17 +903,27 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
 
   const categoryOptions = buildCategoryOptions(categories);
 
-  const handleOpen = (o: boolean) => {
-    if (o && editing) {
-      setTitle(editing.title || ""); setDescription(editing.description || ""); setCategoryId(editing.category_id || "");
-      setFileUrl(editing.file_url || ""); setFileType(editing.file_type === "link" ? "link" : (editing.file_type || "file"));
-      setVisibility(editing.visibility_scope || "global"); setTags(editing.tags?.join(", ") || "");
+  // Pre-fill (or reset) state whenever the dialog opens. Using an effect — not
+  // onOpenChange — ensures values are populated when the parent opens the
+  // dialog programmatically (Radix only fires onOpenChange on user-driven
+  // state changes, so the previous handler never ran on edit).
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setTitle(editing.title || "");
+      setDescription(editing.description || "");
+      setCategoryId(editing.category_id || "");
+      setFileUrl(editing.file_url || "");
+      setFileType(editing.file_type === "link" ? "link" : (editing.file_type || "file"));
+      setVisibility(editing.visibility_scope || "global");
+      setTags(Array.isArray(editing.tags) ? editing.tags.join(", ") : "");
       setFileName(editing.file_name || "");
-    } else if (o) {
-      setTitle(""); setDescription(""); setCategoryId(""); setFileUrl(""); setFileType("link"); setVisibility("global"); setTags(""); setFileName("");
+    } else {
+      setTitle(""); setDescription(""); setCategoryId("");
+      setFileUrl(""); setFileType("link"); setVisibility("global");
+      setTags(""); setFileName("");
     }
-    onOpenChange(o);
-  };
+  }, [open, editing]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -810,8 +937,8 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    setFileUrl(urlData.publicUrl);
+    // Store the storage path; the bucket is private and we sign URLs on read.
+    setFileUrl(path);
     setFileType(ext);
     setFileName(file.name);
     setUploading(false);
@@ -837,7 +964,7 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Resource" : "Add Resource"}</DialogTitle>
@@ -936,12 +1063,11 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
       const path = `kb/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
       if (uploadError) { failCount++; setProgress(((i + 1) / files.length) * 100); continue; }
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
       const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
       try {
         await new Promise<void>((resolve) => {
           createDocument.mutate({
-            title, file_url: urlData.publicUrl, file_type: ext, file_name: file.name,
+            title, file_url: path, file_type: ext, file_name: file.name,
             file_size_bytes: file.size, category_id: categoryId || undefined, visibility_scope: visibility,
           }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
         });

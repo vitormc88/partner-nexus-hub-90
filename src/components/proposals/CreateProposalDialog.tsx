@@ -557,10 +557,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           upsert: true,
         });
         if (!upErr) {
-          const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
           await supabase
             .from("proposals")
-            .update({ docx_url: pub.publicUrl, generated_at: new Date().toISOString() })
+            .update({ docx_url: path, generated_at: new Date().toISOString() })
             .eq("id", prop.id);
         }
       } catch {
@@ -582,10 +581,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         upsert: true,
       });
       if (upErr) return;
-      const { data: pub } = supabase.storage.from("proposals").getPublicUrl(path);
       await supabase
         .from("proposals")
-        .update({ docx_url: pub.publicUrl, status: "Ready", generated_at: new Date().toISOString() })
+        .update({ docx_url: path, status: "Ready", generated_at: new Date().toISOString() })
         .eq("id", prop.id);
       qc.invalidateQueries({ queryKey: ["proposals"] });
     } catch {

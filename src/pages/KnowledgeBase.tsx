@@ -579,11 +579,18 @@ export default function KnowledgeBase() {
                 <div className="text-sm text-muted-foreground">Loading preview…</div>
               </div>
             ) : previewBlobUrl ? (
-              <iframe
-                src={previewBlobUrl}
-                className="w-full h-full border-0"
-                title={previewDoc?.title || "Document Preview"}
-              />
+              <object
+                data={`${previewBlobUrl}#toolbar=1&view=FitH`}
+                type="application/pdf"
+                className="w-full h-full"
+                aria-label={previewDoc?.title || "Document Preview"}
+              >
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-full border-0"
+                  title={previewDoc?.title || "Document Preview"}
+                />
+              </object>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <p className="text-sm text-muted-foreground">Preview could not be loaded.</p>
@@ -651,8 +658,14 @@ export default function KnowledgeBase() {
         });
         const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        setPreviewBlobUrl(URL.createObjectURL(blob));
+        const rawBlob = await res.blob();
+        // Force application/pdf MIME so the browser's built-in PDF viewer renders
+        // inside the iframe (Supabase often returns application/octet-stream which
+        // triggers a download instead of inline preview).
+        const pdfBlob = rawBlob.type === "application/pdf"
+          ? rawBlob
+          : new Blob([rawBlob], { type: "application/pdf" });
+        setPreviewBlobUrl(URL.createObjectURL(pdfBlob));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const likelyCause = message.includes("HTTP 404")

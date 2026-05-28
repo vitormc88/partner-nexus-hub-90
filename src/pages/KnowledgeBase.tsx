@@ -579,11 +579,18 @@ export default function KnowledgeBase() {
                 <div className="text-sm text-muted-foreground">Loading preview…</div>
               </div>
             ) : previewBlobUrl ? (
-              <iframe
-                src={previewBlobUrl}
-                className="w-full h-full border-0"
-                title={previewDoc?.title || "Document Preview"}
-              />
+              <object
+                data={`${previewBlobUrl}#toolbar=1&view=FitH`}
+                type="application/pdf"
+                className="w-full h-full"
+                aria-label={previewDoc?.title || "Document Preview"}
+              >
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-full border-0"
+                  title={previewDoc?.title || "Document Preview"}
+                />
+              </object>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <p className="text-sm text-muted-foreground">Preview could not be loaded.</p>

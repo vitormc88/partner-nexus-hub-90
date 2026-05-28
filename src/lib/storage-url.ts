@@ -9,6 +9,7 @@ type SignFileUrlDebugOptions = {
 export type StorageReferenceInfo = {
   isExternal: boolean;
   isSupabaseStorage: boolean;
+  isLegacyPublicUrl: boolean;
   extractedBucket: string | null;
   extractedObjectPath: string | null;
   parseError: string | null;
@@ -19,6 +20,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
     return {
       isExternal: false,
       isSupabaseStorage: false,
+      isLegacyPublicUrl: false,
       extractedBucket: null,
       extractedObjectPath: null,
       parseError: "missing_path",
@@ -32,6 +34,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
     return {
       isExternal: true,
       isSupabaseStorage: false,
+        isLegacyPublicUrl: false,
       extractedBucket: null,
       extractedObjectPath: null,
       parseError: null,
@@ -40,6 +43,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
 
   let extractedBucket = bucket;
   let extractedObjectPath = urlOrPath;
+  let isLegacyPublicUrl = false;
 
   if (isSupabaseStorage) {
     const publicMarker = "/storage/v1/object/public/";
@@ -61,6 +65,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
       return {
         isExternal: false,
         isSupabaseStorage: true,
+        isLegacyPublicUrl: false,
         extractedBucket: null,
         extractedObjectPath: null,
         parseError: "could_not_parse_storage_url",
@@ -69,6 +74,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
 
     extractedBucket = extracted.bucket || bucket;
     extractedObjectPath = extracted.key;
+    isLegacyPublicUrl = urlOrPath.includes(publicMarker);
   }
 
   try {
@@ -82,6 +88,7 @@ export function extractStorageReference(bucket: string, urlOrPath: string): Stor
   return {
     isExternal: false,
     isSupabaseStorage,
+    isLegacyPublicUrl,
     extractedBucket,
     extractedObjectPath,
     parseError: null,
@@ -130,8 +137,10 @@ export async function signFileUrl(
       context: debugOptions.context,
       action: debugOptions.action ?? null,
       documentId: debugOptions.documentId ?? null,
+      originalStoredReference: urlOrPath,
       currentAuthUserId: session?.user?.id ?? null,
       hasSession: !!session,
+      detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
       extractedBucket: ref.extractedBucket,
       extractedObjectPath: ref.extractedObjectPath,
       parseError: ref.parseError,
@@ -148,8 +157,11 @@ export async function signFileUrl(
         action: debugOptions.action ?? null,
         documentId: debugOptions.documentId ?? null,
         success: false,
+        originalStoredReference: urlOrPath,
+        detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
         extractedBucket: ref.extractedBucket,
         extractedObjectPath: ref.extractedObjectPath,
+        createSignedUrlPath: ref.extractedObjectPath,
         storageErrorCode: null,
         storageErrorMessage: ref.parseError,
         likelyCause: ref.parseError === "could_not_parse_storage_url" ? "path_parse_failed" : "unknown",
@@ -172,8 +184,11 @@ export async function signFileUrl(
         action: debugOptions.action ?? null,
         documentId: debugOptions.documentId ?? null,
         success: false,
+        originalStoredReference: urlOrPath,
+        detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
         extractedBucket: ref.extractedBucket,
         extractedObjectPath: ref.extractedObjectPath,
+        createSignedUrlPath: ref.extractedObjectPath,
         storageErrorCode: storageError?.code ?? null,
         storageErrorMessage: storageError?.message ?? null,
         likelyCause: classifyStorageSignError(storageError),
@@ -194,8 +209,13 @@ export async function signFileUrl(
       action: debugOptions.action ?? null,
       documentId: debugOptions.documentId ?? null,
       success: true,
+      originalStoredReference: urlOrPath,
+      detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
       extractedBucket: ref.extractedBucket,
       extractedObjectPath: ref.extractedObjectPath,
+      createSignedUrlPath: ref.extractedObjectPath,
+      finalUrlUsedByFrontend: data.signedUrl,
+      finalUrlStillUsesPublicObjectEndpoint: data.signedUrl.includes("/storage/v1/object/public/"),
     });
   }
 

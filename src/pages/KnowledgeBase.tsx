@@ -651,8 +651,14 @@ export default function KnowledgeBase() {
         });
         const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        setPreviewBlobUrl(URL.createObjectURL(blob));
+        const rawBlob = await res.blob();
+        // Force application/pdf MIME so the browser's built-in PDF viewer renders
+        // inside the iframe (Supabase often returns application/octet-stream which
+        // triggers a download instead of inline preview).
+        const pdfBlob = rawBlob.type === "application/pdf"
+          ? rawBlob
+          : new Blob([rawBlob], { type: "application/pdf" });
+        setPreviewBlobUrl(URL.createObjectURL(pdfBlob));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const likelyCause = message.includes("HTTP 404")

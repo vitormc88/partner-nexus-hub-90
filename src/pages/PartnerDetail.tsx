@@ -32,6 +32,9 @@ import { PartnerHealthCard } from "@/components/partners/PartnerHealthCard";
 import { NextBestActionsCard } from "@/components/partners/NextBestActionsCard";
 import { buildNextBestActions } from "@/lib/partner-next-actions";
 import { buildPartnerNarrative } from "@/lib/partner-health-narrative";
+import { PartnerBriefCard } from "@/components/partners/PartnerBriefCard";
+import { buildPartnerBrief } from "@/lib/partner-brief";
+
 
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 const fmtDateTime = (d?: string | null) => d ? new Date(d).toLocaleString() : "—";

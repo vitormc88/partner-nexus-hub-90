@@ -513,7 +513,7 @@ export default function PartnerDetail() {
                   </span>
                 )}
               </div>
-              <ChevronDownIcon />
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
 
             <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border/60">

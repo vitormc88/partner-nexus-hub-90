@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
+import Tasks from "@/pages/Tasks";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";

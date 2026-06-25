@@ -452,6 +452,7 @@ function buildExecutiveSummary(args: {
     Dormant: "Partnership has gone quiet and is not currently producing business.",
     "At Risk": "Partnership is showing signs of deterioration that need attention.",
     New: "Partnership is in its early phase and still taking shape.",
+    Building: "Partnership is being established and commercial history is still developing.",
   };
   lines.push(posture[momentum]);
 

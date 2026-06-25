@@ -319,8 +319,8 @@ export default function PartnerDetail() {
           <TabsTrigger value="certifications">Certifications ({certs.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-5 space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <TabsContent value="overview" className="mt-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
               <h3 className="font-semibold text-foreground text-sm">Partner Info</h3>
               {[
@@ -342,145 +342,153 @@ export default function PartnerDetail() {
               ))}
             </div>
 
-            <div className="space-y-5">
-              {(() => {
-                const narrative = buildPartnerNarrative({
-                  score,
-                  maturity: metrics?.maturity,
-                  partner: {
-                    onboarding_status: partner.onboarding_status,
-                    next_meeting_date: (partner as any).next_meeting_date,
-                    last_meeting_date: (partner as any).last_meeting_date,
-                    account_owner_id: (partner as any).account_owner_id,
-                    assigned_manager_id: (partner as any).assigned_manager_id,
-                  },
-                  clients,
-                  deals,
-                  notes,
-                  leadsOpen: openDeals.length,
-                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                    if (!r.renewal_date) return false;
-                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                    return days >= 0 && days <= 120 && r.status !== "Completed";
-                  }).length,
-                });
-                const nextActions = buildNextBestActions({
-                  maturity: metrics?.maturity,
-                  partner: {
-                    onboarding_status: partner.onboarding_status,
-                    next_meeting_date: (partner as any).next_meeting_date,
-                    last_meeting_date: (partner as any).last_meeting_date,
-                    account_owner_id: (partner as any).account_owner_id,
-                  },
-                  clients,
-                  deals,
-                  notes,
-                  leadsOpen: openDeals.length,
-                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                    if (!r.renewal_date) return false;
-                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                    return days >= 0 && days <= 120 && r.status !== "Completed";
-                  }).length,
-                });
-                const brief = buildPartnerBrief({
-                  partner: {
-                    company_name: partner.company_name,
-                    onboarding_status: partner.onboarding_status,
-                    start_date: partner.start_date,
-                    created_at: (partner as any).created_at,
-                  },
-                  maturity: metrics?.maturity,
-                  score,
-                  clients,
-                  deals,
-                  notes,
-                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                    if (!r.renewal_date) return false;
-                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                    return days >= 0 && days <= 120 && r.status !== "Completed";
-                  }).length,
-                });
-                return (
-                  <>
-                    <PartnerHealthCard
-                      score={score}
-                      summary={narrative.summary}
-                      factors={narrative.factors}
-                    />
-                    <NextBestActionsCard actions={nextActions} />
-                    <PartnerBriefCard brief={brief} />
-                  </>
-                );
-              })()}
+            {(() => {
+              const narrative = buildPartnerNarrative({
+                score,
+                maturity: metrics?.maturity,
+                partner: {
+                  onboarding_status: partner.onboarding_status,
+                  next_meeting_date: (partner as any).next_meeting_date,
+                  last_meeting_date: (partner as any).last_meeting_date,
+                  account_owner_id: (partner as any).account_owner_id,
+                  assigned_manager_id: (partner as any).assigned_manager_id,
+                },
+                clients,
+                deals,
+                notes,
+                leadsOpen: openDeals.length,
+                renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                  if (!r.renewal_date) return false;
+                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                  return days >= 0 && days <= 120 && r.status !== "Completed";
+                }).length,
+              });
+              const nextActions = buildNextBestActions({
+                maturity: metrics?.maturity,
+                partner: {
+                  onboarding_status: partner.onboarding_status,
+                  next_meeting_date: (partner as any).next_meeting_date,
+                  last_meeting_date: (partner as any).last_meeting_date,
+                  account_owner_id: (partner as any).account_owner_id,
+                },
+                clients,
+                deals,
+                notes,
+                leadsOpen: openDeals.length,
+                renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                  if (!r.renewal_date) return false;
+                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                  return days >= 0 && days <= 120 && r.status !== "Completed";
+                }).length,
+              });
+              const brief = buildPartnerBrief({
+                partner: {
+                  company_name: partner.company_name,
+                  onboarding_status: partner.onboarding_status,
+                  start_date: partner.start_date,
+                  created_at: (partner as any).created_at,
+                },
+                maturity: metrics?.maturity,
+                score,
+                clients,
+                deals,
+                notes,
+                renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                  if (!r.renewal_date) return false;
+                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                  return days >= 0 && days <= 120 && r.status !== "Completed";
+                }).length,
+              });
+              return (
+                <section aria-label="Partner intelligence" className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Partner Intelligence
+                    </span>
+                    <span className="h-px flex-1 bg-border/60" />
+                  </div>
+                  <PartnerHealthCard
+                    score={score}
+                    summary={narrative.summary}
+                    factors={narrative.factors}
+                  />
+                  <NextBestActionsCard actions={nextActions} />
+                  <PartnerBriefCard brief={brief} />
+                </section>
+              );
+            })()}
+          </div>
 
-
-
-
-
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground text-sm">Relationship</h3>
-                  <Badge variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"}>{relStatus}</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
-                    <Select value={(partner as any).account_owner_id || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, account_owner_id: v || null } as any)}>
-                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                      <SelectContent>
-                        {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-muted-foreground font-normal">Meeting Cadence</Label>
-                    <Select value={(partner as any).meeting_cadence || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, meeting_cadence: v || null } as any)}>
-                      <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Quarterly">Quarterly</SelectItem>
-                        <SelectItem value="None">None</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
-                    <Input type="date" className="h-8 mt-1" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
-                    <Input type="date" className="h-8 mt-1" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
-                    <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
-                      <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Healthy">Healthy</SelectItem>
-                        <SelectItem value="Growing">Growing</SelectItem>
-                        <SelectItem value="Silent">Silent</SelectItem>
-                        <SelectItem value="At Risk">At Risk</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {daysUntilMeeting !== null && (
-                  <div className={`text-xs rounded-md px-3 py-2 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
-                    {daysUntilMeeting < 0 ? `Next meeting was ${Math.abs(daysUntilMeeting)} day${Math.abs(daysUntilMeeting) === 1 ? "" : "s"} ago — reschedule needed` : daysUntilMeeting === 0 ? "Next meeting is today" : `Next meeting in ${daysUntilMeeting} day${daysUntilMeeting === 1 ? "" : "s"}`}
-                  </div>
-                )}
-                {expiringCertCount > 0 && (
-                  <div className="text-xs rounded-md px-3 py-2 border bg-warning/10 text-warning-foreground border-warning/30">
-                    {expiringCertCount} certification{expiringCertCount > 1 ? "s" : ""} expiring within 30 days
-                  </div>
-                )}
-                {expiredRenewalsCount > 0 && (
-                  <div className="text-xs rounded-md px-3 py-2 border bg-destructive/10 text-destructive border-destructive/30">
-                    {expiredRenewalsCount} renewal{expiredRenewalsCount > 1 ? "s" : ""} expired
-                  </div>
-                )}
+          {/* Relationship — secondary panel below the intelligence stack */}
+          <div className="bg-card/60 rounded-xl border border-border/70 shadow-sm p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-foreground text-sm">Relationship</h3>
+                <Badge variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"} className="text-[10px]">{relStatus}</Badge>
+              </div>
+              <span className="text-[11px] text-muted-foreground">Settings & cadence</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
+                <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
+                <Select value={(partner as any).account_owner_id || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, account_owner_id: v || null } as any)}>
+                  <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                  <SelectContent>
+                    {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground font-normal">Meeting Cadence</Label>
+                <Select value={(partner as any).meeting_cadence || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, meeting_cadence: v || null } as any)}>
+                  <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="None">None</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
+                <Input type="date" className="h-8 mt-1" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
+                <Input type="date" className="h-8 mt-1" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
+              </div>
+              <div className="col-span-2 md:col-span-4">
+                <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
+                <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
+                  <SelectTrigger className="h-8 mt-1 max-w-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Healthy">Healthy</SelectItem>
+                    <SelectItem value="Growing">Growing</SelectItem>
+                    <SelectItem value="Silent">Silent</SelectItem>
+                    <SelectItem value="At Risk">At Risk</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            {(daysUntilMeeting !== null || expiringCertCount > 0 || expiredRenewalsCount > 0) && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {daysUntilMeeting !== null && (
+                  <span className={`text-[11px] rounded-md px-2 py-1 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
+                    {daysUntilMeeting < 0 ? `Meeting overdue by ${Math.abs(daysUntilMeeting)}d` : daysUntilMeeting === 0 ? "Meeting today" : `Meeting in ${daysUntilMeeting}d`}
+                  </span>
+                )}
+                {expiringCertCount > 0 && (
+                  <span className="text-[11px] rounded-md px-2 py-1 border bg-warning/10 text-warning-foreground border-warning/30">
+                    {expiringCertCount} cert{expiringCertCount > 1 ? "s" : ""} expiring ≤30d
+                  </span>
+                )}
+                {expiredRenewalsCount > 0 && (
+                  <span className="text-[11px] rounded-md px-2 py-1 border bg-destructive/10 text-destructive border-destructive/30">
+                    {expiredRenewalsCount} renewal{expiredRenewalsCount > 1 ? "s" : ""} expired
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </TabsContent>
 

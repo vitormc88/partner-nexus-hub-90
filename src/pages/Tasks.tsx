@@ -54,11 +54,18 @@ const SOURCE_LABEL: Record<TaskSource, string> = {
   certification: "Certifications",
 };
 
-const PRIORITY_STYLES: Record<TaskPriority, string> = {
-  Critical: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300",
-  High: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300",
-  Medium: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300",
-  Low: "bg-muted text-muted-foreground border-border",
+const PRIORITY_ACCENT: Record<TaskPriority, string> = {
+  Critical: "bg-destructive",
+  High: "bg-warning",
+  Medium: "bg-primary/40",
+  Low: "bg-transparent",
+};
+
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  Critical: "text-destructive",
+  High: "text-warning-foreground/80",
+  Medium: "text-muted-foreground",
+  Low: "text-muted-foreground",
 };
 
 function formatDue(due: string | null) {
@@ -114,35 +121,40 @@ function groupTasks(rows: UnifiedTask[], key: GroupKey) {
 function TodaysFocus() {
   const { data } = useTodaysFocus();
   const items = [
-    { label: "Open tasks", value: data?.total ?? 0, icon: Inbox },
-    { label: "Critical", value: data?.critical ?? 0, icon: AlertTriangle, tone: "text-red-600" },
-    { label: "Due today", value: data?.dueToday ?? 0, icon: Clock, tone: "text-amber-600" },
-    { label: "Influenced", value: formatEur(data?.revenue ?? 0), icon: TrendingUp, tone: "text-emerald-600" },
-    { label: "Est. completion", value: formatDuration(data?.estMinutes ?? 0), icon: CheckCircle2 },
+    { label: "Open", value: data?.total ?? 0, tone: "text-foreground" },
+    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive", emphasize: true },
+    { label: "Due today", value: data?.dueToday ?? 0, tone: "text-warning-foreground" },
+    { label: "Revenue at stake", value: formatEur(data?.revenue ?? 0), tone: "text-foreground" },
+    { label: "Time budget", value: formatDuration(data?.estMinutes ?? 0), tone: "text-foreground" },
   ];
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
           Today's Focus
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {items.map((it) => {
-            const Icon = it.icon;
-            return (
-              <div key={it.label} className="flex items-center gap-3">
-                <div className={cn("h-9 w-9 rounded-md bg-muted flex items-center justify-center", it.tone)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold leading-none">{it.value}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{it.label}</div>
-                </div>
+      <CardContent className="pt-1">
+        <div className="grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border/60">
+          {items.map((it, i) => (
+            <div
+              key={it.label}
+              className={cn(
+                "flex flex-col justify-center px-0 md:px-5 py-2 md:py-0",
+                i === 0 && "md:pl-0",
+                i === items.length - 1 && "md:pr-0",
+              )}
+            >
+              <div className={cn(
+                "font-semibold tabular-nums leading-tight tracking-tight",
+                it.emphasize ? "text-2xl" : "text-xl",
+                it.tone,
+              )}>
+                {it.value}
               </div>
-            );
-          })}
+              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wide">{it.label}</div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -162,7 +174,7 @@ function WorkloadCard() {
         <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
         <Row label="Avg completion" value={`${(data?.avgCompletionHours ?? 0).toFixed(1)}h`} />
         <Row label="Open" value={data?.openCount ?? 0} />
-        <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-red-600 font-medium" : ""} />
+        <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-destructive font-medium" : ""} />
       </CardContent>
     </Card>
   );
@@ -197,10 +209,10 @@ function TeamWorkloadCard() {
                   <span className="text-xs text-muted-foreground">{m.open} open · {m.completed} done</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded overflow-hidden">
-                  <div className="h-full bg-red-500" style={{ width: `${overduePct}%` }} />
+                  <div className="h-full bg-destructive" style={{ width: `${overduePct}%` }} />
                 </div>
                 {m.overdue > 0 && (
-                  <div className="text-[11px] text-red-600">{m.overdue} overdue · {m.critical} critical</div>
+                  <div className="text-[11px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
                 )}
               </div>
             );
@@ -237,25 +249,38 @@ function TaskRow({ task }: { task: UnifiedTask }) {
   };
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40 transition-colors group">
+    <div className="relative flex items-start gap-3 pl-4 pr-4 py-3 hover:bg-muted/40 transition-colors group">
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-0 bottom-0 w-[3px]",
+          PRIORITY_ACCENT[task.priority],
+        )}
+      />
       <button
         onClick={handleComplete}
-        title="Mark complete"
-        className="mt-0.5 h-5 w-5 rounded border border-input flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-400"
+        title={`Mark complete · Priority: ${task.priority}`}
+        className="mt-0.5 h-5 w-5 rounded border border-input flex items-center justify-center hover:bg-success/10 hover:border-success transition-colors"
       >
-        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-emerald-600" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-success" />
       </button>
       <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm truncate">{task.title}</span>
-          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", PRIORITY_STYLES[task.priority])}>
-            {task.priority}
-          </Badge>
+          <span className="font-medium text-sm text-foreground truncate">{task.title}</span>
+          {task.priority === "Critical" && (
+            <span className={cn("text-[10px] font-semibold uppercase tracking-wide", PRIORITY_LABEL.Critical)}>
+              Critical
+            </span>
+          )}
           {task.is_auto && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 bg-info/10 text-info border-info/30"
+              title="Generated automatically"
+            >
               Auto
             </Badge>
           )}
@@ -263,19 +288,27 @@ function TaskRow({ task }: { task: UnifiedTask }) {
         {task.description && (
           <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{task.description}</p>
         )}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 flex-wrap">
-          {task.company_name && <span className="truncate max-w-[180px]">{task.company_name}</span>}
-          <span>·</span>
+        <div className="flex items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mt-1.5 flex-wrap">
+          {task.company_name && (
+            <span className="truncate max-w-[180px] font-medium text-foreground/80">{task.company_name}</span>
+          )}
+          {task.company_name && <span className="text-border">·</span>}
           <span>{SOURCE_LABEL[task.source]}</span>
-          <span>·</span>
+          <span className="text-border">·</span>
           <span className={cn(
-            due.tone === "danger" && "text-red-600",
-            due.tone === "warn" && "text-amber-600"
+            "tabular-nums",
+            due.tone === "danger" && "text-destructive font-medium",
+            due.tone === "warn" && "text-warning-foreground font-medium",
           )}>
             {due.label}
           </span>
-          {task.owner_name && (<><span>·</span><span>{task.owner_name}</span></>)}
-          {task.revenue_impact > 0 && (<><span>·</span><span>{formatEur(task.revenue_impact)}</span></>)}
+          {task.owner_name && (<><span className="text-border">·</span><span>{task.owner_name}</span></>)}
+          {task.revenue_impact > 0 && (
+            <>
+              <span className="text-border">·</span>
+              <span className="tabular-nums text-foreground/80">{formatEur(task.revenue_impact)}</span>
+            </>
+          )}
         </div>
       </div>
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -459,80 +492,89 @@ export default function Tasks() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <Tabs value={view} onValueChange={(v) => setView(v as TaskView)}>
-              <TabsList>
-                <TabsTrigger value="my">My Tasks</TabsTrigger>
-                <TabsTrigger value="today">Today</TabsTrigger>
-                <TabsTrigger value="week">This Week</TabsTrigger>
-                <TabsTrigger value="overdue">Overdue</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                {isManager && <TabsTrigger value="team">Team</TabsTrigger>}
-              </TabsList>
-            </Tabs>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search tasks…"
-                  className="pl-8 h-9 w-56"
-                />
+          <Card className="overflow-hidden">
+            {/* Unified toolbar: tabs + filters attached to list */}
+            <div className="border-b bg-muted/20">
+              <div className="flex items-center justify-between gap-3 px-3 pt-2 flex-wrap">
+                <Tabs value={view} onValueChange={(v) => setView(v as TaskView)}>
+                  <TabsList className="bg-transparent p-0 h-auto gap-1">
+                    {[
+                      { v: "my", l: "My Tasks" },
+                      { v: "today", l: "Today" },
+                      { v: "week", l: "This Week" },
+                      { v: "overdue", l: "Overdue" },
+                      { v: "completed", l: "Completed" },
+                      ...(isManager ? [{ v: "team", l: "Team" }] : []),
+                    ].map((t) => (
+                      <TabsTrigger
+                        key={t.v}
+                        value={t.v}
+                        className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md px-3 h-8 text-sm"
+                      >
+                        {t.l}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search tasks…"
+                    className="pl-8 h-8 w-56 bg-background"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap text-sm px-3 py-2">
+                <ListFilter className="h-3.5 w-3.5 text-muted-foreground" />
+                <Select value={source} onValueChange={(v: any) => setSource(v)}>
+                  <SelectTrigger className="h-8 w-[150px] bg-background"><SelectValue placeholder="Source" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All sources</SelectItem>
+                    {Object.entries(SOURCE_LABEL).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
+                  <SelectTrigger className="h-8 w-[130px] bg-background"><SelectValue placeholder="Priority" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any priority</SelectItem>
+                    {["Critical", "High", "Medium", "Low"].map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+                  <SelectTrigger className="h-8 w-[160px] bg-background"><SelectValue placeholder="Group by" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="priority">Group by priority</SelectItem>
+                    <SelectItem value="due">Group by due date</SelectItem>
+                    <SelectItem value="company">Group by company</SelectItem>
+                    <SelectItem value="module">Group by module</SelectItem>
+                    <SelectItem value="owner">Group by owner</SelectItem>
+                  </SelectContent>
+                </Select>
+                {isManager && (
+                  <Select value={ownerId} onValueChange={setOwnerId}>
+                    <SelectTrigger className="h-8 w-[170px] bg-background"><SelectValue placeholder="Owner" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All owners</SelectItem>
+                      {(users || []).map((u: any) => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap text-sm">
-            <ListFilter className="h-4 w-4 text-muted-foreground" />
-            <Select value={source} onValueChange={(v: any) => setSource(v)}>
-              <SelectTrigger className="h-8 w-[160px]"><SelectValue placeholder="Source" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All sources</SelectItem>
-                {Object.entries(SOURCE_LABEL).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-              <SelectTrigger className="h-8 w-[140px]"><SelectValue placeholder="Priority" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any priority</SelectItem>
-                {["Critical", "High", "Medium", "Low"].map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-              <SelectTrigger className="h-8 w-[160px]"><SelectValue placeholder="Group by" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="priority">Group by priority</SelectItem>
-                <SelectItem value="due">Group by due date</SelectItem>
-                <SelectItem value="company">Group by company</SelectItem>
-                <SelectItem value="module">Group by module</SelectItem>
-                <SelectItem value="owner">Group by owner</SelectItem>
-              </SelectContent>
-            </Select>
-            {isManager && (
-              <Select value={ownerId} onValueChange={setOwnerId}>
-                <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder="Owner" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All owners</SelectItem>
-                  {(users || []).map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          <Card>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">Loading tasks…</div>
               ) : tasks.length === 0 ? (
                 <div className="p-12 text-center">
-                  <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
+                  <CheckCircle2 className="h-10 w-10 mx-auto text-success mb-3" />
                   <div className="font-medium">Nothing on your plate.</div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Tasks created from Leads, Pipeline, Partners and Renewals will appear here automatically.
@@ -542,9 +584,9 @@ export default function Tasks() {
                 <div className="divide-y">
                   {groups.map(([label, items]) => (
                     <div key={label}>
-                      <div className="px-4 py-2 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center justify-between">
+                      <div className="px-4 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.1em] flex items-center justify-between border-b">
                         <span>{label}</span>
-                        <span>{items.length}</span>
+                        <span className="tabular-nums">{items.length}</span>
                       </div>
                       <div className="divide-y">
                         {items.map((t) => <TaskRow key={t.id} task={t} />)}
@@ -555,6 +597,7 @@ export default function Tasks() {
               )}
             </CardContent>
           </Card>
+
         </div>
 
         <div className="space-y-4">

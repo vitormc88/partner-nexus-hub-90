@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { addDays, format, formatDistanceToNow, isToday, isPast, nextMonday, parseISO, startOfDay } from "date-fns";
 import {
   Phone, Mail, Calendar as CalendarIcon, FileText, RefreshCcw, Users as UsersIcon,
   AlertTriangle, Pin, CheckCircle2, Clock, ExternalLink, Plus, Search, MoreHorizontal,
-  TrendingUp, Inbox, ListFilter, ChevronDown,
+  TrendingUp, Inbox, ListFilter, ChevronDown, X, Keyboard, Rows3, Rows2, PartyPopper,
 } from "lucide-react";
 import {
   useTasks, useTodaysFocus, useWorkload, useTeamWorkload,
@@ -30,8 +30,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type Density = "comfortable" | "compact";
 
 
 /* ---------- helpers ---------- */
@@ -305,7 +309,17 @@ function ReschedulePopover({
   );
 }
 
-function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boolean }) {
+function TaskRow({
+  task,
+  archived = false,
+  density = "comfortable",
+  focused = false,
+}: {
+  task: UnifiedTask;
+  archived?: boolean;
+  density?: Density;
+  focused?: boolean;
+}) {
   const meta = TYPE_META[task.task_type] || TYPE_META.manual;
   const Icon = meta.icon;
   const due = formatDue(task.due_date);
@@ -360,8 +374,29 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
     }
   };
 
+  // React to keyboard shortcuts dispatched by parent for the focused row
+  useEffect(() => {
+    if (!focused) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "x" || e.key === "Enter") {
+        e.preventDefault();
+        if (!archived) handleComplete(true);
+      } else if (e.key === "e") {
+        e.preventDefault();
+        const tomorrow = startOfDay(addDays(new Date(), 1));
+        tomorrow.setHours(9, 0, 0, 0);
+        handleReschedule(tomorrow.toISOString());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, archived, task.id]);
+
+
   return (
     <div
+      data-task-id={task.id}
       className={cn(
         "grid transition-[grid-template-rows,opacity,margin] ease-out",
         collapsing
@@ -373,8 +408,10 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
       <div className="overflow-hidden">
         <div
           className={cn(
-            "relative flex items-start gap-3 pl-4 pr-4 py-3 group transition-colors",
+            "relative flex items-start gap-3 pl-4 pr-4 group transition-colors",
+            density === "compact" ? "py-1.5" : "py-3",
             archived ? "hover:bg-muted/20" : "hover:bg-muted/40",
+            focused && "bg-accent/40 ring-1 ring-inset ring-primary/30",
             completing && "opacity-50",
           )}
         >
@@ -388,7 +425,7 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
               )}
             />
           )}
-          <div className="pt-1">
+          <div className={cn(density === "compact" ? "pt-0.5" : "pt-1")}>
             <Checkbox
               checked={completing}
               onCheckedChange={handleComplete}
@@ -398,13 +435,14 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
           </div>
           <div
             className={cn(
-              "h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0",
+              "rounded-md bg-muted flex items-center justify-center shrink-0",
+              density === "compact" ? "h-6 w-6" : "h-8 w-8",
               archived && "bg-muted/50",
             )}
           >
             <Icon
               className={cn(
-                "h-4 w-4",
+                density === "compact" ? "h-3.5 w-3.5" : "h-4 w-4",
                 archived ? "text-muted-foreground/70" : "text-muted-foreground",
               )}
             />
@@ -442,7 +480,7 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
                 </Badge>
               )}
             </div>
-            {task.description && (
+            {task.description && density !== "compact" && (
               <p
                 className={cn(
                   "text-xs line-clamp-1 mt-0.5",
@@ -454,7 +492,8 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
             )}
             <div
               className={cn(
-                "flex items-center gap-x-2 gap-y-1 text-xs mt-1.5 flex-wrap",
+                "flex items-center gap-x-2 gap-y-1 text-xs flex-wrap",
+                density === "compact" ? "mt-0.5" : "mt-1.5",
                 archived ? "text-muted-foreground/70" : "text-muted-foreground",
               )}
             >
@@ -581,6 +620,8 @@ function TaskGroup({
   onToggle,
   groupBy,
   archived = false,
+  density = "comfortable",
+  focusedId,
 }: {
   label: string;
   items: UnifiedTask[];
@@ -588,6 +629,8 @@ function TaskGroup({
   onToggle: () => void;
   groupBy: GroupKey;
   archived?: boolean;
+  density?: Density;
+  focusedId?: string | null;
 }) {
   // Derive priority indicator for priority-grouped headers
   const priorityForLabel =
@@ -618,7 +661,15 @@ function TaskGroup({
       </button>
       {!isCollapsed && (
         <div className={cn("divide-y", archived ? "divide-border/40" : "divide-border")}>
-          {items.map((t) => <TaskRow key={t.id} task={t} archived={archived} />)}
+          {items.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              archived={archived}
+              density={density}
+              focused={focusedId === t.id}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -626,10 +677,21 @@ function TaskGroup({
 }
 
 
+
 /* ---------- Create manual task dialog ---------- */
 
-function CreateTaskDialog() {
-  const [open, setOpen] = useState(false);
+function CreateTaskDialog({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (o: boolean) => {
+    onOpenChange ? onOpenChange(o) : setInternalOpen(o);
+  };
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -713,6 +775,11 @@ export default function Tasks() {
   const [groupBy, setGroupBy] = useState<GroupKey>("priority");
   const [search, setSearch] = useState("");
   const [ownerId, setOwnerId] = useState<string>("all");
+  const [density, setDensity] = useState<Density>(() => {
+    try { return (localStorage.getItem("tasks.density") as Density) || "comfortable"; }
+    catch { return "comfortable"; }
+  });
+  useEffect(() => { try { localStorage.setItem("tasks.density", density); } catch {} }, [density]);
 
   const { data: tasks = [], isLoading } = useTasks({ view, source, priority, search, ownerId });
   const { data: users } = useUsers();
@@ -720,15 +787,115 @@ export default function Tasks() {
   const groups = useMemo(() => groupTasks(tasks, groupBy), [tasks, groupBy]);
   const { collapsed, toggle } = useCollapsedGroups(groupBy);
 
+  // Flatten visible (non-collapsed) tasks for keyboard navigation
+  const visibleFlat = useMemo(
+    () => groups.flatMap(([label, items]) => (collapsed.has(label) ? [] : items)),
+    [groups, collapsed],
+  );
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Keep focusedId valid as list changes
+  useEffect(() => {
+    if (focusedId && !visibleFlat.some((t) => t.id === focusedId)) {
+      setFocusedId(visibleFlat[0]?.id ?? null);
+    }
+  }, [visibleFlat, focusedId]);
+
+  // Global keyboard shortcuts (j/k navigation, c=new, /=search, ?=help, esc=clear)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inField = target && (
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
+      );
+      if (e.key === "/" && !inField) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      if (e.key === "Escape" && document.activeElement === searchRef.current) {
+        setSearch("");
+        searchRef.current?.blur();
+        return;
+      }
+      if (inField) return;
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        e.preventDefault();
+        setShowShortcuts(true);
+      } else if (e.key === "c") {
+        e.preventDefault();
+        setCreateOpen(true);
+      } else if (e.key === "j" || e.key === "ArrowDown") {
+        if (visibleFlat.length === 0) return;
+        e.preventDefault();
+        const idx = visibleFlat.findIndex((t) => t.id === focusedId);
+        const next = visibleFlat[Math.min(visibleFlat.length - 1, idx + 1)] ?? visibleFlat[0];
+        setFocusedId(next.id);
+        document.querySelector(`[data-task-id="${next.id}"]`)
+          ?.scrollIntoView({ block: "nearest" });
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        if (visibleFlat.length === 0) return;
+        e.preventDefault();
+        const idx = visibleFlat.findIndex((t) => t.id === focusedId);
+        const next = visibleFlat[Math.max(0, idx - 1)] ?? visibleFlat[0];
+        setFocusedId(next.id);
+        document.querySelector(`[data-task-id="${next.id}"]`)
+          ?.scrollIntoView({ block: "nearest" });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visibleFlat, focusedId]);
+
+  // Active filter chips
+  const activeFilters: { key: string; label: string; clear: () => void }[] = [];
+  if (source !== "all") activeFilters.push({
+    key: "source", label: `Source: ${SOURCE_LABEL[source as TaskSource] ?? source}`,
+    clear: () => setSource("all"),
+  });
+  if (priority !== "all") activeFilters.push({
+    key: "priority", label: `Priority: ${priority}`, clear: () => setPriority("all"),
+  });
+  if (ownerId !== "all") {
+    const u = (users || []).find((x: any) => x.id === ownerId);
+    activeFilters.push({
+      key: "owner", label: `Owner: ${u?.full_name || u?.email || "—"}`,
+      clear: () => setOwnerId("all"),
+    });
+  }
+  if (search.trim()) activeFilters.push({
+    key: "search", label: `"${search.trim()}"`, clear: () => setSearch(""),
+  });
+  const clearAll = () => { setSource("all"); setPriority("all"); setOwnerId("all"); setSearch(""); };
 
   return (
+    <TooltipProvider delayDuration={250}>
     <div className="container mx-auto max-w-[1400px] px-4 py-6 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Tasks</h1>
           <p className="text-sm text-muted-foreground">Your operational command center across every module.</p>
         </div>
-        <CreateTaskDialog />
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-muted-foreground"
+                onClick={() => setShowShortcuts(true)}
+                aria-label="Keyboard shortcuts"
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+          </Tooltip>
+          <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} />
+        </div>
       </div>
 
       <TodaysFocus />
@@ -762,11 +929,22 @@ export default function Tasks() {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
+                    ref={searchRef}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search tasks…"
-                    className="pl-8 h-8 w-56 bg-background"
+                    placeholder="Search tasks…  ( / )"
+                    className="pl-8 pr-7 h-8 w-56 bg-background"
                   />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap text-sm px-3 py-2">
@@ -810,18 +988,114 @@ export default function Tasks() {
                     </SelectContent>
                   </Select>
                 )}
+                <div className="ml-auto flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={density === "comfortable" ? "secondary" : "ghost"}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setDensity("comfortable")}
+                        aria-label="Comfortable density"
+                      >
+                        <Rows3 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Comfortable</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={density === "compact" ? "secondary" : "ghost"}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setDensity("compact")}
+                        aria-label="Compact density"
+                      >
+                        <Rows2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Compact</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
+
+              {/* Active filter chips + result summary */}
+              {(activeFilters.length > 0 || !isLoading) && (
+                <div className="flex items-center gap-2 flex-wrap px-3 pb-2 -mt-1">
+                  {activeFilters.map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={f.clear}
+                      className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-background border text-xs text-foreground/80 hover:bg-muted transition-colors"
+                    >
+                      <span>{f.label}</span>
+                      <X className="h-3 w-3 opacity-60" />
+                    </button>
+                  ))}
+                  {activeFilters.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                  {!isLoading && (
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                      {tasks.length} task{tasks.length === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">Loading tasks…</div>
+                <div className="divide-y">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="px-4 py-3 flex items-center gap-3">
+                      <Skeleton className="h-4 w-4 rounded-sm" />
+                      <Skeleton className="h-4 w-4 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-3.5 w-2/3" />
+                        <Skeleton className="h-3 w-1/3" />
+                      </div>
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  ))}
+                </div>
               ) : tasks.length === 0 ? (
                 <div className="p-12 text-center">
-                  <CheckCircle2 className="h-10 w-10 mx-auto text-success mb-3" />
-                  <div className="font-medium">Nothing on your plate.</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Tasks created from Leads, Pipeline, Partners and Renewals will appear here automatically.
-                  </div>
+                  {activeFilters.length > 0 ? (
+                    <>
+                      <Inbox className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
+                      <div className="font-medium">No tasks match these filters.</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Try clearing one or more filters to widen the view.
+                      </div>
+                      <Button variant="outline" size="sm" className="mt-4" onClick={clearAll}>
+                        Clear filters
+                      </Button>
+                    </>
+                  ) : view === "completed" ? (
+                    <>
+                      <CheckCircle2 className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
+                      <div className="font-medium">No completed tasks yet.</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Finished work will be archived here.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <PartyPopper className="h-10 w-10 mx-auto text-success mb-3" />
+                      <div className="font-medium">You're all caught up.</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        New tasks from Leads, Pipeline, Partners and Renewals will appear here automatically.
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="relative max-h-[70vh] overflow-y-auto">
@@ -834,6 +1108,8 @@ export default function Tasks() {
                       onToggle={() => toggle(label)}
                       groupBy={groupBy}
                       archived={view === "completed"}
+                      density={density}
+                      focusedId={focusedId}
                     />
                   ))}
                 </div>
@@ -848,6 +1124,32 @@ export default function Tasks() {
           {isManager && <TeamWorkloadCard />}
         </div>
       </div>
+
+      {/* Keyboard shortcut help */}
+      <Dialog open={showShortcuts} onOpenChange={setShowShortcuts}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Keyboard shortcuts</DialogTitle></DialogHeader>
+          <div className="text-sm divide-y">
+            {[
+              ["j  /  ↓", "Focus next task"],
+              ["k  /  ↑", "Focus previous task"],
+              ["x  /  Enter", "Complete focused task"],
+              ["e", "Reschedule to tomorrow"],
+              ["/", "Focus search"],
+              ["Esc", "Clear search"],
+              ["c", "New task"],
+              ["?", "Show this help"],
+            ].map(([k, l]) => (
+              <div key={k} className="flex items-center justify-between py-2">
+                <span className="text-muted-foreground">{l}</span>
+                <kbd className="px-2 py-0.5 rounded bg-muted text-xs font-mono">{k}</kbd>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
+

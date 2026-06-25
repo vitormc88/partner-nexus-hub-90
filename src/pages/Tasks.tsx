@@ -1335,9 +1335,11 @@ export default function Tasks() {
         </div>
 
         <div className="space-y-4">
+          {!isLoading && <WorkGuidance tasks={tasks} />}
           <WorkloadCard />
           {isManager && <TeamWorkloadCard />}
         </div>
+
       </div>
 
       {/* Keyboard shortcut help */}

@@ -309,7 +309,19 @@ function ReschedulePopover({
   );
 }
 
-function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boolean }) {
+function TaskRow({
+  task,
+  archived = false,
+  density = "comfortable",
+  focused = false,
+  onReschedulePreset,
+}: {
+  task: UnifiedTask;
+  archived?: boolean;
+  density?: Density;
+  focused?: boolean;
+  onReschedulePreset?: (fn: (iso: string) => void) => void;
+}) {
   const meta = TYPE_META[task.task_type] || TYPE_META.manual;
   const Icon = meta.icon;
   const due = formatDue(task.due_date);

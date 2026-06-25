@@ -639,4 +639,4 @@ export function buildPartnerBrief(input: BriefInput): BriefData {
     recentProgress: extractRecentProgress(input),
   };
 }
-}
+

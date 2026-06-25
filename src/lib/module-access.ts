@@ -7,6 +7,7 @@ export type ModulePermissionEntry = {
 
 export const MODULE_KEYS_LIST = [
   "dashboard",
+  "tasks",
   "partners",
   "clients",
   "renewals",

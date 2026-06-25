@@ -374,6 +374,26 @@ function TaskRow({
     }
   };
 
+  // React to keyboard shortcuts dispatched by parent for the focused row
+  useEffect(() => {
+    if (!focused) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "x" || e.key === "Enter") {
+        e.preventDefault();
+        if (!archived) handleComplete(true);
+      } else if (e.key === "e") {
+        e.preventDefault();
+        const tomorrow = startOfDay(addDays(new Date(), 1));
+        tomorrow.setHours(9, 0, 0, 0);
+        handleReschedule(tomorrow.toISOString());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, archived, task.id]);
+
+
   return (
     <div
       data-task-id={task.id}

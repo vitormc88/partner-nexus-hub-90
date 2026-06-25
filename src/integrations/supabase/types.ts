@@ -3545,7 +3545,9 @@ export type Database = {
         Row: {
           clients: number | null
           engagement_score: number | null
+          factors: Json | null
           health_score: number | null
+          maturity: string | null
           momentum_score: number | null
           negative_factors: string[] | null
           partner_id: string | null

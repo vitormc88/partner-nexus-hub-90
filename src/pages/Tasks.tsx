@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { format, formatDistanceToNow, isToday, isPast, parseISO } from "date-fns";
+import { addDays, format, formatDistanceToNow, isToday, isPast, nextMonday, parseISO, startOfDay } from "date-fns";
 import {
   Phone, Mail, Calendar as CalendarIcon, FileText, RefreshCcw, Users as UsersIcon,
   AlertTriangle, Pin, CheckCircle2, Clock, ExternalLink, Plus, Search, MoreHorizontal,
-  TrendingUp, Inbox, ListFilter,
+  TrendingUp, Inbox, ListFilter, ChevronDown,
 } from "lucide-react";
 import {
   useTasks, useTodaysFocus, useWorkload, useTeamWorkload,
-  useCompleteTask, useRescheduleTask, useAssignTask, useCreateManualTask,
+  useCompleteTask, useUncompleteTask, useRescheduleTask, useAssignTask, useCreateManualTask,
   type UnifiedTask, type TaskView, type TaskPriority, type TaskSource,
 } from "@/hooks/useTasks";
 import { useUsers } from "@/hooks/useUsers";
@@ -25,10 +25,14 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
 
 /* ---------- helpers ---------- */
 

@@ -121,35 +121,40 @@ function groupTasks(rows: UnifiedTask[], key: GroupKey) {
 function TodaysFocus() {
   const { data } = useTodaysFocus();
   const items = [
-    { label: "Open tasks", value: data?.total ?? 0, icon: Inbox },
-    { label: "Critical", value: data?.critical ?? 0, icon: AlertTriangle, tone: "text-red-600" },
-    { label: "Due today", value: data?.dueToday ?? 0, icon: Clock, tone: "text-amber-600" },
-    { label: "Influenced", value: formatEur(data?.revenue ?? 0), icon: TrendingUp, tone: "text-emerald-600" },
-    { label: "Est. completion", value: formatDuration(data?.estMinutes ?? 0), icon: CheckCircle2 },
+    { label: "Open", value: data?.total ?? 0, tone: "text-foreground" },
+    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive", emphasize: true },
+    { label: "Due today", value: data?.dueToday ?? 0, tone: "text-warning-foreground" },
+    { label: "Revenue at stake", value: formatEur(data?.revenue ?? 0), tone: "text-foreground" },
+    { label: "Time budget", value: formatDuration(data?.estMinutes ?? 0), tone: "text-foreground" },
   ];
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
           Today's Focus
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {items.map((it) => {
-            const Icon = it.icon;
-            return (
-              <div key={it.label} className="flex items-center gap-3">
-                <div className={cn("h-9 w-9 rounded-md bg-muted flex items-center justify-center", it.tone)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="text-lg font-semibold leading-none">{it.value}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{it.label}</div>
-                </div>
+      <CardContent className="pt-1">
+        <div className="grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border/60">
+          {items.map((it, i) => (
+            <div
+              key={it.label}
+              className={cn(
+                "flex flex-col justify-center px-0 md:px-5 py-2 md:py-0",
+                i === 0 && "md:pl-0",
+                i === items.length - 1 && "md:pr-0",
+              )}
+            >
+              <div className={cn(
+                "font-semibold tabular-nums leading-tight tracking-tight",
+                it.emphasize ? "text-2xl" : "text-xl",
+                it.tone,
+              )}>
+                {it.value}
               </div>
-            );
-          })}
+              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wide">{it.label}</div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

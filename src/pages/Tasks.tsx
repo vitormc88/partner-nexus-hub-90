@@ -640,6 +640,8 @@ export default function Tasks() {
   const { data: users } = useUsers();
 
   const groups = useMemo(() => groupTasks(tasks, groupBy), [tasks, groupBy]);
+  const { collapsed, toggle } = useCollapsedGroups(groupBy);
+
 
   return (
     <div className="container mx-auto max-w-[1400px] px-4 py-6 space-y-6">

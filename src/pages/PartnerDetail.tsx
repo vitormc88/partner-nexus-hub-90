@@ -761,38 +761,8 @@ export default function PartnerDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Relationship Entry Dialog */}
-      <Dialog open={showAddNote} onOpenChange={setShowAddNote}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>New Relationship Entry</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Type</Label>
-              <Select value={noteForm.note_type} onValueChange={(v: any) => setNoteForm(f => ({ ...f, note_type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Meeting">Meeting</SelectItem>
-                  <SelectItem value="Internal Note">Internal Note</SelectItem>
-                  <SelectItem value="Follow-up">Follow-up</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Content</Label>
-              <Textarea rows={4} value={noteForm.content} onChange={e => setNoteForm(f => ({ ...f, content: e.target.value }))} placeholder="What was discussed or noted..." autoFocus />
-            </div>
-            <div>
-              <Label>Next Actions <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Textarea rows={2} value={noteForm.next_actions} onChange={e => setNoteForm(f => ({ ...f, next_actions: e.target.value }))} placeholder="• Send updated proposal&#10;• Review training voucher" />
-            </div>
-            <p className="text-[11px] text-muted-foreground">Author and timestamp are added automatically.</p>
-            <div className="flex justify-end gap-2 pt-1 border-t">
-              <Button variant="outline" onClick={() => setShowAddNote(false)}>Cancel</Button>
-              <Button onClick={handleAddNote} disabled={addNote.isPending || !noteForm.content.trim()}>{addNote.isPending ? "Saving..." : "Save Entry"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Structured Relationship Entry Dialog (v2) */}
+      <RelationshipEntryDialog open={showAddNote} onOpenChange={setShowAddNote} partnerId={partner.id} />
 
       {/* Add Client Dialog */}
       <Dialog open={showAddClient} onOpenChange={setShowAddClient}>

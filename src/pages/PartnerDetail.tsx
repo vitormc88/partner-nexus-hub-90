@@ -26,6 +26,7 @@ import { CountryCodeCombobox } from "@/components/partners/CountryCodeCombobox";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
+import { PartnerHealthCard } from "@/components/partners/PartnerHealthCard";
 
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 const fmtDateTime = (d?: string | null) => d ? new Date(d).toLocaleString() : "—";

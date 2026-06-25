@@ -378,6 +378,7 @@ function TaskRow({
 
   return (
     <div
+      data-task-id={task.id}
       className={cn(
         "grid transition-[grid-template-rows,opacity,margin] ease-out",
         collapsing
@@ -389,8 +390,10 @@ function TaskRow({
       <div className="overflow-hidden">
         <div
           className={cn(
-            "relative flex items-start gap-3 pl-4 pr-4 py-3 group transition-colors",
+            "relative flex items-start gap-3 pl-4 pr-4 group transition-colors",
+            density === "compact" ? "py-1.5" : "py-3",
             archived ? "hover:bg-muted/20" : "hover:bg-muted/40",
+            focused && "bg-accent/40 ring-1 ring-inset ring-primary/30",
             completing && "opacity-50",
           )}
         >
@@ -404,7 +407,7 @@ function TaskRow({
               )}
             />
           )}
-          <div className="pt-1">
+          <div className={cn(density === "compact" ? "pt-0.5" : "pt-1")}>
             <Checkbox
               checked={completing}
               onCheckedChange={handleComplete}
@@ -414,13 +417,14 @@ function TaskRow({
           </div>
           <div
             className={cn(
-              "h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0",
+              "rounded-md bg-muted flex items-center justify-center shrink-0",
+              density === "compact" ? "h-6 w-6" : "h-8 w-8",
               archived && "bg-muted/50",
             )}
           >
             <Icon
               className={cn(
-                "h-4 w-4",
+                density === "compact" ? "h-3.5 w-3.5" : "h-4 w-4",
                 archived ? "text-muted-foreground/70" : "text-muted-foreground",
               )}
             />

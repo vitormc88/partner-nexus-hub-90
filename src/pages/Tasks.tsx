@@ -350,10 +350,203 @@ function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boo
       toast.error(e?.message ?? "Could not complete task");
     }
   };
-...
-      </Dialog>
+
+  const handleReschedule = async (iso: string) => {
+    try {
+      await reschedule.mutateAsync({ task, due_date: iso });
+      toast.success(`Rescheduled to ${format(parseISO(iso), "MMM d, HH:mm")}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows,opacity,margin] ease-out",
+        collapsing
+          ? "grid-rows-[0fr] opacity-0 duration-[280ms]"
+          : "grid-rows-[1fr] opacity-100 duration-200",
+      )}
+      aria-hidden={collapsing}
+    >
+      <div className="overflow-hidden">
+        <div
+          className={cn(
+            "relative flex items-start gap-3 pl-4 pr-4 py-3 group transition-colors",
+            archived ? "hover:bg-muted/20" : "hover:bg-muted/40",
+            completing && "opacity-50",
+          )}
+        >
+          {!archived && (
+            <span
+              aria-hidden
+              className={cn(
+                "absolute left-0 top-0 bottom-0 w-[3px] transition-opacity",
+                PRIORITY_ACCENT[task.priority],
+                completing && "opacity-30",
+              )}
+            />
+          )}
+          <div className="pt-1">
+            <Checkbox
+              checked={completing}
+              onCheckedChange={handleComplete}
+              aria-label={`Mark "${task.title}" complete`}
+              className="h-[18px] w-[18px] data-[state=checked]:bg-success data-[state=checked]:border-success data-[state=checked]:text-success-foreground transition-colors"
+            />
+          </div>
+          <div
+            className={cn(
+              "h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0",
+              archived && "bg-muted/50",
+            )}
+          >
+            <Icon
+              className={cn(
+                "h-4 w-4",
+                archived ? "text-muted-foreground/70" : "text-muted-foreground",
+              )}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={cn(
+                  "text-sm truncate transition-[color,text-decoration-color] duration-300",
+                  archived
+                    ? "font-normal text-muted-foreground line-through decoration-muted-foreground/40"
+                    : "font-medium text-foreground",
+                  completing && !archived && "line-through text-muted-foreground decoration-muted-foreground/60",
+                )}
+              >
+                {task.title}
+              </span>
+              {!archived && task.priority === "Critical" && (
+                <span className={cn("text-[10px] font-semibold uppercase tracking-wide", PRIORITY_LABEL.Critical)}>
+                  Critical
+                </span>
+              )}
+              {task.is_auto && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] px-1.5 py-0",
+                    archived
+                      ? "bg-transparent text-muted-foreground/70 border-border/60"
+                      : "bg-info/10 text-info border-info/30",
+                  )}
+                  title="Generated automatically"
+                >
+                  Auto
+                </Badge>
+              )}
+            </div>
+            {task.description && (
+              <p
+                className={cn(
+                  "text-xs line-clamp-1 mt-0.5",
+                  archived ? "text-muted-foreground/70" : "text-muted-foreground",
+                )}
+              >
+                {task.description}
+              </p>
+            )}
+            <div
+              className={cn(
+                "flex items-center gap-x-2 gap-y-1 text-xs mt-1.5 flex-wrap",
+                archived ? "text-muted-foreground/70" : "text-muted-foreground",
+              )}
+            >
+              {task.company_name && (
+                <span
+                  className={cn(
+                    "truncate max-w-[180px]",
+                    archived ? "font-normal" : "font-medium text-foreground/80",
+                  )}
+                >
+                  {task.company_name}
+                </span>
+              )}
+              {task.company_name && <span className="text-border">·</span>}
+              <span>{SOURCE_LABEL[task.source]}</span>
+              <span className="text-border">·</span>
+              <span
+                className={cn(
+                  "tabular-nums",
+                  !archived && due.tone === "danger" && "text-destructive font-medium",
+                  !archived && due.tone === "warn" && "text-warning-foreground font-medium",
+                )}
+              >
+                {due.label}
+              </span>
+              {task.owner_name && (<><span className="text-border">·</span><span>{task.owner_name}</span></>)}
+              {task.revenue_impact > 0 && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className={cn("tabular-nums", !archived && "text-foreground/80")}>
+                    {formatEur(task.revenue_impact)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            {task.related_route && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to={task.related_route}><ExternalLink className="h-3.5 w-3.5" /></Link>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {!archived && (
+                  <DropdownMenuItem onSelect={() => handleComplete(true)}>Complete</DropdownMenuItem>
+                )}
+                <ReschedulePopover task={task} onPick={handleReschedule}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Reschedule…</DropdownMenuItem>
+                </ReschedulePopover>
+                <DropdownMenuItem onSelect={() => setOpenAssign(true)}>Assign…</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {task.related_route && (
+                  <DropdownMenuItem asChild>
+                    <Link to={task.related_route}>Open related record</Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <Dialog open={openAssign} onOpenChange={setOpenAssign}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Assign task</DialogTitle></DialogHeader>
+              <Label>Owner</Label>
+              <Select value={newOwner} onValueChange={setNewOwner}>
+                <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
+                <SelectContent>
+                  {(users || []).map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenAssign(false)}>Cancel</Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await assign.mutateAsync({ task, owner_user_id: newOwner });
+                      toast.success("Assigned");
+                      setOpenAssign(false);
+                    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+                  }}
+                >Save</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
-    </div>
     </div>
   );
 }

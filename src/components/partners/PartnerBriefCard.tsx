@@ -6,6 +6,7 @@ import type { BriefData, Momentum } from "@/lib/partner-brief";
 
 interface PartnerBriefCardProps {
   brief: BriefData;
+  variant?: "default" | "primary";
 }
 
 const MOMENTUM_META: Record<Momentum, { label: string; icon: typeof TrendingUp; className: string }> = {
@@ -33,10 +34,11 @@ function Section({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export function PartnerBriefCard({ brief }: PartnerBriefCardProps) {
+export function PartnerBriefCard({ brief, variant = "default" }: PartnerBriefCardProps) {
   const meta = MOMENTUM_META[brief.momentum];
   const Icon = meta.icon;
-  const [expanded, setExpanded] = useState(false);
+  const isPrimary = variant === "primary";
+  const [expanded, setExpanded] = useState(isPrimary);
 
   const hasDetails =
     !brief.isNew &&
@@ -45,16 +47,33 @@ export function PartnerBriefCard({ brief }: PartnerBriefCardProps) {
       brief.recentProgress.length > 0 ||
       !!brief.momentumHint);
 
+  const containerCls = isPrimary
+    ? "relative bg-card rounded-xl border shadow-sm p-6 space-y-4 before:content-[''] before:absolute before:left-0 before:top-5 before:bottom-5 before:w-[3px] before:bg-primary before:rounded-r"
+    : "bg-card rounded-xl border shadow-sm p-5 space-y-3";
+
+  const summaryCls = isPrimary
+    ? "text-[15px] leading-relaxed text-foreground"
+    : "text-sm leading-snug text-foreground/90";
+
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+    <div className={containerCls}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-foreground text-sm">Partner Brief</h3>
+        <div className="flex items-center gap-2">
+          <h3 className={isPrimary ? "font-semibold text-foreground text-base" : "font-semibold text-foreground text-sm"}>
+            Partner Brief
+          </h3>
+          {isPrimary && (
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Executive narrative
+            </span>
+          )}
+        </div>
         <Badge variant="outline" className={`gap-1 font-normal ${meta.className}`}>
           <Icon className="h-3 w-3" /> {meta.label}
         </Badge>
       </div>
 
-      <p className="text-sm leading-snug text-foreground/90">{brief.summary}</p>
+      <p className={summaryCls}>{brief.summary}</p>
 
       {hasDetails && (
         <>

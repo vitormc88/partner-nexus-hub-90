@@ -5,6 +5,7 @@ import {
   Phone, Mail, Calendar as CalendarIcon, FileText, RefreshCcw, Users as UsersIcon,
   AlertTriangle, Pin, CheckCircle2, Clock, ExternalLink, Plus, Search, MoreHorizontal,
   TrendingUp, Inbox, ListFilter, ChevronDown, X, Keyboard, Rows3, Rows2, PartyPopper,
+  Target, Compass, ArrowRight,
 } from "lucide-react";
 import {
   useTasks, useTodaysFocus, useWorkload, useTeamWorkload,
@@ -764,7 +765,219 @@ function CreateTaskDialog({
   );
 }
 
+/* ---------- Mission Control: Priority Focus + Work Guidance ---------- */
+
+const SOURCE_WEIGHT: Record<TaskSource, number> = {
+  renewal: 5,
+  pipeline: 4,
+  partner: 3,
+  customer: 3,
+  certification: 2,
+  lead: 2,
+  manual: 1,
+};
+
+type Scored = { task: UnifiedTask; score: number; reason: string };
+
+function scoreTask(t: UnifiedTask): Scored {
+  const now = new Date();
+  const due = t.due_date ? parseISO(t.due_date) : null;
+  const overdue = due ? isPast(due) && !isToday(due) : false;
+  const dueToday = due ? isToday(due) : false;
+
+  let score = 0;
+  if (t.priority === "Critical") score += 100;
+  else if (t.priority === "High") score += 40;
+  if (overdue) {
+    const days = Math.max(1, Math.round((now.getTime() - due!.getTime()) / 86400000));
+    score += 50 + Math.min(30, days);
+  }
+  if (dueToday) score += 25;
+  if (t.revenue_impact > 0) score += Math.min(40, Math.log10(t.revenue_impact + 1) * 8);
+  score += (SOURCE_WEIGHT[t.source] ?? 1) * 4;
+
+  // Reason — pick strongest driver
+  let reason = "Strategic follow-up";
+  if (t.priority === "Critical" && overdue) reason = "Critical task — overdue and at risk";
+  else if (t.priority === "Critical") reason = "Critical priority — act today";
+  else if (overdue && t.revenue_impact > 0) reason = "Overdue with revenue at stake";
+  else if (overdue) reason = "Overdue — unblock the next step";
+  else if (t.source === "renewal") reason = "Renewal window approaching";
+  else if (t.source === "pipeline" && t.revenue_impact > 0) reason = "Active pipeline opportunity";
+  else if (dueToday) reason = "Due today — keep cadence";
+  else if (t.revenue_impact > 0) reason = "Revenue at stake";
+
+  return { task: t, score, reason };
+}
+
+function recommendWorkMode(tasks: UnifiedTask[]): { label: string; tone: "danger" | "warn" | "info" | "calm" } {
+  if (tasks.length === 0) return { label: "No urgent work — use time for proactive outreach", tone: "calm" };
+  const now = new Date();
+  const overdue = tasks.filter((t) => t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date)));
+  const criticalOverdue = overdue.filter((t) => t.priority === "Critical");
+  if (criticalOverdue.length > 0) return { label: "Clear critical overdue tasks first", tone: "danger" };
+  const overdueRenewals = overdue.filter((t) => t.source === "renewal");
+  if (overdueRenewals.length > 0) return { label: "Focus on renewals at risk", tone: "warn" };
+  const highValuePipeline = tasks.filter((t) => t.source === "pipeline" && t.revenue_impact >= 10000);
+  if (highValuePipeline.length >= 2) return { label: "Protect high-value pipeline", tone: "info" };
+  const dueToday = tasks.filter((t) => t.due_date && isToday(parseISO(t.due_date)));
+  if (dueToday.length >= 3) return { label: "Power through today's queue", tone: "info" };
+  if (tasks.length <= 3) return { label: "Low urgency today — maintain cadence", tone: "calm" };
+  return { label: "Steady execution — work top-down by priority", tone: "calm" };
+}
+
+function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
+  const open = useMemo(() => tasks.filter((t) => t.status !== "done"), [tasks]);
+  const top = useMemo(
+    () => open.map(scoreTask).sort((a, b) => b.score - a.score).slice(0, 3),
+    [open],
+  );
+  const mode = useMemo(() => recommendWorkMode(open), [open]);
+
+  if (open.length === 0) return null;
+
+  const toneClass =
+    mode.tone === "danger" ? "bg-destructive/10 text-destructive border-destructive/20"
+    : mode.tone === "warn" ? "bg-warning/10 text-warning-foreground border-warning/30"
+    : mode.tone === "info" ? "bg-info/10 text-info border-info/30"
+    : "bg-muted text-muted-foreground border-border";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-3 space-y-0">
+        <div className="flex items-center gap-2">
+          <Target className="h-3.5 w-3.5 text-muted-foreground" />
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
+            Priority Focus
+          </CardTitle>
+        </div>
+        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border", toneClass)}>
+          <Compass className="h-3 w-3" />
+          {mode.label}
+        </span>
+      </CardHeader>
+      <CardContent className="pt-1">
+        <ol className="divide-y divide-border/60">
+          {top.map(({ task, reason }, i) => {
+            const due = formatDue(task.due_date);
+            const Body = (
+              <div className="flex items-start gap-3 py-2.5 group">
+                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground w-4 mt-0.5">{i + 1}</span>
+                <span
+                  aria-hidden
+                  className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", PRIORITY_ACCENT[task.priority])}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-foreground truncate">{task.title}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
+                    {task.company_name && (
+                      <span className="font-medium text-foreground/80 truncate max-w-[180px]">{task.company_name}</span>
+                    )}
+                    {task.company_name && <span className="text-border">·</span>}
+                    <span>{SOURCE_LABEL[task.source]}</span>
+                    {task.revenue_impact > 0 && (
+                      <>
+                        <span className="text-border">·</span>
+                        <span className="tabular-nums text-foreground/80">{formatEur(task.revenue_impact)}</span>
+                      </>
+                    )}
+                    <span className="text-border">·</span>
+                    <span className={cn(
+                      "tabular-nums",
+                      due.tone === "danger" && "text-destructive font-medium",
+                      due.tone === "warn" && "text-warning-foreground font-medium",
+                    )}>
+                      {due.label}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground/80 mt-1 italic">{reason}</div>
+                </div>
+                {task.related_route && (
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </div>
+            );
+            return (
+              <li key={task.id}>
+                {task.related_route ? (
+                  <Link to={task.related_route} className="block hover:bg-muted/40 -mx-2 px-2 rounded-sm transition-colors">
+                    {Body}
+                  </Link>
+                ) : Body}
+              </li>
+            );
+          })}
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WorkGuidance({ tasks }: { tasks: UnifiedTask[] }) {
+  const lines = useMemo(() => {
+    const open = tasks.filter((t) => t.status !== "done");
+    if (open.length === 0) return ["Inbox clear — no open work to interpret."];
+
+    const now = new Date();
+    const overdue = open.filter((t) => t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date)));
+    const critical = open.filter((t) => t.priority === "Critical");
+
+    // distribution by source
+    const bySource = new Map<TaskSource, { count: number; revenue: number }>();
+    for (const t of open) {
+      const cur = bySource.get(t.source) || { count: 0, revenue: 0 };
+      cur.count += 1;
+      cur.revenue += t.revenue_impact || 0;
+      bySource.set(t.source, cur);
+    }
+    const ranked = Array.from(bySource.entries()).sort((a, b) => b[1].count - a[1].count);
+    const top = ranked[0];
+
+    const out: string[] = [];
+    if (top && top[1].count >= 2) {
+      out.push(`Most urgent work is concentrated in ${SOURCE_LABEL[top[0]]} (${top[1].count} tasks).`);
+    }
+
+    const overdueRevenue = overdue.reduce((s, t) => s + (t.revenue_impact || 0), 0);
+    const totalRevenue = open.reduce((s, t) => s + (t.revenue_impact || 0), 0);
+    if (critical.length > 0 && overdue.length > 0 && critical.some((t) => overdue.includes(t))) {
+      out.push("Critical overdue tasks represent most of today's revenue at stake.");
+    } else if (overdueRevenue > 0 && totalRevenue > 0 && overdueRevenue / totalRevenue > 0.5) {
+      out.push("Overdue tasks hold the majority of revenue at stake — prioritize them.");
+    }
+
+    const overdueRenewals = overdue.filter((t) => t.source === "renewal");
+    if (overdueRenewals.length >= 2) {
+      out.push("Renewal work is accumulating — review overdue renewals first.");
+    }
+
+    if (out.length === 0) {
+      out.push("Workload is balanced. Focus on closing critical items.");
+    }
+    return out.slice(0, 3);
+  }, [tasks]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase flex items-center gap-2">
+          <Compass className="h-3.5 w-3.5" />
+          Work Guidance
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5 text-sm text-foreground/80 leading-snug">
+        {lines.map((l, i) => (
+          <p key={i}>{l}</p>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ---------- Main page ---------- */
+
 
 export default function Tasks() {
   const { profile, roles } = useAuth();
@@ -899,8 +1112,10 @@ export default function Tasks() {
       </div>
 
       <TodaysFocus />
+      {!isLoading && tasks.length > 0 && view !== "completed" && <PriorityFocus tasks={tasks} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
         <div className="lg:col-span-3 space-y-4">
           <Card className="overflow-hidden">
             {/* Unified toolbar: tabs + filters attached to list */}
@@ -1120,9 +1335,11 @@ export default function Tasks() {
         </div>
 
         <div className="space-y-4">
+          {!isLoading && <WorkGuidance tasks={tasks} />}
           <WorkloadCard />
           {isManager && <TeamWorkloadCard />}
         </div>
+
       </div>
 
       {/* Keyboard shortcut help */}

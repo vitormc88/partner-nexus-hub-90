@@ -76,6 +76,7 @@ const ROOT_ROUTE_MODULE: RouteModule = {
 
 const ROUTE_MODULES: RouteModule[] = [
   { prefix: "/dashboard", path: "/", moduleKey: "dashboard" },
+  { prefix: "/tasks", path: "/tasks", moduleKey: "tasks" },
   { prefix: "/partners", path: "/partners", moduleKey: "partners" },
   { prefix: "/clients", path: "/clients", moduleKey: "clients" },
   { prefix: "/renewals", path: "/renewals", moduleKey: "renewals" },

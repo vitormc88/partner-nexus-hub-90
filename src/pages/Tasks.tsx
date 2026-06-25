@@ -230,25 +230,126 @@ function TeamWorkloadCard() {
 
 /* ---------- Task card ---------- */
 
+function PriorityDot({ priority }: { priority: TaskPriority }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("inline-block h-2 w-2 rounded-full", PRIORITY_ACCENT[priority])}
+    />
+  );
+}
+
+const RESCHEDULE_PRESETS = (base: Date) => [
+  { label: "Today", value: startOfDay(base) },
+  { label: "Tomorrow", value: startOfDay(addDays(base, 1)) },
+  { label: "+3 days", value: startOfDay(addDays(base, 3)) },
+  { label: "Next Mon", value: startOfDay(nextMonday(base)) },
+];
+
+function ReschedulePopover({
+  task,
+  onPick,
+  children,
+}: {
+  task: UnifiedTask;
+  onPick: (iso: string) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const initial = task.due_date ? parseISO(task.due_date) : new Date();
+  const [date, setDate] = useState<Date | undefined>(initial);
+
+  const pick = (d: Date) => {
+    // Preserve original time of day when possible
+    const original = task.due_date ? parseISO(task.due_date) : new Date();
+    const merged = new Date(d);
+    merged.setHours(original.getHours() || 9, original.getMinutes() || 0, 0, 0);
+    onPick(merged.toISOString());
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <div className="flex flex-col gap-1 p-2 border-b">
+          {RESCHEDULE_PRESETS(new Date()).map((p) => (
+            <Button
+              key={p.label}
+              variant="ghost"
+              size="sm"
+              className="justify-between h-8"
+              onClick={() => pick(p.value)}
+            >
+              <span>{p.label}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {format(p.value, "MMM d")}
+              </span>
+            </Button>
+          ))}
+        </div>
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            if (d) {
+              setDate(d);
+              pick(d);
+            }
+          }}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function TaskRow({ task }: { task: UnifiedTask }) {
   const meta = TYPE_META[task.task_type] || TYPE_META.manual;
   const Icon = meta.icon;
   const due = formatDue(task.due_date);
   const complete = useCompleteTask();
+  const uncomplete = useUncompleteTask();
   const reschedule = useRescheduleTask();
   const assign = useAssignTask();
   const { data: users } = useUsers();
-  const [openReschedule, setOpenReschedule] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
-  const [newDate, setNewDate] = useState<string>(task.due_date ? task.due_date.slice(0, 16) : "");
   const [newOwner, setNewOwner] = useState<string>(task.owner_user_id ?? "");
+  const [completing, setCompleting] = useState(false);
 
-  const handleComplete = async () => {
+  const handleComplete = async (checked: boolean | "indeterminate") => {
+    if (!checked) return;
+    setCompleting(true);
+    // Brief strike-through before optimistic removal
+    await new Promise((r) => setTimeout(r, 220));
     try {
       await complete.mutateAsync(task);
-      toast.success("Task completed");
+      toast.success("Task completed", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await uncomplete.mutateAsync(task);
+              toast.success("Restored");
+            } catch (e: any) {
+              toast.error(e?.message ?? "Could not undo");
+            }
+          },
+        },
+      });
     } catch (e: any) {
+      setCompleting(false);
       toast.error(e?.message ?? "Could not complete task");
+    }
+  };
+
+  const handleReschedule = async (iso: string) => {
+    try {
+      await reschedule.mutateAsync({ task, due_date: iso });
+      toast.success(`Rescheduled to ${format(parseISO(iso), "MMM d, HH:mm")}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
     }
   };
 
@@ -261,19 +362,27 @@ function TaskRow({ task }: { task: UnifiedTask }) {
           PRIORITY_ACCENT[task.priority],
         )}
       />
-      <button
-        onClick={handleComplete}
-        title={`Mark complete · Priority: ${task.priority}`}
-        className="mt-0.5 h-5 w-5 rounded border border-input flex items-center justify-center hover:bg-success/10 hover:border-success transition-colors"
-      >
-        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-success" />
-      </button>
+      <div className="pt-1">
+        <Checkbox
+          checked={completing}
+          onCheckedChange={handleComplete}
+          aria-label={`Mark "${task.title}" complete`}
+          className="h-[18px] w-[18px] data-[state=checked]:bg-success data-[state=checked]:border-success data-[state=checked]:text-success-foreground"
+        />
+      </div>
       <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className={cn("min-w-0 flex-1 transition-all", completing && "opacity-50")}>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm text-foreground truncate">{task.title}</span>
+          <span
+            className={cn(
+              "font-medium text-sm text-foreground truncate transition-all",
+              completing && "line-through text-muted-foreground",
+            )}
+          >
+            {task.title}
+          </span>
           {task.priority === "Critical" && (
             <span className={cn("text-[10px] font-semibold uppercase tracking-wide", PRIORITY_LABEL.Critical)}>
               Critical
@@ -326,8 +435,10 @@ function TaskRow({ task }: { task: UnifiedTask }) {
             <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={handleComplete}>Complete</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setOpenReschedule(true)}>Reschedule…</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleComplete(true)}>Complete</DropdownMenuItem>
+            <ReschedulePopover task={task} onPick={handleReschedule}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Reschedule…</DropdownMenuItem>
+            </ReschedulePopover>
             <DropdownMenuItem onSelect={() => setOpenAssign(true)}>Assign…</DropdownMenuItem>
             <DropdownMenuSeparator />
             {task.related_route && (
@@ -338,26 +449,6 @@ function TaskRow({ task }: { task: UnifiedTask }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <Dialog open={openReschedule} onOpenChange={setOpenReschedule}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Reschedule task</DialogTitle></DialogHeader>
-          <Label>New due date</Label>
-          <Input type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenReschedule(false)}>Cancel</Button>
-            <Button
-              onClick={async () => {
-                try {
-                  await reschedule.mutateAsync({ task, due_date: new Date(newDate).toISOString() });
-                  toast.success("Rescheduled");
-                  setOpenReschedule(false);
-                } catch (e: any) { toast.error(e?.message ?? "Failed"); }
-              }}
-            >Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={openAssign} onOpenChange={setOpenAssign}>
         <DialogContent>
@@ -388,6 +479,74 @@ function TaskRow({ task }: { task: UnifiedTask }) {
     </div>
   );
 }
+
+/* ---------- Collapsible group ---------- */
+
+function useCollapsedGroups(groupBy: string) {
+  const storageKey = `tasks.collapsedGroups.${groupBy}`;
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(Array.from(collapsed))); } catch {}
+  }, [collapsed, storageKey]);
+  const toggle = (label: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  };
+  return { collapsed, toggle };
+}
+
+function TaskGroup({
+  label,
+  items,
+  isCollapsed,
+  onToggle,
+  groupBy,
+}: {
+  label: string;
+  items: UnifiedTask[];
+  isCollapsed: boolean;
+  onToggle: () => void;
+  groupBy: GroupKey;
+}) {
+  // Derive priority indicator for priority-grouped headers
+  const priorityForLabel =
+    groupBy === "priority" && (["Critical", "High", "Medium", "Low"] as TaskPriority[]).includes(label as TaskPriority)
+      ? (label as TaskPriority)
+      : null;
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="sticky top-0 z-10 w-full px-4 py-2 bg-muted/60 backdrop-blur-sm text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.1em] flex items-center justify-between border-b hover:bg-muted/80 transition-colors"
+        aria-expanded={!isCollapsed}
+      >
+        <span className="flex items-center gap-2">
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", isCollapsed && "-rotate-90")}
+          />
+          {priorityForLabel && <PriorityDot priority={priorityForLabel} />}
+          <span>{label}</span>
+        </span>
+        <span className="tabular-nums">{items.length}</span>
+      </button>
+      {!isCollapsed && (
+        <div className="divide-y">
+          {items.map((t) => <TaskRow key={t.id} task={t} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ---------- Create manual task dialog ---------- */
 

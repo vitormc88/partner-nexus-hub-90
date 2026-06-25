@@ -174,7 +174,7 @@ function WorkloadCard() {
         <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
         <Row label="Avg completion" value={`${(data?.avgCompletionHours ?? 0).toFixed(1)}h`} />
         <Row label="Open" value={data?.openCount ?? 0} />
-        <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-red-600 font-medium" : ""} />
+        <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-destructive font-medium" : ""} />
       </CardContent>
     </Card>
   );

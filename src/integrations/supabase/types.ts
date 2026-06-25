@@ -1994,6 +1994,106 @@ export type Database = {
           },
         ]
       }
+      manual_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          owner_user_id: string | null
+          priority: string
+          related_company: string | null
+          related_entity_id: string | null
+          related_route: string | null
+          related_source: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_user_id?: string | null
+          priority?: string
+          related_company?: string | null
+          related_entity_id?: string | null
+          related_route?: string | null
+          related_source?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_user_id?: string | null
+          priority?: string
+          related_company?: string | null
+          related_entity_id?: string | null
+          related_route?: string | null
+          related_source?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "manual_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "manual_tasks_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_tasks_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "manual_tasks_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -3579,6 +3679,31 @@ export type Database = {
           positive_factors: string[] | null
           relationship_score: number | null
           revenue: number | null
+        }
+        Relationships: []
+      }
+      unified_tasks: {
+        Row: {
+          company_name: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string | null
+          is_auto: boolean | null
+          owner_email: string | null
+          owner_name: string | null
+          owner_user_id: string | null
+          priority: string | null
+          priority_score: number | null
+          related_entity_id: string | null
+          related_route: string | null
+          revenue_impact: number | null
+          source: string | null
+          source_id: string | null
+          status: string | null
+          task_type: string | null
+          title: string | null
         }
         Relationships: []
       }

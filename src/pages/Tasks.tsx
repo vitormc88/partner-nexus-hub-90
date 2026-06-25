@@ -209,10 +209,10 @@ function TeamWorkloadCard() {
                   <span className="text-xs text-muted-foreground">{m.open} open · {m.completed} done</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded overflow-hidden">
-                  <div className="h-full bg-red-500" style={{ width: `${overduePct}%` }} />
+                  <div className="h-full bg-destructive" style={{ width: `${overduePct}%` }} />
                 </div>
                 {m.overdue > 0 && (
-                  <div className="text-[11px] text-red-600">{m.overdue} overdue · {m.critical} critical</div>
+                  <div className="text-[11px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
                 )}
               </div>
             );

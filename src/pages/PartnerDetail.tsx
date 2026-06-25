@@ -382,6 +382,24 @@ export default function PartnerDetail() {
                     return days >= 0 && days <= 120 && r.status !== "Completed";
                   }).length,
                 });
+                const brief = buildPartnerBrief({
+                  partner: {
+                    company_name: partner.company_name,
+                    onboarding_status: partner.onboarding_status,
+                    start_date: partner.start_date,
+                    created_at: (partner as any).created_at,
+                  },
+                  maturity: metrics?.maturity,
+                  score,
+                  clients,
+                  deals,
+                  notes,
+                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                    if (!r.renewal_date) return false;
+                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                    return days >= 0 && days <= 120 && r.status !== "Completed";
+                  }).length,
+                });
                 return (
                   <>
                     <PartnerHealthCard
@@ -390,9 +408,11 @@ export default function PartnerDetail() {
                       factors={narrative.factors}
                     />
                     <NextBestActionsCard actions={nextActions} />
+                    <PartnerBriefCard brief={brief} />
                   </>
                 );
               })()}
+
 
 
 

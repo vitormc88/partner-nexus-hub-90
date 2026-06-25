@@ -337,7 +337,7 @@ export default function PartnerDetail() {
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="mt-6 space-y-5">
+        <TabsContent value="overview" className="mt-6 animate-fade-in space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Partner Profile — compact executive profile */}
             <aside className="lg:col-span-4 space-y-4">
@@ -585,7 +585,7 @@ export default function PartnerDetail() {
         </TabsContent>
 
 
-        <TabsContent value="relationship" className="mt-5 space-y-4">
+        <TabsContent value="relationship" className="mt-5 animate-fade-in space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Meeting notes, follow-ups, and relationship history.</p>
             <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> New Entry</Button>
@@ -609,7 +609,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="clients" className="mt-5 space-y-3">
+        <TabsContent value="clients" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowAddClient(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
           </div>
@@ -643,7 +643,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="leads" className="mt-5 space-y-3">
+        <TabsContent value="leads" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowCreateLead(true)}><Plus className="h-4 w-4 mr-1.5" /> New Lead</Button>
           </div>
@@ -682,7 +682,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="renewals" className="mt-5 space-y-3">
+        <TabsContent value="renewals" className="mt-5 animate-fade-in space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{partnerRenewals.length} renewal{partnerRenewals.length === 1 ? "" : "s"} {expiredRenewalsCount > 0 && <span className="text-destructive font-medium">· {expiredRenewalsCount} expired</span>}</p>
             <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
@@ -743,7 +743,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="certifications" className="mt-5 space-y-3">
+        <TabsContent value="certifications" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowAddCert(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Certification</Button>
           </div>

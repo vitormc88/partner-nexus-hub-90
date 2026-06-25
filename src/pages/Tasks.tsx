@@ -54,11 +54,18 @@ const SOURCE_LABEL: Record<TaskSource, string> = {
   certification: "Certifications",
 };
 
-const PRIORITY_STYLES: Record<TaskPriority, string> = {
-  Critical: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300",
-  High: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300",
-  Medium: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300",
-  Low: "bg-muted text-muted-foreground border-border",
+const PRIORITY_ACCENT: Record<TaskPriority, string> = {
+  Critical: "bg-destructive",
+  High: "bg-warning",
+  Medium: "bg-primary/40",
+  Low: "bg-transparent",
+};
+
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  Critical: "text-destructive",
+  High: "text-warning-foreground/80",
+  Medium: "text-muted-foreground",
+  Low: "text-muted-foreground",
 };
 
 function formatDue(due: string | null) {

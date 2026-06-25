@@ -462,7 +462,7 @@ function TaskRow({
                 </Badge>
               )}
             </div>
-            {task.description && (
+            {task.description && density !== "compact" && (
               <p
                 className={cn(
                   "text-xs line-clamp-1 mt-0.5",
@@ -474,7 +474,8 @@ function TaskRow({
             )}
             <div
               className={cn(
-                "flex items-center gap-x-2 gap-y-1 text-xs mt-1.5 flex-wrap",
+                "flex items-center gap-x-2 gap-y-1 text-xs flex-wrap",
+                density === "compact" ? "mt-0.5" : "mt-1.5",
                 archived ? "text-muted-foreground/70" : "text-muted-foreground",
               )}
             >

@@ -267,7 +267,8 @@ export default function PartnerDetail() {
   }).length;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-[1400px] mx-auto px-2 sm:px-4 space-y-6">
+
       <div className="animate-reveal-up">
         <Link to="/partners" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft className="h-4 w-4" /> Back to Partner Management

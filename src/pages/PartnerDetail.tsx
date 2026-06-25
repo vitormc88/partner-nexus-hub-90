@@ -6,6 +6,8 @@ import { useRenewals } from "@/hooks/useDeals";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { usePartnerNotes, useAddPartnerNote, useDeletePartnerNote } from "@/hooks/usePartnerNotes";
+import { RelationshipEntryDialog } from "@/components/partners/RelationshipEntryDialog";
+import { RelationshipTimelineEntry } from "@/components/partners/RelationshipTimelineEntry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +70,7 @@ export default function PartnerDetail() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [showCreateLead, setShowCreateLead] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
-  const [noteForm, setNoteForm] = useState<{ content: string; note_type: "Meeting" | "Internal Note" | "Follow-up"; next_actions: string }>({ content: "", note_type: "Meeting", next_actions: "" });
+  void addNote;
   const [showAddCert, setShowAddCert] = useState(false);
   const [certForm, setCertForm] = useState({ user_name: "", certification_name: "", certification_type: "Sales", certification_level: 1, issue_date: "", expiry_date: "", file_url: "" });
   const [showAddRenewal, setShowAddRenewal] = useState(false);
@@ -170,20 +172,7 @@ export default function PartnerDetail() {
     finally { setSaving(false); }
   };
 
-  const handleAddNote = async () => {
-    if (!noteForm.content.trim()) return;
-    try {
-      await addNote.mutateAsync({
-        partner_id: partner.id,
-        content: noteForm.content.trim(),
-        note_type: noteForm.note_type,
-        next_actions: noteForm.next_actions.trim() || null,
-      });
-      setNoteForm({ content: "", note_type: "Meeting", next_actions: "" });
-      setShowAddNote(false);
-      toast.success("Entry saved");
-    } catch (e: any) { toast.error(e?.message || "Failed to save entry"); }
-  };
+
 
   const handleAddCert = async () => {
     if (!certForm.user_name.trim() || !certForm.certification_name.trim()) { toast.error("User and certification name required"); return; }
@@ -485,35 +474,13 @@ export default function PartnerDetail() {
             </div>
           ) : (
             <div className="relative space-y-4 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border">
-              {notes.map(n => {
-                const typeColor = n.note_type === "Meeting" ? "bg-primary" : n.note_type === "Follow-up" ? "bg-warning" : "bg-muted-foreground";
-                const badgeVariant: any = n.note_type === "Meeting" ? "default" : n.note_type === "Follow-up" ? "warning" : "secondary";
-                return (
-                  <div key={n.id} className="relative pl-9">
-                    <span className={`absolute left-2 top-3 h-3 w-3 rounded-full ring-4 ring-background ${typeColor}`} />
-                    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-muted-foreground tabular-nums">{fmtDateTime(n.created_at)}</span>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs font-medium text-foreground">{n.author_name || "Unknown"}</span>
-                          <Badge variant={badgeVariant} className="text-[10px]">{n.note_type}</Badge>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{n.content}</p>
-                      {n.next_actions && (
-                        <div className="mt-2 rounded-md bg-secondary/50 border p-2.5">
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Next actions</p>
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{n.next_actions}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {notes.map(n => (
+                <RelationshipTimelineEntry
+                  key={n.id}
+                  note={n}
+                  onDelete={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}
+                />
+              ))}
             </div>
           )}
         </TabsContent>
@@ -781,38 +748,8 @@ export default function PartnerDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Relationship Entry Dialog */}
-      <Dialog open={showAddNote} onOpenChange={setShowAddNote}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>New Relationship Entry</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Type</Label>
-              <Select value={noteForm.note_type} onValueChange={(v: any) => setNoteForm(f => ({ ...f, note_type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Meeting">Meeting</SelectItem>
-                  <SelectItem value="Internal Note">Internal Note</SelectItem>
-                  <SelectItem value="Follow-up">Follow-up</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Content</Label>
-              <Textarea rows={4} value={noteForm.content} onChange={e => setNoteForm(f => ({ ...f, content: e.target.value }))} placeholder="What was discussed or noted..." autoFocus />
-            </div>
-            <div>
-              <Label>Next Actions <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Textarea rows={2} value={noteForm.next_actions} onChange={e => setNoteForm(f => ({ ...f, next_actions: e.target.value }))} placeholder="• Send updated proposal&#10;• Review training voucher" />
-            </div>
-            <p className="text-[11px] text-muted-foreground">Author and timestamp are added automatically.</p>
-            <div className="flex justify-end gap-2 pt-1 border-t">
-              <Button variant="outline" onClick={() => setShowAddNote(false)}>Cancel</Button>
-              <Button onClick={handleAddNote} disabled={addNote.isPending || !noteForm.content.trim()}>{addNote.isPending ? "Saving..." : "Save Entry"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Structured Relationship Entry Dialog (v2) */}
+      <RelationshipEntryDialog open={showAddNote} onOpenChange={setShowAddNote} partnerId={partner.id} />
 
       {/* Add Client Dialog */}
       <Dialog open={showAddClient} onOpenChange={setShowAddClient}>

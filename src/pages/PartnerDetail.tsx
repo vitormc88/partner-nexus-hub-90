@@ -27,6 +27,8 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 import { PartnerHealthCard } from "@/components/partners/PartnerHealthCard";
+import { NextBestActionsCard } from "@/components/partners/NextBestActionsCard";
+import { buildNextBestActions } from "@/lib/partner-next-actions";
 import { buildPartnerNarrative } from "@/lib/partner-health-narrative";
 
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString() : "—";
@@ -370,14 +372,37 @@ export default function PartnerDetail() {
                     return days >= 0 && days <= 120 && r.status !== "Completed";
                   }).length,
                 });
+                const nextActions = buildNextBestActions({
+                  maturity: metrics?.maturity,
+                  partner: {
+                    onboarding_status: partner.onboarding_status,
+                    next_meeting_date: (partner as any).next_meeting_date,
+                    last_meeting_date: (partner as any).last_meeting_date,
+                    account_owner_id: (partner as any).account_owner_id,
+                  },
+                  clients,
+                  deals,
+                  notes,
+                  leadsOpen: openDeals.length,
+                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                    if (!r.renewal_date) return false;
+                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                    return days >= 0 && days <= 120 && r.status !== "Completed";
+                  }).length,
+                });
                 return (
-                  <PartnerHealthCard
-                    score={score}
-                    summary={narrative.summary}
-                    factors={narrative.factors}
-                  />
+                  <>
+                    <PartnerHealthCard
+                      score={score}
+                      summary={narrative.summary}
+                      factors={narrative.factors}
+                    />
+                    <NextBestActionsCard actions={nextActions} />
+                  </>
                 );
               })()}
+
+
 
 
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">

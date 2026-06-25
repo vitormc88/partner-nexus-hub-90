@@ -70,7 +70,8 @@ export default function PartnerDetail() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [showCreateLead, setShowCreateLead] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
-  const [noteForm, setNoteForm] = useState<{ content: string; note_type: "Meeting" | "Internal Note" | "Follow-up"; next_actions: string }>({ content: "", note_type: "Meeting", next_actions: "" });
+  const [noteForm, _setNoteForm] = useState<{ content: string; note_type: "Meeting" | "Internal Note" | "Follow-up"; next_actions: string }>({ content: "", note_type: "Meeting", next_actions: "" });
+  void noteForm; void _setNoteForm; void addNote;
   const [showAddCert, setShowAddCert] = useState(false);
   const [certForm, setCertForm] = useState({ user_name: "", certification_name: "", certification_type: "Sales", certification_level: 1, issue_date: "", expiry_date: "", file_url: "" });
   const [showAddRenewal, setShowAddRenewal] = useState(false);

@@ -83,23 +83,21 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
         )}
       </div>
 
-      {/* ── What's helping ───────────────────────────────────────── */}
+      {/* ── Causal: what's holding the score up ──────────────────── */}
       <FactorSection
-        title="What's helping"
+        title={band === "at_risk" ? "Health would be lower without:" : "Health is supported by:"}
         tone="positive"
         items={positives.map((f) => f.label)}
-        emptyText="No strong positive indicators yet."
+        emptyText="No strong positive drivers detected."
       />
 
-      {/* ── Needs attention ──────────────────────────────────────── */}
+      {/* ── Causal: what's pulling the score down ────────────────── */}
       <FactorSection
-        title="Needs attention"
+        title={band === "healthy" ? "Score is held back by:" : "Health decreased because:"}
         tone="negative"
         items={negatives.map((f) => f.label)}
-        emptyText="No immediate concerns detected."
+        emptyText="No factors are currently pulling the score down."
       />
-
-      {/* Recommended Actions slot will be added here in a future iteration. */}
     </div>
   );
 }

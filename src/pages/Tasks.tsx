@@ -620,6 +620,8 @@ function TaskGroup({
   onToggle,
   groupBy,
   archived = false,
+  density = "comfortable",
+  focusedId,
 }: {
   label: string;
   items: UnifiedTask[];
@@ -627,6 +629,8 @@ function TaskGroup({
   onToggle: () => void;
   groupBy: GroupKey;
   archived?: boolean;
+  density?: Density;
+  focusedId?: string | null;
 }) {
   // Derive priority indicator for priority-grouped headers
   const priorityForLabel =
@@ -657,12 +661,21 @@ function TaskGroup({
       </button>
       {!isCollapsed && (
         <div className={cn("divide-y", archived ? "divide-border/40" : "divide-border")}>
-          {items.map((t) => <TaskRow key={t.id} task={t} archived={archived} />)}
+          {items.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              archived={archived}
+              density={density}
+              focused={focusedId === t.id}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
+
 
 
 /* ---------- Create manual task dialog ---------- */

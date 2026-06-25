@@ -305,7 +305,7 @@ function ReschedulePopover({
   );
 }
 
-function TaskRow({ task }: { task: UnifiedTask }) {
+function TaskRow({ task, archived = false }: { task: UnifiedTask; archived?: boolean }) {
   const meta = TYPE_META[task.task_type] || TYPE_META.manual;
   const Icon = meta.icon;
   const due = formatDue(task.due_date);
@@ -317,12 +317,18 @@ function TaskRow({ task }: { task: UnifiedTask }) {
   const [openAssign, setOpenAssign] = useState(false);
   const [newOwner, setNewOwner] = useState<string>(task.owner_user_id ?? "");
   const [completing, setCompleting] = useState(false);
+  const [collapsing, setCollapsing] = useState(false);
 
   const handleComplete = async (checked: boolean | "indeterminate") => {
-    if (!checked) return;
+    if (!checked || completing) return;
+    // 1. Show checked state + strike-through immediately
     setCompleting(true);
-    // Brief strike-through before optimistic removal
-    await new Promise((r) => setTimeout(r, 220));
+    // 2. Hold the strike-through briefly so it's perceived
+    await new Promise((r) => setTimeout(r, 200));
+    // 3. Begin collapse + fade
+    setCollapsing(true);
+    // 4. Wait for collapse animation to finish before mutating (removes row from cache)
+    await new Promise((r) => setTimeout(r, 280));
     try {
       await complete.mutateAsync(task);
       toast.success("Task completed", {
@@ -340,142 +346,14 @@ function TaskRow({ task }: { task: UnifiedTask }) {
       });
     } catch (e: any) {
       setCompleting(false);
+      setCollapsing(false);
       toast.error(e?.message ?? "Could not complete task");
     }
   };
-
-  const handleReschedule = async (iso: string) => {
-    try {
-      await reschedule.mutateAsync({ task, due_date: iso });
-      toast.success(`Rescheduled to ${format(parseISO(iso), "MMM d, HH:mm")}`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed");
-    }
-  };
-
-  return (
-    <div className="relative flex items-start gap-3 pl-4 pr-4 py-3 hover:bg-muted/40 transition-colors group">
-      <span
-        aria-hidden
-        className={cn(
-          "absolute left-0 top-0 bottom-0 w-[3px]",
-          PRIORITY_ACCENT[task.priority],
-        )}
-      />
-      <div className="pt-1">
-        <Checkbox
-          checked={completing}
-          onCheckedChange={handleComplete}
-          aria-label={`Mark "${task.title}" complete`}
-          className="h-[18px] w-[18px] data-[state=checked]:bg-success data-[state=checked]:border-success data-[state=checked]:text-success-foreground"
-        />
-      </div>
-      <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className={cn("min-w-0 flex-1 transition-all", completing && "opacity-50")}>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className={cn(
-              "font-medium text-sm text-foreground truncate transition-all",
-              completing && "line-through text-muted-foreground",
-            )}
-          >
-            {task.title}
-          </span>
-          {task.priority === "Critical" && (
-            <span className={cn("text-[10px] font-semibold uppercase tracking-wide", PRIORITY_LABEL.Critical)}>
-              Critical
-            </span>
-          )}
-          {task.is_auto && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 bg-info/10 text-info border-info/30"
-              title="Generated automatically"
-            >
-              Auto
-            </Badge>
-          )}
-        </div>
-        {task.description && (
-          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{task.description}</p>
-        )}
-        <div className="flex items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mt-1.5 flex-wrap">
-          {task.company_name && (
-            <span className="truncate max-w-[180px] font-medium text-foreground/80">{task.company_name}</span>
-          )}
-          {task.company_name && <span className="text-border">·</span>}
-          <span>{SOURCE_LABEL[task.source]}</span>
-          <span className="text-border">·</span>
-          <span className={cn(
-            "tabular-nums",
-            due.tone === "danger" && "text-destructive font-medium",
-            due.tone === "warn" && "text-warning-foreground font-medium",
-          )}>
-            {due.label}
-          </span>
-          {task.owner_name && (<><span className="text-border">·</span><span>{task.owner_name}</span></>)}
-          {task.revenue_impact > 0 && (
-            <>
-              <span className="text-border">·</span>
-              <span className="tabular-nums text-foreground/80">{formatEur(task.revenue_impact)}</span>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-        {task.related_route && (
-          <Button asChild variant="ghost" size="sm">
-            <Link to={task.related_route}><ExternalLink className="h-3.5 w-3.5" /></Link>
-          </Button>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => handleComplete(true)}>Complete</DropdownMenuItem>
-            <ReschedulePopover task={task} onPick={handleReschedule}>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Reschedule…</DropdownMenuItem>
-            </ReschedulePopover>
-            <DropdownMenuItem onSelect={() => setOpenAssign(true)}>Assign…</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {task.related_route && (
-              <DropdownMenuItem asChild>
-                <Link to={task.related_route}>Open related record</Link>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <Dialog open={openAssign} onOpenChange={setOpenAssign}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Assign task</DialogTitle></DialogHeader>
-          <Label>Owner</Label>
-          <Select value={newOwner} onValueChange={setNewOwner}>
-            <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
-            <SelectContent>
-              {(users || []).map((u: any) => (
-                <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenAssign(false)}>Cancel</Button>
-            <Button
-              onClick={async () => {
-                try {
-                  await assign.mutateAsync({ task, owner_user_id: newOwner });
-                  toast.success("Assigned");
-                  setOpenAssign(false);
-                } catch (e: any) { toast.error(e?.message ?? "Failed"); }
-              }}
-            >Save</Button>
-          </DialogFooter>
-        </DialogContent>
+...
       </Dialog>
+      </div>
+    </div>
     </div>
   );
 }

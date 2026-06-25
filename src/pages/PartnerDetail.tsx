@@ -6,6 +6,8 @@ import { useRenewals } from "@/hooks/useDeals";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { usePartnerNotes, useAddPartnerNote, useDeletePartnerNote } from "@/hooks/usePartnerNotes";
+import { RelationshipEntryDialog } from "@/components/partners/RelationshipEntryDialog";
+import { RelationshipTimelineEntry } from "@/components/partners/RelationshipTimelineEntry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

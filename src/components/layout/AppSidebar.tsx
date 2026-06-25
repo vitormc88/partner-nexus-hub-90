@@ -23,6 +23,7 @@ import {
   Shield,
   Zap,
   Inbox,
+  CheckSquare,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -43,6 +44,7 @@ import { getRouteModule, hasModuleAccess } from "@/lib/module-access";
 
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Partner Management", url: "/partners", icon: Users },
   { title: "Clients & Licenses", url: "/clients", icon: Building2 },
   { title: "Renewals", url: "/renewals", icon: RefreshCcw },

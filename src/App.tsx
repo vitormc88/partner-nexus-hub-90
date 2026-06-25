@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
+import Tasks from "@/pages/Tasks";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";
@@ -51,6 +52,7 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/tasks" element={<Tasks />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partners/:id" element={<PartnerDetail />} />
               <Route path="/clients" element={<ClientsLicenses />} />

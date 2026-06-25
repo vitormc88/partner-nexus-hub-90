@@ -7,6 +7,7 @@ export type ModulePermissionEntry = {
 
 export const MODULE_KEYS_LIST = [
   "dashboard",
+  "tasks",
   "partners",
   "clients",
   "renewals",
@@ -30,6 +31,7 @@ export const MODULE_KEYS_LIST = [
 
 export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = {
   dashboard: "Dashboard",
+  tasks: "Tasks",
   partners: "Partners",
   clients: "Clients & Licenses",
   renewals: "Renewals",
@@ -74,6 +76,7 @@ const ROOT_ROUTE_MODULE: RouteModule = {
 
 const ROUTE_MODULES: RouteModule[] = [
   { prefix: "/dashboard", path: "/", moduleKey: "dashboard" },
+  { prefix: "/tasks", path: "/tasks", moduleKey: "tasks" },
   { prefix: "/partners", path: "/partners", moduleKey: "partners" },
   { prefix: "/clients", path: "/clients", moduleKey: "clients" },
   { prefix: "/renewals", path: "/renewals", moduleKey: "renewals" },

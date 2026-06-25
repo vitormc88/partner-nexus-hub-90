@@ -746,17 +746,16 @@ export default function Tasks() {
                   </div>
                 </div>
               ) : (
-                <div className="divide-y">
+                <div className="relative max-h-[70vh] overflow-y-auto">
                   {groups.map(([label, items]) => (
-                    <div key={label}>
-                      <div className="px-4 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.1em] flex items-center justify-between border-b">
-                        <span>{label}</span>
-                        <span className="tabular-nums">{items.length}</span>
-                      </div>
-                      <div className="divide-y">
-                        {items.map((t) => <TaskRow key={t.id} task={t} />)}
-                      </div>
-                    </div>
+                    <TaskGroup
+                      key={label}
+                      label={label}
+                      items={items}
+                      isCollapsed={collapsed.has(label)}
+                      onToggle={() => toggle(label)}
+                      groupBy={groupBy}
+                    />
                   ))}
                 </div>
               )}

@@ -2342,34 +2342,58 @@ export type Database = {
       }
       partner_notes: {
         Row: {
+          action_items: Json
           author_id: string | null
           author_name: string | null
           content: string
           created_at: string
+          decisions: Json
+          extra: Json
           id: string
+          interaction_date: string
+          interaction_type: string
           next_actions: string | null
           note_type: string
+          participants: Json
           partner_id: string
+          risks: Json
+          topics: Json
         }
         Insert: {
+          action_items?: Json
           author_id?: string | null
           author_name?: string | null
           content: string
           created_at?: string
+          decisions?: Json
+          extra?: Json
           id?: string
+          interaction_date?: string
+          interaction_type?: string
           next_actions?: string | null
           note_type?: string
+          participants?: Json
           partner_id: string
+          risks?: Json
+          topics?: Json
         }
         Update: {
+          action_items?: Json
           author_id?: string | null
           author_name?: string | null
           content?: string
           created_at?: string
+          decisions?: Json
+          extra?: Json
           id?: string
+          interaction_date?: string
+          interaction_type?: string
           next_actions?: string | null
           note_type?: string
+          participants?: Json
           partner_id?: string
+          risks?: Json
+          topics?: Json
         }
         Relationships: [
           {

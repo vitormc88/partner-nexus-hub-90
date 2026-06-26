@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Building2, FileText, KeyRound, Star, Pencil, Save, X, Plus, Trash2, Users, CalendarDays, Shield, Clock, CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Building2, FileText, KeyRound, Star, Pencil, Save, X, Plus, Trash2, Users, CalendarDays, Shield, Clock, CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,9 +27,13 @@ import {
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
+import { loadClientsListState } from "@/lib/clients-list-state";
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 /* ─── helpers ─── */
 function FieldRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
@@ -201,6 +205,108 @@ export default function ClientDetail() {
   // Module editing state
   const [editingModules, setEditingModules] = useState(false);
   const [moduleEdits, setModuleEdits] = useState<Record<string, boolean>>({});
+
+  // ─── Workspace navigation (prev/next, tab persistence, prefetch, unsaved guard) ───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", tab);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const listState = useMemo(() => loadClientsListState(), []);
+  const orderedIds = listState?.orderedIds ?? [];
+  const filterChips = listState?.filterChips ?? [];
+  const currentIndex = id ? orderedIds.indexOf(id) : -1;
+  const prevId = currentIndex > 0 ? orderedIds[currentIndex - 1] : null;
+  const nextId = currentIndex >= 0 && currentIndex < orderedIds.length - 1 ? orderedIds[currentIndex + 1] : null;
+
+  // Unsaved-changes detection across editors
+  const isDirty =
+    editingClient ||
+    editingLicenseId !== null ||
+    editingContractId !== null ||
+    editingModules ||
+    showAddContact ||
+    showAddLicense ||
+    showAddContract ||
+    showAddCred ||
+    newNote.trim().length > 0;
+
+  const [pendingNavId, setPendingNavId] = useState<string | null>(null);
+  const [pendingBack, setPendingBack] = useState(false);
+
+  const goToClient = useCallback(
+    (targetId: string) => {
+      const tab = searchParams.get("tab");
+      navigate(`/clients/${targetId}${tab ? `?tab=${tab}` : ""}`);
+    },
+    [navigate, searchParams],
+  );
+
+  const requestNavigate = useCallback(
+    (targetId: string) => {
+      if (isDirty) {
+        setPendingNavId(targetId);
+      } else {
+        goToClient(targetId);
+      }
+    },
+    [isDirty, goToClient],
+  );
+
+  const requestBack = useCallback(() => {
+    if (isDirty) setPendingBack(true);
+    else navigate("/clients");
+  }, [isDirty, navigate]);
+
+  // Prefetch neighbor clients for instant navigation
+  useEffect(() => {
+    const prefetch = (cid: string | null) => {
+      if (!cid) return;
+      queryClient.prefetchQuery({
+        queryKey: ["client", cid],
+        queryFn: async () => {
+          const { data, error } = await supabase.from("clients").select("*").eq("id", cid).single();
+          if (error) throw error;
+          return data;
+        },
+      });
+    };
+    prefetch(prevId);
+    prefetch(nextId);
+  }, [prevId, nextId, queryClient]);
+
+  // Keyboard navigation (arrows when not focused in an input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "ArrowLeft" && prevId) {
+        e.preventDefault();
+        requestNavigate(prevId);
+      } else if (e.key === "ArrowRight" && nextId) {
+        e.preventDefault();
+        requestNavigate(nextId);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [prevId, nextId, requestNavigate]);
+
+  // Warn on browser unload while editing
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   if (isLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
   if (!client) return (
@@ -517,39 +623,141 @@ export default function ClientDetail() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
-      {/* Header */}
-      <div className="animate-reveal-up flex items-start justify-between gap-4 pb-4 border-b border-border/40">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-1"><ArrowLeft className="h-4 w-4" /></Button>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">{client.commercial_name}</h1>
-              {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
+      {/* Workspace navigation header */}
+      <div className="animate-reveal-up space-y-3 pb-4 border-b border-border/40">
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                onClick={(e) => { e.preventDefault(); requestBack(); }}
+                href="/clients"
+                className="cursor-pointer"
+              >
+                Clients
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="font-medium">{client.commercial_name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        {/* Prev / Title / Next */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => prevId && requestNavigate(prevId)}
+              disabled={!prevId}
+              aria-label="Previous client (←)"
+              title="Previous client (←)"
+              className="shrink-0"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+            <div className="min-w-0 flex-1 px-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight truncate">{client.commercial_name}</h1>
+                {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground/80 mt-0.5 flex-wrap">
+                <span className="font-mono">{client.client_code}</span>
+                <span className="opacity-50">·</span>
+                <span>{client.country || "—"}</span>
+                {client.sector && <><span className="opacity-50">·</span><span>{client.sector}</span></>}
+                {(client as any)?.partner?.name && <><span className="opacity-50">·</span><span>{(client as any).partner.name}</span></>}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
-              <span className="font-mono">{client.client_code}</span>
-              <span className="opacity-50">·</span>
-              <span>{client.country || "—"}</span>
-              {client.sector && <><span className="opacity-50">·</span><span>{client.sector}</span></>}
-              {(client as any)?.partner?.name && <><span className="opacity-50">·</span><span>{(client as any).partner.name}</span></>}
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => nextId && requestNavigate(nextId)}
+              disabled={!nextId}
+              aria-label="Next client (→)"
+              title="Next client (→)"
+              className="shrink-0"
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
+            {licenses && licenses.length === 0 && client.status === "Active" && (
+              <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 gap-1">
+                <AlertTriangle className="h-3 w-3" /> Missing license configuration
+              </Badge>
+            )}
+            {client.status !== "Archived" && (
+              <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
-          {licenses && licenses.length === 0 && client.status === "Active" && (
-            <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 gap-1">
-              <AlertTriangle className="h-3 w-3" /> Missing license configuration
-            </Badge>
+
+        {/* Position + filter context */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          {currentIndex >= 0 && orderedIds.length > 0 ? (
+            <span className="font-medium text-foreground/80">
+              Client {currentIndex + 1} of {orderedIds.length}
+            </span>
+          ) : (
+            <span>Open from the Clients list to enable prev / next navigation</span>
           )}
-          {client.status !== "Archived" && (
-            <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
+          {filterChips.length > 0 && (
+            <>
+              <span className="opacity-50">·</span>
+              <span>Filtered by</span>
+              {filterChips.map(chip => (
+                <Badge key={chip.key} variant="secondary" className="text-[10px] font-normal">{chip.label}</Badge>
+              ))}
+            </>
           )}
+          {currentIndex >= 0 && orderedIds.length > 0 && filterChips.length === 0 && (
+            <>
+              <span className="opacity-50">·</span>
+              <span>Showing all active clients</span>
+            </>
+          )}
+          <span className="opacity-50">·</span>
+          <span className="text-[10px] text-muted-foreground/70">Use ← / → to navigate</span>
         </div>
       </div>
 
+      {/* Unsaved-changes guard */}
+      <AlertDialog
+        open={pendingNavId !== null || pendingBack}
+        onOpenChange={(open) => { if (!open) { setPendingNavId(null); setPendingBack(false); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Save your changes before continuing, or discard them to leave this client. Cancel to stay and keep editing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setPendingNavId(null); setPendingBack(false); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const target = pendingNavId;
+                const back = pendingBack;
+                setPendingNavId(null);
+                setPendingBack(false);
+                if (target) goToClient(target);
+                else if (back) navigate("/clients");
+              }}
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
         <TabsList className="grid w-full grid-cols-5 h-10">
           <TabsTrigger value="overview" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Overview</TabsTrigger>
           <TabsTrigger value="licensing" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> Licensing</TabsTrigger>

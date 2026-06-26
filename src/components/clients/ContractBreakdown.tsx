@@ -1,6 +1,6 @@
 import { useContractLines, type ContractLine } from "@/hooks/useContractLines";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, Sparkles } from "lucide-react";
 
 const LINE_TYPE_LABELS: Record<string, string> = {
   license: "License",

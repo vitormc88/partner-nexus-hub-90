@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
+import { ConvertProposalDialog } from "./ConvertProposalDialog";
+import { Sparkles } from "lucide-react";
 import {
   computeBusinessOptions,
   DEFAULT_BUSINESS_CONFIG,

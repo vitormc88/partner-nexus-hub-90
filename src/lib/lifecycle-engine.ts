@@ -416,7 +416,7 @@ export async function convertProposalToCustomer(
       modules: licenseDefaults.modules,
       plan: licenseDefaults.plan,
     },
-    { dealId: proposal.lead_id, createRenewal: false }, // we will create renewals tied to contract below
+    { dealId: proposal.lead_id, createRenewal: false, skipContractAutoCreate: true }, // engine creates contract+renewal below
   );
 
   // Stamp the license with proposal + deal lineage.

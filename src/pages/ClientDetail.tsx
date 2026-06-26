@@ -24,6 +24,7 @@ import {
   useClientContracts, useCreateContract, useUpdateContract,
   useCreateNote, useCreateCredential,
 } from "@/hooks/useClients";
+import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
@@ -976,6 +977,9 @@ export default function ClientDetail() {
                 )}
                 {co.observations && !editingContractId && (
                   <div className="mt-4"><p className="text-xs font-medium text-muted-foreground mb-1">Observations</p><p className="text-sm text-foreground">{co.observations}</p></div>
+                )}
+                {editingContractId !== co.id && (
+                  <ContractBreakdown contractId={co.id} legacyTotal={co.total_value} currency={co.currency} />
                 )}
               </CardContent>
             </Card>

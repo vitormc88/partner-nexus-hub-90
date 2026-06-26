@@ -438,10 +438,16 @@ export default function ClientDetail() {
       license_start_date: lic.license_start_date || "",
       license_end_date: lic.license_end_date || "",
       sat_active: lic.sat_active,
+      sat_start_date: (lic as any).sat_start_date || "",
       sat_end_date: lic.sat_end_date || "",
       backoffice_users: lic.backoffice_users ?? 0,
       web_accesses: lic.web_accesses ?? 0,
       api_access: lic.api_access,
+      // Snapshot of original dates — used to detect "still follows license period"
+      _origLicStart: lic.license_start_date || "",
+      _origLicEnd: lic.license_end_date || "",
+      _origSatStart: (lic as any).sat_start_date || "",
+      _origSatEnd: lic.sat_end_date || "",
     });
     setEditingLicenseId(lic.id);
   };
@@ -453,12 +459,34 @@ export default function ClientDetail() {
       return;
     }
     try {
-      const { _family, sat_end_date, ...rest } = licEditForm;
+      const {
+        _family, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
+        sat_start_date, sat_end_date, ...rest
+      } = licEditForm;
+
+      // S&AT date defaulting:
+      // - If S&AT is active and dates are empty, default to license window.
+      // - If license window changed and S&AT dates were equal to the previous license window,
+      //   follow the license window (preserve manual override otherwise).
+      let nextSatStart = sat_start_date || null;
+      let nextSatEnd = sat_end_date || null;
+      if (rest.sat_active) {
+        if (!nextSatStart) nextSatStart = rest.license_start_date || null;
+        if (!nextSatEnd) nextSatEnd = rest.license_end_date || null;
+        if (_origSatStart && _origLicStart && _origSatStart === _origLicStart && rest.license_start_date !== _origLicStart) {
+          nextSatStart = rest.license_start_date || null;
+        }
+        if (_origSatEnd && _origLicEnd && _origSatEnd === _origLicEnd && rest.license_end_date !== _origLicEnd) {
+          nextSatEnd = rest.license_end_date || null;
+        }
+      }
+
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
-        sat_end_date: sat_end_date || null,
-      });
+        sat_start_date: nextSatStart,
+        sat_end_date: nextSatEnd,
+      } as any);
       if (licEditForm.product) {
         await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
       }

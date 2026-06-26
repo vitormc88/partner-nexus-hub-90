@@ -384,6 +384,14 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
         defaultCountry={defaultCountry}
         editingProposal={editingProposal}
       />
+
+      <ConvertProposalDialog
+        open={!!convertingProposalId}
+        onOpenChange={(open) => {
+          if (!open) setConvertingProposalId(null);
+        }}
+        proposalId={convertingProposalId}
+      />
     </div>
   );
 }

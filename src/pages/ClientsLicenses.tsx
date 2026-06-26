@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Download, Plus, ChevronDown, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { useClients, useCreateClient } from "@/hooks/useClients";
 import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
+import { loadClientsListState, saveClientsListState, type FilterChip } from "@/lib/clients-list-state";
 import { toast } from "sonner";
 
 type LicenseFamily = "Business" | "Professional" | "";

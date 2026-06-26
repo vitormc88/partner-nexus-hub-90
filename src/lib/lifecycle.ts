@@ -573,6 +573,106 @@ export async function createLicenseAndRenewal(
       .eq("id", payload.client_id);
   }
 
+  // Lifecycle: license_created (always logged, even for drafts).
+  await recordLifecycleEventInline({
+    clientId: payload.client_id,
+    eventType: "license_created",
+    title: `License created (${payload.license_type})`,
+    description: payload.source_proposal_id
+      ? `Operationalized from approved proposal.`
+      : `Created manually.`,
+    proposalId: payload.source_proposal_id ?? null,
+    licenseId: license.id,
+    metadata: { hosting, modules: payload.modules ?? [], num_users: payload.num_users ?? null },
+  });
+
+  // -------------------------------------------------------------------------
+  // Contract + Contract Lines (Sprint B — always create for operationalization)
+  // -------------------------------------------------------------------------
+  let contract: any = null;
+  if (!payload.is_draft) {
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("partner_id")
+      .eq("id", payload.client_id)
+      .maybeSingle();
+    const partnerId = (clientRow as any)?.partner_id || null;
+
+    const { data: contractRow, error: cErr } = await (supabase as any)
+      .from("contracts")
+      .insert({
+        client_id: payload.client_id,
+        source_proposal_id: payload.source_proposal_id ?? null,
+        is_imported: false,
+        contract_start_date: payload.contract_start_date || null,
+        contract_end_date: renewalDate || null,
+        notice_period_days: 30,
+        currency: "EUR",
+        observations: payload.source_proposal_id
+          ? `Auto-generated from approved proposal during operationalization.`
+          : `Auto-generated during license operationalization.`,
+      })
+      .select()
+      .single();
+
+    if (cErr) {
+      console.warn("[lifecycle] contract auto-creation failed", cErr);
+    } else {
+      contract = contractRow;
+
+      // Build & insert lines.
+      const lineDrafts = await buildLinesForOperationalization({
+        proposalId: payload.source_proposal_id,
+        initialValue: initialValue ?? null,
+        recurringValue: recurringValue ?? null,
+        licenseType: payload.license_type,
+        billingFrequency: payload.billing_frequency,
+      });
+      const lineRows = lineDrafts.map((l) => ({
+        contract_id: contract.id,
+        client_id: payload.client_id,
+        line_type: l.line_type,
+        description: l.description,
+        amount: l.amount,
+        currency: l.currency,
+        billing_frequency: l.billing_frequency,
+        related_license_id: license.id,
+        source: l.source,
+        source_item_id: l.source_item_id,
+        start_date: payload.contract_start_date || null,
+        end_date: renewalDate || null,
+      }));
+      let insertedLineCount = 0;
+      if (lineRows.length > 0) {
+        const { data: inserted, error: lErr } = await (supabase as any)
+          .from("contract_lines")
+          .insert(lineRows)
+          .select();
+        if (lErr) {
+          console.warn("[lifecycle] contract_lines insert failed", lErr);
+        } else {
+          insertedLineCount = inserted?.length || 0;
+        }
+      }
+
+      // Link license to contract.
+      await supabase.from("licenses").update({ contract_id: contract.id }).eq("id", license.id);
+
+      await recordLifecycleEventInline({
+        clientId: payload.client_id,
+        eventType: "contract_created",
+        title: `Contract created${insertedLineCount > 0 ? ` with ${insertedLineCount} line${insertedLineCount === 1 ? "" : "s"}` : " (draft — no commercial values)"}`,
+        description: payload.source_proposal_id
+          ? `Linked to approved proposal.`
+          : `Auto-generated during operationalization.`,
+        proposalId: payload.source_proposal_id ?? null,
+        contractId: contract.id,
+        licenseId: license.id,
+        metadata: { line_count: insertedLineCount, partner_id: partnerId },
+      });
+    }
+  }
+
   let renewal: any = null;
   if (opts.createRenewal && renewalDate && shouldCreateRenewal(payload.product_family, payload.proposal_mode ?? null)) {
     const { data: client } = await supabase
@@ -588,6 +688,9 @@ export async function createLicenseAndRenewal(
       .insert({
         client_id: payload.client_id,
         license_id: license.id,
+        contract_id: contract?.id ?? null,
+        target_type: contract ? "contract" : "license",
+        target_id: contract?.id ?? license.id,
         partner_id: (client as any)?.partner_id || null,
         renewal_type: renewalType,
         renewal_date: renewalDate,
@@ -602,6 +705,20 @@ export async function createLicenseAndRenewal(
       .single();
     if (renErr) throw renErr;
     renewal = ren;
+
+    await recordLifecycleEventInline({
+      clientId: payload.client_id,
+      eventType: "renewal_scheduled",
+      title: `Renewal scheduled for ${renewalDate}`,
+      description: contract
+        ? `Tied to the auto-generated contract.`
+        : `Tied to the license (no contract).`,
+      proposalId: payload.source_proposal_id ?? null,
+      contractId: contract?.id ?? null,
+      licenseId: license.id,
+      renewalId: ren.id,
+      metadata: { estimated_value: recurringValue ?? 0 },
+    });
   }
 
   if (opts.dealId) {
@@ -614,5 +731,5 @@ export async function createLicenseAndRenewal(
     );
   }
 
-  return { license, renewal };
+  return { license, renewal, contract };
 }

@@ -29,6 +29,7 @@ import { CommercialContractView } from "@/components/clients/CommercialContractV
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
+import { ContactsCard } from "@/components/clients/ContactsCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

@@ -937,7 +937,8 @@ export default function ClientDetail() {
                       <div className="space-y-0">
                         <FieldRow label="Periodicity" value={lic.periodicity} />
                         <FieldRow label="S&AT Active" value={lic.sat_active ? "Yes" : "No"} />
-                        <FieldRow label="S&AT End Date" value={lic.sat_end_date} />
+                        {lic.sat_active && <FieldRow label="S&AT Start" value={(lic as any).sat_start_date || "—"} />}
+                        {lic.sat_active && <FieldRow label="S&AT End" value={lic.sat_end_date || "—"} />}
                         <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
                         <FieldRow label="Web Accesses" value={lic.web_accesses} />
                         <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />

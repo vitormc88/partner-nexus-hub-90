@@ -87,9 +87,46 @@ export default function ClientsLicenses() {
   const activeCount = filtered.filter(c => c.status === "Active").length;
   const premiumCount = filtered.filter(c => c.is_premium).length;
 
+  // Build filter chips for the Client Detail context bar
+  const filterChips: FilterChip[] = useMemo(() => {
+    const chips: FilterChip[] = [];
+    if (search.trim()) chips.push({ key: "search", label: `Search: "${search.trim()}"` });
+    if (partnerFilter !== "all") {
+      const label = partnerFilter === "hq" ? "HQ Direct" : (partnerMap[partnerFilter] || "Unknown");
+      chips.push({ key: "partner", label: `Partner: ${label}` });
+    }
+    if (statusFilter !== "all") chips.push({ key: "status", label: `Status: ${statusFilter}` });
+    if (showArchived) chips.push({ key: "archived", label: "Archived" });
+    return chips;
+  }, [search, partnerFilter, statusFilter, showArchived, partnerMap]);
+
+  // Persist list state so Client Detail can offer prev/next + filter context
+  useEffect(() => {
+    saveClientsListState({
+      search, partnerFilter, statusFilter, sortField, sortDir, showArchived,
+      orderedIds: filtered.map(c => c.id),
+      filterChips,
+    });
+  }, [search, partnerFilter, statusFilter, sortField, sortDir, showArchived, filtered, filterChips]);
+
+  // Restore scroll position once data has rendered
+  useEffect(() => {
+    if (isLoading) return;
+    const y = persisted.scrollY;
+    if (typeof y === "number" && y > 0) {
+      requestAnimationFrame(() => window.scrollTo({ top: y }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+
   const handleSort = (field: string) => {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const handleOpenClient = (clientId: string) => {
+    saveClientsListState({ scrollY: window.scrollY });
+    navigate(`/clients/${clientId}`);
   };
 
   const SortHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (

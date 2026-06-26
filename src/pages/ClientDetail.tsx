@@ -783,7 +783,7 @@ export default function ClientDetail() {
               clientId={client.id}
               client={client}
               ownerName={client.manager_owner || client.account_manager}
-              contractStatus={primaryContract?.status || null}
+              contractStatus={(primaryContract as any)?.status || null}
               billing={(primaryContract as any)?.billing_frequency || null}
             />
           )}

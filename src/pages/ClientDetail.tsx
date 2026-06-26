@@ -27,9 +27,13 @@ import {
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
+import { loadClientsListState, saveClientsListState } from "@/lib/clients-list-state";
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 /* ─── helpers ─── */
 function FieldRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {

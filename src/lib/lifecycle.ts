@@ -590,7 +590,7 @@ export async function createLicenseAndRenewal(
   // Contract + Contract Lines (Sprint B — always create for operationalization)
   // -------------------------------------------------------------------------
   let contract: any = null;
-  if (!payload.is_draft) {
+  if (!payload.is_draft && !opts.skipContractAutoCreate) {
     const { data: clientRow } = await supabase
       .from("clients")
       .select("partner_id")

@@ -908,8 +908,22 @@ export default function ClientDetail() {
                       <EditField label="License End" value={licEditForm.license_end_date} onChange={v => setLicEditForm(f => ({...f, license_end_date: v}))} type="date" />
                       <EditField label="BackOffice Users" value={String(licEditForm.backoffice_users)} onChange={v => setLicEditForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
                       <EditField label="Web Accesses" value={String(licEditForm.web_accesses)} onChange={v => setLicEditForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
-                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">S&AT Active</Label></div>
+                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => {
+                        const next: Record<string, any> = { ...f, sat_active: v };
+                        // When enabling S&AT and dates are empty, default to license window.
+                        if (v) {
+                          if (!next.sat_start_date && next.license_start_date) next.sat_start_date = next.license_start_date;
+                          if (!next.sat_end_date && next.license_end_date) next.sat_end_date = next.license_end_date;
+                        }
+                        return next;
+                      })} /><Label className="text-xs">S&AT Active</Label></div>
                       <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.api_access} onCheckedChange={v => setLicEditForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
+                      {licEditForm.sat_active && (
+                        <>
+                          <EditField label="S&AT Start" value={licEditForm.sat_start_date || ""} onChange={v => setLicEditForm(f => ({...f, sat_start_date: v}))} type="date" />
+                          <EditField label="S&AT End" value={licEditForm.sat_end_date || ""} onChange={v => setLicEditForm(f => ({...f, sat_end_date: v}))} type="date" />
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">

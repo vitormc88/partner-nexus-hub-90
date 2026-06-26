@@ -295,6 +295,17 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {p.status === "Won" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => setConvertingProposalId(p.id)}
+                        title="Convert this proposal into a customer (client + license + contract + renewal)"
+                        className="bg-success text-success-foreground hover:bg-success/90"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />Convert
+                      </Button>
+                    )}
                     {!isBusiness && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">

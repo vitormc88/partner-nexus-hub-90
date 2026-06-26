@@ -501,7 +501,7 @@ async function buildLinesForOperationalization(opts: {
 
 export async function createLicenseAndRenewal(
   payload: CreateLicensePayload,
-  opts: { dealId?: string; createRenewal: boolean }
+  opts: { dealId?: string; createRenewal: boolean; skipContractAutoCreate?: boolean }
 ) {
   const renewalDate =
     payload.renewal_date ||

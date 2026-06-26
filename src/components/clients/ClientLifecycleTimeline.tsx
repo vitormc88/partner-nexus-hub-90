@@ -36,9 +36,11 @@ function eventVisual(type: string) {
 
 interface Props {
   clientId: string;
+  limit?: number;
+  onViewAll?: () => void;
 }
 
-export function ClientLifecycleTimeline({ clientId }: Props) {
+export function ClientLifecycleTimeline({ clientId, limit, onViewAll }: Props) {
   const { data: events = [], isLoading } = useLifecycleEvents(clientId);
 
   if (isLoading) {
@@ -59,12 +61,26 @@ export function ClientLifecycleTimeline({ clientId }: Props) {
     );
   }
 
+  const visible = limit ? events.slice(0, limit) : events;
+  const hasMore = limit ? events.length > limit : false;
+
   return (
-    <ol className="relative border-l border-border ml-3 space-y-3">
-      {events.map((e) => (
-        <TimelineRow key={e.id} event={e} />
-      ))}
-    </ol>
+    <div className="space-y-3">
+      <ol className="relative border-l border-border ml-3 space-y-3">
+        {visible.map((e) => (
+          <TimelineRow key={e.id} event={e} />
+        ))}
+      </ol>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="text-xs text-primary hover:underline font-medium"
+        >
+          View Full Timeline → ({events.length - visible.length} more)
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Gauge,
   Lightbulb,
   Package,
@@ -19,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   useClientCommercialIntelligence,
   type ClientCommercialIntelligence,
@@ -29,6 +32,11 @@ import { ClientLifecycleTimeline } from "./ClientLifecycleTimeline";
 
 interface Props {
   clientId: string;
+  client?: any;
+  ownerName?: string | null;
+  contractStatus?: string | null;
+  billing?: string | null;
+  onViewFullTimeline?: () => void;
 }
 
 const fmtCurrency = (n: number | null | undefined, currency = "EUR") => {
@@ -44,6 +52,15 @@ const fmtCurrency = (n: number | null | undefined, currency = "EUR") => {
   }
 };
 
+const fmtDate = (d?: string | null) => {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return d;
+  }
+};
+
 function scoreTone(score: number) {
   if (score >= 80) return { label: "Strong", tone: "text-emerald-600", bg: "bg-emerald-50", ring: "ring-emerald-200" };
   if (score >= 60) return { label: "Stable", tone: "text-amber-600", bg: "bg-amber-50", ring: "ring-amber-200" };
@@ -51,16 +68,26 @@ function scoreTone(score: number) {
   return { label: "Needs attention", tone: "text-destructive", bg: "bg-destructive/10", ring: "ring-destructive/30" };
 }
 
+function deriveRisk(data: ClientCommercialIntelligence) {
+  if (data.renewal_risk && data.renewal_risk !== "unknown") return data.renewal_risk;
+  const days = data.days_to_renewal;
+  if (days == null) return "unknown";
+  if (days < 0) return "high";
+  if (days <= 30) return "high";
+  if (days <= 90) return "medium";
+  return "low";
+}
+
 function riskTone(risk: string) {
   switch (risk) {
     case "high":
-      return { label: "HIGH", tone: "text-destructive", bg: "bg-destructive/10" };
+      return { label: "High", tone: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
     case "medium":
-      return { label: "MEDIUM", tone: "text-amber-600", bg: "bg-amber-50" };
+      return { label: "Medium", tone: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" };
     case "low":
-      return { label: "LOW", tone: "text-emerald-600", bg: "bg-emerald-50" };
+      return { label: "Low", tone: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" };
     default:
-      return { label: "UNKNOWN", tone: "text-muted-foreground", bg: "bg-muted" };
+      return { label: "Not scheduled", tone: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
   }
 }
 
@@ -68,7 +95,14 @@ function confidencePct(c: string) {
   return c === "high" ? "92%" : c === "medium" ? "68%" : "35%";
 }
 
-export function CommercialIntelligenceDashboard({ clientId }: Props) {
+export function CommercialIntelligenceDashboard({
+  clientId,
+  client,
+  ownerName,
+  contractStatus,
+  billing,
+  onViewFullTimeline,
+}: Props) {
   const { data, isLoading } = useClientCommercialIntelligence(clientId);
 
   if (isLoading) {
@@ -96,10 +130,16 @@ export function CommercialIntelligenceDashboard({ clientId }: Props) {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <div className="xl:col-span-2 space-y-5">
           <ExpansionOpportunitiesSection data={data} clientId={clientId} />
-          <CommercialTimelineSection clientId={clientId} />
+          <CommercialTimelineSection clientId={clientId} onViewAll={onViewFullTimeline} />
         </div>
         <div className="space-y-5">
-          <CommercialSnapshotSection data={data} />
+          <CommercialSnapshotSection
+            data={data}
+            client={client}
+            ownerName={ownerName}
+            contractStatus={contractStatus}
+            billing={billing}
+          />
         </div>
       </div>
     </div>
@@ -110,7 +150,8 @@ export function CommercialIntelligenceDashboard({ clientId }: Props) {
 function CommercialHealthSection({ data }: { data: ClientCommercialIntelligence }) {
   const score = data.commercial_score ?? 0;
   const s = scoreTone(score);
-  const r = riskTone(data.renewal_risk);
+  const risk = deriveRisk(data);
+  const r = riskTone(risk);
 
   return (
     <Card className="border-border/60 shadow-sm overflow-hidden">
@@ -161,8 +202,13 @@ function CommercialHealthSection({ data }: { data: ClientCommercialIntelligence 
             sub={<span className="text-xs text-muted-foreground">High + medium confidence ARR</span>}
           />
           <HeroCell
-            label="Current ARR"
-            primary={<span className="text-3xl font-bold tabular-nums">{fmtCurrency(data.recurring_arr)}</span>}
+            label="Recurring Revenue (ARR)"
+            primary={
+              <span className="text-3xl font-bold tabular-nums">
+                {fmtCurrency(data.recurring_arr)}
+                <span className="text-sm text-muted-foreground font-normal"> / year</span>
+              </span>
+            }
             sub={
               <span className="text-xs text-muted-foreground">
                 Year 1 {fmtCurrency(data.year1_value)}
@@ -219,6 +265,16 @@ function RecommendedActionsSection({
   const navigate = useNavigate();
   const actions = (data.recommended_actions ?? []).slice().sort((a, b) => a.priority - b.priority);
 
+  if (actions.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <span className="font-medium">No commercial actions required.</span>
+        <span className="text-emerald-700/80">This customer is healthy and no immediate actions are recommended.</span>
+      </div>
+    );
+  }
+
   return (
     <Card className="border-primary/30 shadow-md">
       <CardHeader className="pb-3 border-b border-border/40">
@@ -228,18 +284,11 @@ function RecommendedActionsSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        {actions.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Nothing to do right now. The customer's commercial footprint looks healthy.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {actions.map((a) => (
-              <ActionRow key={a.id} action={a} clientId={clientId} navigate={navigate} />
-            ))}
-          </ul>
-        )}
+        <ul className="space-y-2">
+          {actions.map((a) => (
+            <ActionRow key={a.id} action={a} clientId={clientId} navigate={navigate} />
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );
@@ -286,7 +335,28 @@ function ActionRow({
 }
 
 /* ---------------- Section: Snapshot ---------------- */
-function CommercialSnapshotSection({ data }: { data: ClientCommercialIntelligence }) {
+function CommercialSnapshotSection({
+  data,
+  client,
+  ownerName,
+  contractStatus,
+  billing,
+}: {
+  data: ClientCommercialIntelligence;
+  client?: any;
+  ownerName?: string | null;
+  contractStatus?: string | null;
+  billing?: string | null;
+}) {
+  const partner = data.partner_name || "HQ Direct";
+  const owner = ownerName || client?.manager_owner || "—";
+  const industry = data.sector || client?.sector;
+  const country = data.country || client?.country;
+  const customerSince = client?.created_at;
+  const isPremium = !!client?.is_premium;
+  const renewal = data.next_renewal_date;
+  const contractLabel = contractStatus || (data.has_contract ? `${data.active_contract_count} active` : "None");
+
   return (
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="pb-3 border-b border-border/40">
@@ -295,67 +365,34 @@ function CommercialSnapshotSection({ data }: { data: ClientCommercialIntelligenc
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4 space-y-3">
-        <SnapshotRow label="Product Family" value={data.license_family} />
-        <SnapshotRow label="Variant" value={data.license_variant} />
+        {/* Commercial / CRM context first */}
+        <SnapshotRow label="Partner" value={partner} />
+        <SnapshotRow label="Owner" value={owner} />
+        <SnapshotRow label="Industry" value={industry} />
+        <SnapshotRow label="Country" value={country} />
+        <SnapshotRow label="Customer Since" value={fmtDate(customerSince)} />
+        <Separator />
+        <SnapshotRow label="Current Contract" value={contractLabel} />
+        <SnapshotRow label="Renewal" value={fmtDate(renewal)} />
+        <SnapshotRow label="ARR" value={`${fmtCurrency(data.recurring_arr)} / year`} strong />
+        {billing && <SnapshotRow label="Billing" value={billing} />}
+        <SnapshotRow
+          label="Premium"
+          value={<Badge variant={isPremium ? "default" : "secondary"} className="text-[10px]">{isPremium ? "Yes" : "No"}</Badge>}
+        />
+        <Separator />
+        {/* Technical context after */}
         <SnapshotRow label="Deployment" value={data.deployment_type} />
-        <SnapshotRow label="Partner" value={data.partner_name || "HQ Direct"} />
-        <SnapshotRow label="Country" value={data.country} />
-        <SnapshotRow label="Sector" value={data.sector} />
-        <Separator />
-        <SnapshotRow
-          label="Contract"
-          value={data.has_contract ? `${data.active_contract_count} active` : "None"}
-        />
-        <SnapshotRow
-          label="Renewal Date"
-          value={data.next_renewal_date ? new Date(data.next_renewal_date).toLocaleDateString("en-GB") : "—"}
-        />
-        <SnapshotRow label="Current ARR" value={fmtCurrency(data.recurring_arr)} strong />
-        <SnapshotRow label="Year 1 Value" value={fmtCurrency(data.year1_value)} />
-        <Separator />
-        <SnapshotRow
-          label="S&AT"
-          value={<Badge variant={data.sat_active ? "default" : "secondary"} className="text-[10px]">{data.sat_active ? "Active" : "Not active"}</Badge>}
-        />
         <SnapshotRow
           label="API"
           value={<Badge variant={data.api_access ? "default" : "secondary"} className="text-[10px]">{data.api_access ? "Enabled" : "Disabled"}</Badge>}
         />
+        <SnapshotRow
+          label="S&AT"
+          value={<Badge variant={data.sat_active ? "default" : "secondary"} className="text-[10px]">{data.sat_active ? "Active" : "Not active"}</Badge>}
+        />
         <SnapshotRow label="BackOffice users" value={data.backoffice_users} />
         <SnapshotRow label="Web users" value={data.web_users} />
-        <Separator />
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-            Active Modules ({data.active_modules?.length ?? 0})
-          </p>
-          {data.active_modules?.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {data.active_modules.map((m, i) => (
-                <Badge key={i} variant="secondary" className="text-[10px]">
-                  {m.name}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No modules</p>
-          )}
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-            Active Plugins ({data.active_plugins?.length ?? 0})
-          </p>
-          {data.active_plugins?.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {data.active_plugins.map((m, i) => (
-                <Badge key={i} variant="outline" className="text-[10px]">
-                  {m.name}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No plugins</p>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
@@ -428,42 +465,79 @@ function ExpansionOpportunitiesSection({
         )}
 
         {missingModules.length > 0 && (
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
-              <Package className="h-3 w-3" /> Missing Modules ({missingModules.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {missingModules.slice(0, 12).map((m) => (
-                <Badge key={m.id} variant="outline" className="text-[10px]">
-                  {m.name}
-                </Badge>
-              ))}
-              {missingModules.length > 12 && (
-                <Badge variant="secondary" className="text-[10px]">+{missingModules.length - 12} more</Badge>
-              )}
-            </div>
-          </div>
+          <CollapsibleGroup
+            icon={<Package className="h-3 w-3" />}
+            label="Missing Modules"
+            items={missingModules.map((m) => m.name)}
+          />
         )}
 
         {missingPlugins.length > 0 && (
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
-              <Plug className="h-3 w-3" /> Missing Plugins ({missingPlugins.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {missingPlugins.slice(0, 12).map((p) => (
-                <Badge key={p.id} variant="outline" className="text-[10px]">
-                  {p.name}
-                </Badge>
-              ))}
-              {missingPlugins.length > 12 && (
-                <Badge variant="secondary" className="text-[10px]">+{missingPlugins.length - 12} more</Badge>
-              )}
-            </div>
-          </div>
+          <CollapsibleGroup
+            icon={<Plug className="h-3 w-3" />}
+            label="Missing Plugins"
+            items={missingPlugins.map((p) => p.name)}
+          />
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function CollapsibleGroup({
+  icon,
+  label,
+  items,
+  previewCount = 3,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  items: string[];
+  previewCount?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const total = items.length;
+  const preview = items.slice(0, previewCount);
+  const remaining = total - preview.length;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="rounded-lg border border-border/60 p-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+              {icon} {label}
+            </p>
+            <Badge variant="secondary" className="text-[10px]">{total} available</Badge>
+          </div>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+              {open ? "Hide" : "Show all"}
+              <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${open ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+
+        {!open && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {preview.map((name, i) => (
+              <Badge key={i} variant="outline" className="text-[10px]">{name}</Badge>
+            ))}
+            {remaining > 0 && (
+              <Badge variant="secondary" className="text-[10px]">+{remaining} more</Badge>
+            )}
+          </div>
+        )}
+
+        <CollapsibleContent>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {items.map((name, i) => (
+              <Badge key={i} variant="outline" className="text-[10px]">{name}</Badge>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
 
@@ -509,16 +583,16 @@ function OpportunityCard({
 }
 
 /* ---------------- Section: Timeline ---------------- */
-function CommercialTimelineSection({ clientId }: { clientId: string }) {
+function CommercialTimelineSection({ clientId, onViewAll }: { clientId: string; onViewAll?: () => void }) {
   return (
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="pb-3 border-b border-border/40">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-primary" /> Commercial Timeline
+          <CalendarDays className="h-4 w-4 text-primary" /> Recent Commercial Activity
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        <ClientLifecycleTimeline clientId={clientId} />
+        <ClientLifecycleTimeline clientId={clientId} limit={5} onViewAll={onViewAll} />
       </CardContent>
     </Card>
   );

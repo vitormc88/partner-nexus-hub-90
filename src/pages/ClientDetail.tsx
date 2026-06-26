@@ -25,6 +25,7 @@ import {
   useCreateNote, useCreateCredential,
 } from "@/hooks/useClients";
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
+import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo, useEffect, useCallback } from "react";

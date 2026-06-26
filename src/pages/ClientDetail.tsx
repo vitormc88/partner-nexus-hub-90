@@ -990,19 +990,8 @@ export default function ClientDetail() {
               </Card>
             </div>
           </div>
-
-          {/* Lifecycle Timeline */}
-          <Card className="border-border/60 shadow-sm mt-4">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                Lifecycle Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {client?.id && <ClientLifecycleTimeline clientId={client.id} />}
-            </CardContent>
-          </Card>
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}

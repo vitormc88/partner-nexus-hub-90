@@ -541,8 +541,97 @@ export default function ClientDetail() {
   };
 
   const handleAddContract = async () => {
-    try { await createContract.mutateAsync({ ...contractFormData, client_id: client.id }); toast.success("Contract created"); setShowAddContract(false); setContractFormData({}); }
-    catch (e: any) { toast.error(e?.message || "Failed"); }
+    const cf = contractFormData;
+    if (!cf.contract_start_date || !cf.contract_end_date) {
+      toast.error("Contract start and end dates are required");
+      return;
+    }
+    const recurringAmount = Number(cf._recurring_amount || 0);
+    const wantsRecurringLine = !!cf._add_recurring_line && recurringAmount > 0;
+    try {
+      // 1) Create the contract (manual legacy by default).
+      const { data: created, error: cErr } = await supabase
+        .from("contracts")
+        .insert({
+          client_id: client.id,
+          contract_start_date: cf.contract_start_date,
+          contract_end_date: cf.contract_end_date,
+          notice_period_days: cf.notice_period_days ?? 30,
+          currency: cf.currency || "EUR",
+          contract_value: wantsRecurringLine ? recurringAmount : (cf.contract_value ?? 0),
+          total_value: wantsRecurringLine ? recurringAmount : (cf.total_value ?? 0),
+          observations: cf.observations || null,
+          is_imported: false,
+          contract_mode: "manual_legacy",
+        } as any)
+        .select()
+        .single();
+      if (cErr) throw cErr;
+      const newContract = created as any;
+
+      // 2) Optional recurring line so ARR is derived from contract_lines.
+      if (wantsRecurringLine) {
+        const { error: lErr } = await supabase.from("contract_lines").insert({
+          contract_id: newContract.id,
+          client_id: client.id,
+          line_type: "license",
+          description: cf._recurring_description || "Annual renewal agreement",
+          amount: recurringAmount,
+          currency: newContract.currency || "EUR",
+          billing_frequency: "annual",
+          start_date: cf.contract_start_date,
+          end_date: cf.contract_end_date,
+          source: "manual_legacy",
+        } as any);
+        if (lErr) throw lErr;
+
+        // 3) Create the primary contract-level renewal.
+        const renewalPartnerUuid = (client as any)?.partner_uuid || null;
+        const renewalPartnerId = (client as any)?.partner_id || null;
+        const { data: ren, error: rErr } = await supabase
+          .from("renewals")
+          .insert({
+            client_id: client.id,
+            contract_id: newContract.id,
+            partner_id: renewalPartnerId,
+            partner_uuid: renewalPartnerUuid,
+            target_type: "contract",
+            target_id: newContract.id,
+            renewal_type: "Contract",
+            renewal_date: cf.contract_end_date,
+            estimated_value: recurringAmount,
+            billing_frequency: "Annual",
+            status: "Upcoming",
+            notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
+          } as any)
+          .select()
+          .single();
+        if (rErr) throw rErr;
+
+        // 4) Suppress duplicate license-only €0 renewals for the same client/date.
+        await supabase
+          .from("renewals")
+          .update({ is_covered_by_contract: true, covered_by_contract_id: newContract.id } as any)
+          .eq("client_id", client.id)
+          .eq("renewal_date", cf.contract_end_date)
+          .is("contract_id", null)
+          .eq("is_covered_by_contract", false);
+
+        // Also link the newly created contract renewal back to its source.
+        if (ren) {
+          await supabase.from("renewals").update({ covered_by_contract_id: newContract.id } as any).eq("id", (ren as any).id);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["contracts", client.id] });
+      queryClient.invalidateQueries({ queryKey: ["contract-lines"] });
+      queryClient.invalidateQueries({ queryKey: ["renewals"] });
+      toast.success(wantsRecurringLine ? "Contract and recurring renewal created" : "Contract created");
+      setShowAddContract(false);
+      setContractFormData({});
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create contract");
+    }
   };
 
   const startEditContract = (co: any) => {

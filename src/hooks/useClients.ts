@@ -33,14 +33,17 @@ export function useClient(id: string | undefined) {
       if (!id) return null;
       const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
       if (error) throw error;
+      // Source of truth: clients.partner_uuid → partners.id.
+      // No fallback to legacy text partner_id, so HQ Direct clients show consistently.
       let partner: { id: string; name: string } | null = null;
-      if ((data as any)?.partner_id) {
+      const partnerUuid = (data as any)?.partner_uuid as string | null | undefined;
+      if (partnerUuid) {
         const { data: p } = await supabase
           .from("partners")
-          .select("id, name")
-          .eq("id", (data as any).partner_id)
+          .select("id, company_name")
+          .eq("id", partnerUuid)
           .maybeSingle();
-        if (p) partner = p as any;
+        if (p) partner = { id: (p as any).id, name: (p as any).company_name };
       }
       return { ...(data as any), partner } as Client & { partner?: { id: string; name: string } | null };
     },

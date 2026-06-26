@@ -259,7 +259,7 @@ export default function ClientsLicenses() {
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} <button onClick={() => setShowCreate(true)} className="text-primary hover:underline">Create client</button></TableCell></TableRow>
               ) : filtered.map(c => (
-                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => navigate(`/clients/${c.id}`)}>
+                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => handleOpenClient(c.id)}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[160px]">

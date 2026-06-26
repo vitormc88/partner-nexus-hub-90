@@ -27,6 +27,8 @@ import {
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { CommercialContractView } from "@/components/clients/CommercialContractView";
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
+import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -769,7 +771,17 @@ export default function ClientDetail() {
         </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-5">
+          {client?.id && <CommercialIntelligenceDashboard clientId={client.id} />}
+
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between">
+                <span className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5" /> Client Profile & Contacts</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             {/* Left column: Client Info + Contacts */}
             <div className="lg:col-span-2 space-y-4">
@@ -978,19 +990,8 @@ export default function ClientDetail() {
               </Card>
             </div>
           </div>
-
-          {/* Lifecycle Timeline */}
-          <Card className="border-border/60 shadow-sm mt-4">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                Lifecycle Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {client?.id && <ClientLifecycleTimeline clientId={client.id} />}
-            </CardContent>
-          </Card>
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}

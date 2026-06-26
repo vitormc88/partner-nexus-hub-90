@@ -370,7 +370,133 @@ export async function findOrCreateClientFromDeal(
     `Client ${created.client_code} (${created.commercial_name}) was created from this deal.`
   );
 
+  await recordLifecycleEventInline({
+    clientId: created.id,
+    eventType: "client_created",
+    title: `Client ${created.client_code} created`,
+    description: `Created from deal "${deal.company_name || ""}".`,
+  });
+
   return { client: created, created: true };
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight lifecycle event recorder (kept local to avoid circular import
+// with lifecycle-engine.ts which depends on this file).
+// ---------------------------------------------------------------------------
+
+type InlineLifecycleEventType =
+  | "client_created"
+  | "client_linked"
+  | "license_created"
+  | "contract_created"
+  | "contract_line_added"
+  | "renewal_scheduled";
+
+async function recordLifecycleEventInline(args: {
+  clientId: string;
+  eventType: InlineLifecycleEventType;
+  title: string;
+  description?: string;
+  proposalId?: string | null;
+  proposalNumber?: string | null;
+  licenseId?: string | null;
+  contractId?: string | null;
+  renewalId?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    let actorName: string | null = null;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      actorName = (profile as any)?.full_name || (profile as any)?.email || null;
+    }
+    await (supabase as any).from("lifecycle_events").insert({
+      client_id: args.clientId,
+      event_type: args.eventType,
+      event_title: args.title,
+      event_description: args.description ?? null,
+      actor_id: user?.id ?? null,
+      actor_name: actorName,
+      source_proposal_id: args.proposalId ?? null,
+      source_proposal_number: args.proposalNumber ?? null,
+      source_license_id: args.licenseId ?? null,
+      source_contract_id: args.contractId ?? null,
+      source_renewal_id: args.renewalId ?? null,
+      metadata: args.metadata ?? {},
+    });
+  } catch (e) {
+    // Never let timeline recording break the operational write.
+    console.warn("[lifecycle] failed to record event", args.eventType, e);
+  }
+}
+
+/** Build minimal contract lines from proposal items (or a single fallback line). */
+async function buildLinesForOperationalization(opts: {
+  proposalId: string | null | undefined;
+  initialValue: number | null;
+  recurringValue: number | null;
+  licenseType: string;
+  billingFrequency: string | null | undefined;
+}): Promise<Array<{
+  line_type: string;
+  description: string;
+  amount: number;
+  currency: string;
+  billing_frequency: string | null;
+  source: "proposal" | "manual";
+  source_item_id: string | null;
+}>> {
+  if (opts.proposalId) {
+    const { data: items } = await supabase
+      .from("proposal_items")
+      .select("*")
+      .eq("proposal_id", opts.proposalId)
+      .order("sort_order");
+    const rows = (items || [])
+      .map((it: any) => {
+        const amount = Number(it.net_total ?? it.total ?? 0);
+        if (!Number.isFinite(amount) || amount === 0) return null;
+        const cat = (it.category || "").toLowerCase();
+        const type =
+          cat === "software" ? "license" :
+          cat === "service" ? "service" :
+          cat === "addon" ? "module" :
+          "other";
+        return {
+          line_type: type,
+          description: it.item_name || it.description || it.item_code || "Item",
+          amount,
+          currency: "EUR",
+          billing_frequency: it.is_recurring ? "Annual" : "One-time",
+          source: "proposal" as const,
+          source_item_id: it.id ?? null,
+        };
+      })
+      .filter(Boolean) as any[];
+    if (rows.length > 0) return rows;
+  }
+
+  // Fallback: a single license line from initial value.
+  const amount = Number(opts.initialValue || 0);
+  return [
+    {
+      line_type: "license",
+      description: `${opts.licenseType} — Year 1`,
+      amount,
+      currency: "EUR",
+      billing_frequency: opts.billingFrequency || "Annual",
+      source: "manual" as const,
+      source_item_id: null,
+    },
+  ];
 }
 
 export async function createLicenseAndRenewal(

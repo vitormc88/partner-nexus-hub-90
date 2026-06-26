@@ -202,6 +202,9 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
       qc.invalidateQueries({ queryKey: ["licensed_modules"] });
       qc.invalidateQueries({ queryKey: ["renewals"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["contracts"] });
+      qc.invalidateQueries({ queryKey: ["contract-lines"] });
+      qc.invalidateQueries({ queryKey: ["lifecycle-events"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", dealId] });
       onOpenChange(false);
     } catch (e: any) {

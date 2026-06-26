@@ -40,12 +40,13 @@ export default function ClientsLicenses() {
   const { data: partners = [] } = usePartners();
   const { data: aggregates } = useClientAggregates();
   const createClient = useCreateClient();
-  const [search, setSearch] = useState("");
-  const [partnerFilter, setPartnerFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortField, setSortField] = useState<string>("commercial_name");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [showArchived, setShowArchived] = useState(false);
+  const persisted = useMemo(() => loadClientsListState() ?? {}, []);
+  const [search, setSearch] = useState<string>(persisted.search ?? "");
+  const [partnerFilter, setPartnerFilter] = useState<string>(persisted.partnerFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [sortField, setSortField] = useState<string>(persisted.sortField ?? "commercial_name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(persisted.sortDir ?? "asc");
+  const [showArchived, setShowArchived] = useState<boolean>(persisted.showArchived ?? false);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({
     client_code: "", commercial_name: "", short_name: "", country: "", sector: "",

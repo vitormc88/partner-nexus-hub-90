@@ -557,6 +557,7 @@ export type Database = {
           sector: string | null
           short_name: string | null
           source_deal_id: string | null
+          source_proposal_id: string | null
           state_region: string | null
           status: string
           updated_at: string
@@ -597,6 +598,7 @@ export type Database = {
           sector?: string | null
           short_name?: string | null
           source_deal_id?: string | null
+          source_proposal_id?: string | null
           state_region?: string | null
           status?: string
           updated_at?: string
@@ -637,6 +639,7 @@ export type Database = {
           sector?: string | null
           short_name?: string | null
           source_deal_id?: string | null
+          source_proposal_id?: string | null
           state_region?: string | null
           status?: string
           updated_at?: string
@@ -705,6 +708,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_partner_summary"
             referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "clients_source_proposal_id_fkey"
+            columns: ["source_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -884,6 +894,8 @@ export type Database = {
           related_license_id: string | null
           related_module_id: string | null
           related_plugin_id: string | null
+          source: string
+          source_item_id: string | null
           start_date: string | null
           updated_at: string
         }
@@ -902,6 +914,8 @@ export type Database = {
           related_license_id?: string | null
           related_module_id?: string | null
           related_plugin_id?: string | null
+          source?: string
+          source_item_id?: string | null
           start_date?: string | null
           updated_at?: string
         }
@@ -920,6 +934,8 @@ export type Database = {
           related_license_id?: string | null
           related_module_id?: string | null
           related_plugin_id?: string | null
+          source?: string
+          source_item_id?: string | null
           start_date?: string | null
           updated_at?: string
         }
@@ -964,6 +980,7 @@ export type Database = {
       contracts: {
         Row: {
           billing_notes: string | null
+          calculated_total: number | null
           client_id: string
           contract_end_date: string | null
           contract_start_date: string | null
@@ -973,6 +990,8 @@ export type Database = {
           hosting_value: number | null
           id: string
           invoiced_value: number | null
+          is_imported: boolean
+          manual_adjustment_amount: number
           mww_web_value: number | null
           notice_period_days: number | null
           num_installments: number | null
@@ -982,11 +1001,13 @@ export type Database = {
           renewal_freeze_notes: string | null
           renewal_increase_pct: number | null
           sat_value: number | null
+          source_proposal_id: string | null
           total_value: number | null
           updated_at: string
         }
         Insert: {
           billing_notes?: string | null
+          calculated_total?: number | null
           client_id: string
           contract_end_date?: string | null
           contract_start_date?: string | null
@@ -996,6 +1017,8 @@ export type Database = {
           hosting_value?: number | null
           id?: string
           invoiced_value?: number | null
+          is_imported?: boolean
+          manual_adjustment_amount?: number
           mww_web_value?: number | null
           notice_period_days?: number | null
           num_installments?: number | null
@@ -1005,11 +1028,13 @@ export type Database = {
           renewal_freeze_notes?: string | null
           renewal_increase_pct?: number | null
           sat_value?: number | null
+          source_proposal_id?: string | null
           total_value?: number | null
           updated_at?: string
         }
         Update: {
           billing_notes?: string | null
+          calculated_total?: number | null
           client_id?: string
           contract_end_date?: string | null
           contract_start_date?: string | null
@@ -1019,6 +1044,8 @@ export type Database = {
           hosting_value?: number | null
           id?: string
           invoiced_value?: number | null
+          is_imported?: boolean
+          manual_adjustment_amount?: number
           mww_web_value?: number | null
           notice_period_days?: number | null
           num_installments?: number | null
@@ -1028,6 +1055,7 @@ export type Database = {
           renewal_freeze_notes?: string | null
           renewal_increase_pct?: number | null
           sat_value?: number | null
+          source_proposal_id?: string | null
           total_value?: number | null
           updated_at?: string
         }
@@ -1037,6 +1065,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_source_proposal_id_fkey"
+            columns: ["source_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]
@@ -2245,6 +2280,117 @@ export type Database = {
             columns: ["replaced_by_license_id"]
             isOneToOne: false
             referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lifecycle_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          client_id: string | null
+          created_at: string
+          event_description: string | null
+          event_title: string
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          source_contract_id: string | null
+          source_license_id: string | null
+          source_proposal_id: string | null
+          source_proposal_number: string | null
+          source_renewal_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          client_id?: string | null
+          created_at?: string
+          event_description?: string | null
+          event_title: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source_contract_id?: string | null
+          source_license_id?: string | null
+          source_proposal_id?: string | null
+          source_proposal_number?: string | null
+          source_renewal_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          client_id?: string | null
+          created_at?: string
+          event_description?: string | null
+          event_title?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          source_contract_id?: string | null
+          source_license_id?: string | null
+          source_proposal_id?: string | null
+          source_proposal_number?: string | null
+          source_renewal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifecycle_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_source_contract_id_fkey"
+            columns: ["source_contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_source_license_id_fkey"
+            columns: ["source_license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_source_proposal_id_fkey"
+            columns: ["source_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_events_source_renewal_id_fkey"
+            columns: ["source_renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
             referencedColumns: ["id"]
           },
         ]
@@ -3633,6 +3779,7 @@ export type Database = {
           last_interaction: string | null
           license_id: string | null
           notes: string | null
+          notice_period_days: number | null
           partner_id: string | null
           partner_uuid: string | null
           priority: string | null
@@ -3658,6 +3805,7 @@ export type Database = {
           last_interaction?: string | null
           license_id?: string | null
           notes?: string | null
+          notice_period_days?: number | null
           partner_id?: string | null
           partner_uuid?: string | null
           priority?: string | null
@@ -3683,6 +3831,7 @@ export type Database = {
           last_interaction?: string | null
           license_id?: string | null
           notes?: string | null
+          notice_period_days?: number | null
           partner_id?: string | null
           partner_uuid?: string | null
           priority?: string | null
@@ -4362,6 +4511,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      recalculate_contract_total: {
+        Args: { _contract_id: string }
+        Returns: number
       }
       reset_user_to_role_template: {
         Args: { _user_id: string }

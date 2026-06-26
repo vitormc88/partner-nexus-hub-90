@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
+import { ConvertProposalDialog } from "./ConvertProposalDialog";
+import { Sparkles } from "lucide-react";
 import {
   computeBusinessOptions,
   DEFAULT_BUSINESS_CONFIG,
@@ -42,6 +44,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editingProposal, setEditingProposal] = useState<(Proposal & { items?: ProposalItem[] }) | null>(null);
+  const [convertingProposalId, setConvertingProposalId] = useState<string | null>(null);
 
   const loadProposalAndItems = async (id: string) => {
     const { data: prop } = await supabase.from("proposals").select("*").eq("id", id).single();
@@ -292,6 +295,17 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {p.status === "Won" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => setConvertingProposalId(p.id)}
+                        title="Convert this proposal into a customer (client + license + contract + renewal)"
+                        className="bg-success text-success-foreground hover:bg-success/90"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />Convert
+                      </Button>
+                    )}
                     {!isBusiness && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">
@@ -369,6 +383,14 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
         defaultClientName={defaultClientName}
         defaultCountry={defaultCountry}
         editingProposal={editingProposal}
+      />
+
+      <ConvertProposalDialog
+        open={!!convertingProposalId}
+        onOpenChange={(open) => {
+          if (!open) setConvertingProposalId(null);
+        }}
+        proposalId={convertingProposalId}
       />
     </div>
   );

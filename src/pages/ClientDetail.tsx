@@ -206,6 +206,108 @@ export default function ClientDetail() {
   const [editingModules, setEditingModules] = useState(false);
   const [moduleEdits, setModuleEdits] = useState<Record<string, boolean>>({});
 
+  // ─── Workspace navigation (prev/next, tab persistence, prefetch, unsaved guard) ───
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", tab);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const listState = useMemo(() => loadClientsListState(), []);
+  const orderedIds = listState?.orderedIds ?? [];
+  const filterChips = listState?.filterChips ?? [];
+  const currentIndex = id ? orderedIds.indexOf(id) : -1;
+  const prevId = currentIndex > 0 ? orderedIds[currentIndex - 1] : null;
+  const nextId = currentIndex >= 0 && currentIndex < orderedIds.length - 1 ? orderedIds[currentIndex + 1] : null;
+
+  // Unsaved-changes detection across editors
+  const isDirty =
+    editingClient ||
+    editingLicenseId !== null ||
+    editingContractId !== null ||
+    editingModules ||
+    showAddContact ||
+    showAddLicense ||
+    showAddContract ||
+    showAddCred ||
+    newNote.trim().length > 0;
+
+  const [pendingNavId, setPendingNavId] = useState<string | null>(null);
+  const [pendingBack, setPendingBack] = useState(false);
+
+  const goToClient = useCallback(
+    (targetId: string) => {
+      const tab = searchParams.get("tab");
+      navigate(`/clients/${targetId}${tab ? `?tab=${tab}` : ""}`);
+    },
+    [navigate, searchParams],
+  );
+
+  const requestNavigate = useCallback(
+    (targetId: string) => {
+      if (isDirty) {
+        setPendingNavId(targetId);
+      } else {
+        goToClient(targetId);
+      }
+    },
+    [isDirty, goToClient],
+  );
+
+  const requestBack = useCallback(() => {
+    if (isDirty) setPendingBack(true);
+    else navigate("/clients");
+  }, [isDirty, navigate]);
+
+  // Prefetch neighbor clients for instant navigation
+  useEffect(() => {
+    const prefetch = (cid: string | null) => {
+      if (!cid) return;
+      queryClient.prefetchQuery({
+        queryKey: ["client", cid],
+        queryFn: async () => {
+          const { data, error } = await supabase.from("clients").select("*").eq("id", cid).single();
+          if (error) throw error;
+          return data;
+        },
+      });
+    };
+    prefetch(prevId);
+    prefetch(nextId);
+  }, [prevId, nextId, queryClient]);
+
+  // Keyboard navigation (arrows when not focused in an input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "ArrowLeft" && prevId) {
+        e.preventDefault();
+        requestNavigate(prevId);
+      } else if (e.key === "ArrowRight" && nextId) {
+        e.preventDefault();
+        requestNavigate(nextId);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [prevId, nextId, requestNavigate]);
+
+  // Warn on browser unload while editing
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   if (isLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
   if (!client) return (
     <div className="max-w-4xl mx-auto py-20 text-center">

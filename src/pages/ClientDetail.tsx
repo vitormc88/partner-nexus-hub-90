@@ -27,6 +27,8 @@ import {
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { CommercialContractView } from "@/components/clients/CommercialContractView";
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
+import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo, useEffect, useCallback } from "react";

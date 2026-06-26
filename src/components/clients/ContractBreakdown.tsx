@@ -51,18 +51,28 @@ export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR", i
   const matched = Math.abs(diff) < 0.01;
   const cur = lines[0]?.currency || currency || "EUR";
 
+  const hasAdjustment = Math.abs(Number(manualAdjustment || 0)) > 0.01;
+  const showReconciliation = isImported; // legacy contracts compare to legacy total_value
+  const showDifference = isImported || hasAdjustment;
+
   return (
     <div className="mt-5 border-t border-border/60 pt-4">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-foreground">Contract Breakdown</h4>
         {lines.length > 0 && (
-          matched ? (
-            <Badge variant="secondary" className="text-xs gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Matched
-            </Badge>
+          showReconciliation ? (
+            matched ? (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Matched
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
+                <AlertTriangle className="h-3 w-3" /> Needs reconciliation
+              </Badge>
+            )
           ) : (
-            <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
-              <AlertTriangle className="h-3 w-3" /> Needs reconciliation
+            <Badge variant="secondary" className="text-xs gap-1">
+              <Sparkles className="h-3 w-3" /> Calculated from contract lines
             </Badge>
           )
         )}
@@ -121,28 +131,38 @@ export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR", i
             })}
           </div>
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div className="rounded-md border border-border/60 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Legacy Total</div>
-              <div className="font-semibold tabular-nums mt-0.5">{formatMoney(legacy, cur)}</div>
-            </div>
+          <div className={`mt-4 grid grid-cols-1 gap-3 text-sm ${showDifference ? "md:grid-cols-3" : isImported ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
+            {isImported && (
+              <div className="rounded-md border border-border/60 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Legacy Total</div>
+                <div className="font-semibold tabular-nums mt-0.5">{formatMoney(legacy, cur)}</div>
+              </div>
+            )}
             <div className="rounded-md border border-border/60 p-3">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Calculated Total</div>
               <div className="font-semibold tabular-nums mt-0.5">{formatMoney(calculatedTotal, cur)}</div>
             </div>
-            <div className={`rounded-md border p-3 ${matched ? "border-border/60" : "border-warning/60 bg-warning/5"}`}>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Difference</div>
-              <div className={`font-semibold tabular-nums mt-0.5 ${matched ? "" : "text-warning"}`}>
-                {matched ? "—" : `${diff > 0 ? "+" : ""}${formatMoney(diff, cur)}`}
+            {showDifference && (
+              <div className={`rounded-md border p-3 ${matched ? "border-border/60" : "border-warning/60 bg-warning/5"}`}>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {isImported ? "Difference" : "Manual Adjustment"}
+                </div>
+                <div className={`font-semibold tabular-nums mt-0.5 ${matched ? "" : "text-warning"}`}>
+                  {isImported
+                    ? (matched ? "—" : `${diff > 0 ? "+" : ""}${formatMoney(diff, cur)}`)
+                    : formatMoney(Number(manualAdjustment || 0), cur)}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </>
       )}
 
       <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5">
         <Info className="h-3 w-3 mt-0.5 shrink-0" />
-        Contract Breakdown is generated from structured contract lines. Legacy totals are preserved until reconciliation is confirmed.
+        {isImported
+          ? "Contract Breakdown is generated from structured contract lines. Legacy totals are preserved until reconciliation is confirmed."
+          : "This contract was generated from an approved proposal. Contract lines are the source of truth."}
       </p>
     </div>
   );

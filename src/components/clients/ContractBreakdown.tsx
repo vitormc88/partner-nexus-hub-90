@@ -32,9 +32,11 @@ interface Props {
   contractId: string;
   legacyTotal: number | null | undefined;
   currency?: string | null;
+  isImported?: boolean;
+  manualAdjustment?: number | null;
 }
 
-export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR" }: Props) {
+export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR", isImported = true, manualAdjustment = 0 }: Props) {
   const { data: lines = [], isLoading } = useContractLines(contractId);
 
   const grouped = lines.reduce<Record<string, ContractLine[]>>((acc, l) => {

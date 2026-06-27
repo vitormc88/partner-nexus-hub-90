@@ -103,6 +103,7 @@ const initialDraft: Draft = {
     renewal_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
     notice_period_days: 60,
     sat_active: true, sat_start_date: new Date().toISOString().slice(0, 10), sat_end_date: "",
+    sat_dates_touched: false,
     auto_renew: true,
   },
 };

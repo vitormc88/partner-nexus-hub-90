@@ -75,6 +75,7 @@ type Draft = {
     billing_frequency: string; start_date: string; renewal_date: string;
     notice_period_days: number;
     sat_active: boolean; sat_start_date: string; sat_end_date: string;
+    sat_dates_touched: boolean;
     auto_renew: boolean;
   };
 };

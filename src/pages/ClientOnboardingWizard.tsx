@@ -20,8 +20,24 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartners } from "@/hooks/usePartners";
+import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+
+// Structured contact roles, with optional free-text fallback ("Other")
+const CONTACT_ROLES = [
+  "CEO / Owner",
+  "CFO / Finance Manager",
+  "CIO / IT Director",
+  "IT Manager",
+  "Maintenance Manager",
+  "Operations Manager",
+  "Procurement Manager",
+  "Project Manager",
+  "Technical Lead",
+  "End User",
+  "Other",
+] as const;
 
 // ─────────────────────────────────────────────────────────────
 // Types & draft
@@ -59,6 +75,7 @@ type Draft = {
     billing_frequency: string; start_date: string; renewal_date: string;
     notice_period_days: number;
     sat_active: boolean; sat_start_date: string; sat_end_date: string;
+    sat_dates_touched: boolean;
     auto_renew: boolean;
   };
 };
@@ -86,6 +103,7 @@ const initialDraft: Draft = {
     renewal_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
     notice_period_days: 60,
     sat_active: true, sat_start_date: new Date().toISOString().slice(0, 10), sat_end_date: "",
+    sat_dates_touched: false,
     auto_renew: true,
   },
 };

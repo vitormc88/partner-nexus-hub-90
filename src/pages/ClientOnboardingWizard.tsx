@@ -171,6 +171,11 @@ export default function ClientOnboardingWizard() {
     setSubmitting(true);
     try {
       const partnerId = userPartnerId || draft.client.partner_id || null;
+      // Compose canonical license product label
+      const variant = draft.license.variant;
+      const product = draft.license.family === "Business" && variant
+        ? `Business ${variant}`
+        : (variant || draft.license.family || null);
       // 1. Client
       const { data: client, error: cErr } = await supabase.from("clients").insert({
         client_code: draft.client.client_code.trim(),
@@ -180,7 +185,13 @@ export default function ClientOnboardingWizard() {
         sector: draft.client.sector || null,
         partner_id: partnerId,
         partner_uuid: partnerId,
-        license_type: draft.license.variant ? `${draft.license.family} ${draft.license.variant}` : null,
+        license_type: product,
+        cloud_onpremise: draft.license.deployment_type || null,
+        phone: draft.client.phone?.trim() || null,
+        email: draft.client.email?.trim() || null,
+        website: draft.client.website?.trim() || null,
+        manager_owner: draft.client.manager_owner?.trim() || null,
+        is_premium: !!draft.client.is_premium,
         status: draft.client.status || "Active",
         address: draft.client.address || null,
         observations: [draft.client.vat ? `VAT: ${draft.client.vat}` : "", draft.client.notes].filter(Boolean).join("\n") || null,
@@ -200,7 +211,6 @@ export default function ClientOnboardingWizard() {
           is_primary: ct.is_primary,
         }));
       if (contactsPayload.length) {
-        // Ensure only one primary
         let primarySet = false;
         contactsPayload.forEach(c => {
           if (c.is_primary && !primarySet) { primarySet = true; }
@@ -211,24 +221,28 @@ export default function ClientOnboardingWizard() {
         if (ctErr) throw ctErr;
       }
 
-      // 3. License
-      const product = draft.license.variant
-        ? `${draft.license.family} ${draft.license.variant}`
-        : draft.license.family || null;
+      // 3. License — populate every field expected by the Licensing tab & Commercial Intelligence
       const { data: license, error: lErr } = await supabase.from("licenses").insert({
         client_id: client.id,
         product,
+        edition: variant || null,
         version: draft.license.version || null,
         deployment_type: draft.license.deployment_type || null,
+        database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
         web_accesses: draft.license.web_accesses || 0,
+        num_users: (draft.license.backoffice_users || 0) + (draft.license.web_accesses || 0),
+        api_access: !!draft.license.api_access,
         sat_active: draft.contract.sat_active,
         sat_start_date: draft.contract.sat_start_date || null,
         sat_end_date: draft.contract.sat_end_date || null,
         license_start_date: draft.contract.start_date || null,
         license_end_date: draft.contract.renewal_date || null,
+        license_status: "active",
         currency: draft.contract.currency,
         billing_frequency: draft.contract.billing_frequency,
+        periodicity: draft.contract.billing_frequency,
+        contract_value: draft.contract.contract_value || 0,
         recurring_contract_value: draft.contract.contract_value || 0,
       } as any).select().single();
       if (lErr) throw lErr;

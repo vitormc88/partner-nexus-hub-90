@@ -437,6 +437,11 @@ export default function ClientOnboardingWizard() {
                   </Select>
                 </div>
                 <div><Label>VAT</Label><Input value={draft.client.vat} onChange={e => updClient({ vat: e.target.value })} /></div>
+                <div><Label>Phone</Label><Input value={draft.client.phone} onChange={e => updClient({ phone: e.target.value })} /></div>
+                <div><Label>Email</Label><Input type="email" value={draft.client.email} onChange={e => updClient({ email: e.target.value })} /></div>
+                <div><Label>Website</Label><Input value={draft.client.website} onChange={e => updClient({ website: e.target.value })} placeholder="https://" /></div>
+                <div><Label>Owner / Account Manager</Label><Input value={draft.client.manager_owner} onChange={e => updClient({ manager_owner: e.target.value })} placeholder="e.g. Jane Doe" /></div>
+                <div className="flex items-end gap-2"><Switch checked={draft.client.is_premium} onCheckedChange={v => updClient({ is_premium: v })} /><Label>Premium client</Label></div>
                 <div className="col-span-2"><Label>Address</Label><Input value={draft.client.address} onChange={e => updClient({ address: e.target.value })} /></div>
                 <div className="col-span-2"><Label>Internal Notes</Label><Textarea rows={2} value={draft.client.notes} onChange={e => updClient({ notes: e.target.value })} /></div>
               </div>

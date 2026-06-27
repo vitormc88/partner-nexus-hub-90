@@ -43,12 +43,15 @@ type Draft = {
     client_code: string; commercial_name: string; short_name: string;
     country: string; sector: string; partner_id: string;
     status: string; industry: string; address: string; vat: string; notes: string;
+    phone: string; email: string; website: string;
+    manager_owner: string; is_premium: boolean;
   };
   contacts: ContactForm[];
   license: {
     family: Family; variant: string;
     deployment_type: string; version: string;
     backoffice_users: number; web_accesses: number;
+    api_access: boolean;
     module_ids: string[]; plugin_ids: string[];
   };
   contract: {
@@ -69,11 +72,13 @@ const initialDraft: Draft = {
   client: {
     client_code: "", commercial_name: "", short_name: "", country: "", sector: "",
     partner_id: "", status: "Active", industry: "", address: "", vat: "", notes: "",
+    phone: "", email: "", website: "", manager_owner: "", is_premium: false,
   },
   contacts: [{ ...emptyContact }],
   license: {
     family: "", variant: "", deployment_type: "SaaS", version: "",
-    backoffice_users: 0, web_accesses: 0, module_ids: [], plugin_ids: [],
+    backoffice_users: 0, web_accesses: 0, api_access: false,
+    module_ids: [], plugin_ids: [],
   },
   contract: {
     contract_value: 0, currency: "EUR", billing_frequency: "Annual",
@@ -166,6 +171,11 @@ export default function ClientOnboardingWizard() {
     setSubmitting(true);
     try {
       const partnerId = userPartnerId || draft.client.partner_id || null;
+      // Compose canonical license product label
+      const variant = draft.license.variant;
+      const product = draft.license.family === "Business" && variant
+        ? `Business ${variant}`
+        : (variant || draft.license.family || null);
       // 1. Client
       const { data: client, error: cErr } = await supabase.from("clients").insert({
         client_code: draft.client.client_code.trim(),
@@ -175,7 +185,13 @@ export default function ClientOnboardingWizard() {
         sector: draft.client.sector || null,
         partner_id: partnerId,
         partner_uuid: partnerId,
-        license_type: draft.license.variant ? `${draft.license.family} ${draft.license.variant}` : null,
+        license_type: product,
+        cloud_onpremise: draft.license.deployment_type || null,
+        phone: draft.client.phone?.trim() || null,
+        email: draft.client.email?.trim() || null,
+        website: draft.client.website?.trim() || null,
+        manager_owner: draft.client.manager_owner?.trim() || null,
+        is_premium: !!draft.client.is_premium,
         status: draft.client.status || "Active",
         address: draft.client.address || null,
         observations: [draft.client.vat ? `VAT: ${draft.client.vat}` : "", draft.client.notes].filter(Boolean).join("\n") || null,
@@ -195,7 +211,6 @@ export default function ClientOnboardingWizard() {
           is_primary: ct.is_primary,
         }));
       if (contactsPayload.length) {
-        // Ensure only one primary
         let primarySet = false;
         contactsPayload.forEach(c => {
           if (c.is_primary && !primarySet) { primarySet = true; }
@@ -206,24 +221,28 @@ export default function ClientOnboardingWizard() {
         if (ctErr) throw ctErr;
       }
 
-      // 3. License
-      const product = draft.license.variant
-        ? `${draft.license.family} ${draft.license.variant}`
-        : draft.license.family || null;
+      // 3. License — populate every field expected by the Licensing tab & Commercial Intelligence
       const { data: license, error: lErr } = await supabase.from("licenses").insert({
         client_id: client.id,
         product,
+        edition: variant || null,
         version: draft.license.version || null,
         deployment_type: draft.license.deployment_type || null,
+        database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
         web_accesses: draft.license.web_accesses || 0,
+        num_users: (draft.license.backoffice_users || 0) + (draft.license.web_accesses || 0),
+        api_access: !!draft.license.api_access,
         sat_active: draft.contract.sat_active,
         sat_start_date: draft.contract.sat_start_date || null,
         sat_end_date: draft.contract.sat_end_date || null,
         license_start_date: draft.contract.start_date || null,
         license_end_date: draft.contract.renewal_date || null,
+        license_status: "active",
         currency: draft.contract.currency,
         billing_frequency: draft.contract.billing_frequency,
+        periodicity: draft.contract.billing_frequency,
+        contract_value: draft.contract.contract_value || 0,
         recurring_contract_value: draft.contract.contract_value || 0,
       } as any).select().single();
       if (lErr) throw lErr;
@@ -418,6 +437,11 @@ export default function ClientOnboardingWizard() {
                   </Select>
                 </div>
                 <div><Label>VAT</Label><Input value={draft.client.vat} onChange={e => updClient({ vat: e.target.value })} /></div>
+                <div><Label>Phone</Label><Input value={draft.client.phone} onChange={e => updClient({ phone: e.target.value })} /></div>
+                <div><Label>Email</Label><Input type="email" value={draft.client.email} onChange={e => updClient({ email: e.target.value })} /></div>
+                <div><Label>Website</Label><Input value={draft.client.website} onChange={e => updClient({ website: e.target.value })} placeholder="https://" /></div>
+                <div><Label>Owner / Account Manager</Label><Input value={draft.client.manager_owner} onChange={e => updClient({ manager_owner: e.target.value })} placeholder="e.g. Jane Doe" /></div>
+                <div className="flex items-end gap-2"><Switch checked={draft.client.is_premium} onCheckedChange={v => updClient({ is_premium: v })} /><Label>Premium client</Label></div>
                 <div className="col-span-2"><Label>Address</Label><Input value={draft.client.address} onChange={e => updClient({ address: e.target.value })} /></div>
                 <div className="col-span-2"><Label>Internal Notes</Label><Textarea rows={2} value={draft.client.notes} onChange={e => updClient({ notes: e.target.value })} /></div>
               </div>
@@ -513,6 +537,7 @@ export default function ClientOnboardingWizard() {
                 <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder="e.g. 7.5" /></div>
                 <div><Label>Business Objects (Backoffice users)</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
                 <div><Label>Web Users</Label><Input type="number" min={0} value={draft.license.web_accesses} onChange={e => updLicense({ web_accesses: Number(e.target.value) })} /></div>
+                <div className="flex items-end gap-2"><Switch checked={draft.license.api_access} onCheckedChange={v => updLicense({ api_access: v })} /><Label>API access enabled</Label></div>
               </div>
 
               <div>

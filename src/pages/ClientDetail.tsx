@@ -897,7 +897,9 @@ export default function ClientDetail() {
             client={client}
             ownerName={client.manager_owner || client.account_manager}
             nextRenewalDate={renewalEndDate}
+            onEdit={startEditClient}
           />
+          {client?.id && <ContactsCard clientId={client.id} />}
           {client?.id && (
             <CommercialIntelligenceDashboard
               clientId={client.id}
@@ -907,7 +909,6 @@ export default function ClientDetail() {
               billing={(primaryContract as any)?.billing_frequency || null}
             />
           )}
-          {client?.id && <ContactsCard clientId={client.id} />}
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
@@ -1253,6 +1254,38 @@ export default function ClientDetail() {
       </Tabs>
 
       {/* ═══════════════════ DIALOGS ═══════════════════ */}
+      {/* Edit Client */}
+      <Dialog open={editingClient} onOpenChange={setEditingClient}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Edit Client</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div><Label className="text-xs">Commercial Name *</Label><Input value={clientForm.commercial_name || ""} onChange={e => setClientForm(f => ({...f, commercial_name: e.target.value}))} /></div>
+            <div><Label className="text-xs">Short Name</Label><Input value={clientForm.short_name || ""} onChange={e => setClientForm(f => ({...f, short_name: e.target.value}))} /></div>
+            <div><Label className="text-xs">Phone</Label><Input value={clientForm.phone || ""} onChange={e => setClientForm(f => ({...f, phone: e.target.value}))} /></div>
+            <div><Label className="text-xs">Email</Label><Input type="email" value={clientForm.email || ""} onChange={e => setClientForm(f => ({...f, email: e.target.value}))} /></div>
+            <div><Label className="text-xs">Website</Label><Input value={clientForm.website || ""} onChange={e => setClientForm(f => ({...f, website: e.target.value}))} /></div>
+            <div><Label className="text-xs">Owner / Manager</Label><Input value={clientForm.manager_owner || ""} onChange={e => setClientForm(f => ({...f, manager_owner: e.target.value}))} /></div>
+            <div><Label className="text-xs">Country</Label><CountryCombobox value={clientForm.country || ""} onChange={v => setClientForm(f => ({...f, country: v}))} /></div>
+            <div><Label className="text-xs">Sector</Label><SectorSelect value={clientForm.sector || ""} onChange={v => setClientForm(f => ({...f, sector: v}))} /></div>
+            <div><Label className="text-xs">Status</Label>
+              <Select value={clientForm.status || "Active"} onValueChange={v => setClientForm(f => ({...f, status: v}))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end gap-2"><Switch checked={!!clientForm.is_premium} onCheckedChange={v => setClientForm(f => ({...f, is_premium: v}))} /><Label className="text-xs">Premium</Label></div>
+            <div className="col-span-2"><Label className="text-xs">Address</Label><Input value={clientForm.address || ""} onChange={e => setClientForm(f => ({...f, address: e.target.value}))} /></div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setEditingClient(false)}>Cancel</Button>
+            <Button onClick={saveClient} disabled={updateClient.isPending}>{updateClient.isPending ? "Saving..." : "Save"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Contact */}
       <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
         <DialogContent className="max-w-md">

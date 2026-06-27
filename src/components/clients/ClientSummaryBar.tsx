@@ -7,6 +7,7 @@ interface Props {
   client: any;
   ownerName?: string | null;
   nextRenewalDate?: string | null;
+  onEdit?: () => void;
 }
 
 function fmtDate(d?: string | null) {

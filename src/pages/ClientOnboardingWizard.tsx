@@ -20,8 +20,24 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartners } from "@/hooks/usePartners";
+import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+
+// Structured contact roles, with optional free-text fallback ("Other")
+const CONTACT_ROLES = [
+  "CEO / Owner",
+  "CFO / Finance Manager",
+  "CIO / IT Director",
+  "IT Manager",
+  "Maintenance Manager",
+  "Operations Manager",
+  "Procurement Manager",
+  "Project Manager",
+  "Technical Lead",
+  "End User",
+  "Other",
+] as const;
 
 // ─────────────────────────────────────────────────────────────
 // Types & draft

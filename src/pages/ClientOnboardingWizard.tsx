@@ -178,8 +178,7 @@ export default function ClientOnboardingWizard() {
         license_type: draft.license.variant ? `${draft.license.family} ${draft.license.variant}` : null,
         status: draft.client.status || "Active",
         address: draft.client.address || null,
-        vat_number: draft.client.vat || null,
-        internal_notes: draft.client.notes || null,
+        observations: [draft.client.vat ? `VAT: ${draft.client.vat}` : "", draft.client.notes].filter(Boolean).join("\n") || null,
       } as any).select().single();
       if (cErr) throw cErr;
 

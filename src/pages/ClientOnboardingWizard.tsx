@@ -115,7 +115,7 @@ function useCatalog(table: "modules_catalog" | "plugins_catalog") {
     queryFn: async () => {
       const { data, error } = await supabase.from(table as any).select("id, code, name, category").eq("is_active", true).order("name");
       if (error) throw error;
-      return (data || []) as { id: string; code: string; name: string; category: string | null }[];
+      return ((data || []) as unknown) as { id: string; code: string; name: string; category: string | null }[];
     },
   });
 }

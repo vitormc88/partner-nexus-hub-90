@@ -43,12 +43,15 @@ type Draft = {
     client_code: string; commercial_name: string; short_name: string;
     country: string; sector: string; partner_id: string;
     status: string; industry: string; address: string; vat: string; notes: string;
+    phone: string; email: string; website: string;
+    manager_owner: string; is_premium: boolean;
   };
   contacts: ContactForm[];
   license: {
     family: Family; variant: string;
     deployment_type: string; version: string;
     backoffice_users: number; web_accesses: number;
+    api_access: boolean;
     module_ids: string[]; plugin_ids: string[];
   };
   contract: {
@@ -69,11 +72,13 @@ const initialDraft: Draft = {
   client: {
     client_code: "", commercial_name: "", short_name: "", country: "", sector: "",
     partner_id: "", status: "Active", industry: "", address: "", vat: "", notes: "",
+    phone: "", email: "", website: "", manager_owner: "", is_premium: false,
   },
   contacts: [{ ...emptyContact }],
   license: {
     family: "", variant: "", deployment_type: "SaaS", version: "",
-    backoffice_users: 0, web_accesses: 0, module_ids: [], plugin_ids: [],
+    backoffice_users: 0, web_accesses: 0, api_access: false,
+    module_ids: [], plugin_ids: [],
   },
   contract: {
     contract_value: 0, currency: "EUR", billing_frequency: "Annual",

@@ -276,15 +276,18 @@ export default function PartnerDetail() {
   };
 
   const openEditRenewal = (r: any) => {
-    setEditingRenewalId(r.id);
+    // r may be a consolidated commercial renewal; edit the underlying explicit row.
+    const explicit = (Array.isArray(r._components) ? r._components : [r])
+      .find((c: any) => !String(c.id || "").startsWith("derived-")) || r;
+    setEditingRenewalId(explicit.id);
     setRenewalForm({
-      client_id: r.client_id || "",
-      renewal_type: r.renewal_type || "License",
-      renewal_date: r.renewal_date || "",
-      estimated_value: Number(r.estimated_value || 0),
-      priority: r.priority || "Medium",
-      status: r.status || "Upcoming",
-      notes: r.notes || "",
+      client_id: explicit.client_id || r.client_id || "",
+      renewal_type: explicit.renewal_type && explicit.renewal_type !== "Commercial" ? explicit.renewal_type : "License",
+      renewal_date: explicit.renewal_date || r.renewal_date || "",
+      estimated_value: Number(explicit.estimated_value || r.estimated_value || 0),
+      priority: explicit.priority || r.priority || "Medium",
+      status: explicit.status || r.status || "Upcoming",
+      notes: explicit.notes || r.notes || "",
     });
     setShowAddRenewal(true);
   };

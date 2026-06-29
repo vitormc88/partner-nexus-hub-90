@@ -154,7 +154,76 @@ export function useRenewals(filters?: { status?: string }) {
       // Merge explicit + derived, sort by renewal_date
       const all = [...explicit, ...derived];
       all.sort((a: any, b: any) => (a.renewal_date || "").localeCompare(b.renewal_date || ""));
-      return all;
+
+      // --- Consolidate: one commercial renewal per client ---
+      // License / Contract / S&AT are implementation details of a single commercial
+      // renewal. Group every underlying record by client_id and emit a single row.
+      const SERVICE_LABEL: Record<string, string> = {
+        License: "License",
+        Contract: "Contract",
+        SAT: "Support & Maintenance",
+      };
+      const isClosed = (s?: string) => s === "Completed" || s === "Lost" || s === "Won";
+
+      const byClient = new Map<string, any[]>();
+      const orphans: any[] = []; // rows without client_id stay as-is
+      for (const r of all) {
+        if (!r.client_id) { orphans.push(r); continue; }
+        const arr = byClient.get(r.client_id) || [];
+        arr.push(r);
+        byClient.set(r.client_id, arr);
+      }
+
+      const consolidated: any[] = [];
+      for (const [clientId, components] of byClient.entries()) {
+        // Pick the primary component: earliest open renewal_date; else latest closed.
+        const open = components.filter((c) => !isClosed(c.status));
+        const closed = components.filter((c) => isClosed(c.status));
+        const pickFrom = open.length ? open : closed;
+        const sorted = [...pickFrom].sort((a, b) => {
+          const da = a.renewal_date || "";
+          const db = b.renewal_date || "";
+          return open.length ? da.localeCompare(db) : db.localeCompare(da);
+        });
+        const primary = sorted[0];
+
+        // Prefer an explicit (non-derived) row for ownership / notes / id.
+        const explicitRow = components.find((c) => !String(c.id || "").startsWith("derived-"));
+        const base = explicitRow || primary;
+
+        // Highest estimated value across all components (most relevant commercial figure).
+        const value = components.reduce(
+          (max, c) => Math.max(max, Number(c.estimated_value || 0)),
+          0,
+        );
+
+        // Included services list, deduped, ordered License → Contract → S&AT.
+        const services: string[] = [];
+        for (const k of ["License", "Contract", "SAT"]) {
+          if (components.some((c) => c.renewal_type === k)) services.push(SERVICE_LABEL[k]);
+        }
+
+        consolidated.push({
+          ...base,
+          id: base.id,
+          client_id: clientId,
+          partner_id: base.partner_id ?? primary.partner_id ?? null,
+          renewal_date: primary.renewal_date,
+          estimated_value: value || null,
+          status: primary.status,
+          priority: primary.priority,
+          assigned_owner: explicitRow?.assigned_owner ?? primary.assigned_owner ?? null,
+          notes: explicitRow?.notes ?? primary.notes ?? null,
+          // Commercial renewal metadata
+          renewal_type: "Commercial",
+          included_services: services,
+          _components: components,
+        });
+      }
+
+      const result = [...consolidated, ...orphans];
+      result.sort((a, b) => (a.renewal_date || "").localeCompare(b.renewal_date || ""));
+      return result;
     },
   });
 }

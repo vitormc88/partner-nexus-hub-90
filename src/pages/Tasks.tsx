@@ -220,33 +220,35 @@ function Row({ label, value, tone }: { label: string; value: any; tone?: string 
 
 function TeamWorkloadCard() {
   const { data } = useTeamWorkload();
+  const { data: assignable } = useAssignableUsers();
   if (!data) return null;
+  if ((assignable?.length ?? 0) < 4) return null;
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Team Distribution</CardTitle>
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">Team Distribution</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm max-h-72 overflow-y-auto pr-1">
+      <CardContent className="px-4 pb-3">
+        <div className="space-y-1.5 text-sm max-h-60 overflow-y-auto pr-1">
           {data.slice(0, 12).map((m) => {
             const total = m.open || 1;
             const overduePct = Math.round((m.overdue / total) * 100);
             return (
-              <div key={m.id} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="truncate">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{m.open} open · {m.completed} done</span>
+              <div key={m.id} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs">{m.name}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{m.open} open · {m.completed} done</span>
                 </div>
-                <div className="h-1.5 bg-muted rounded overflow-hidden">
+                <div className="h-1 bg-muted rounded overflow-hidden">
                   <div className="h-full bg-destructive" style={{ width: `${overduePct}%` }} />
                 </div>
                 {m.overdue > 0 && (
-                  <div className="text-[11px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
+                  <div className="text-[10px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
                 )}
               </div>
             );
           })}
-          {data.length === 0 && <div className="text-muted-foreground">No team activity yet.</div>}
+          {data.length === 0 && <div className="text-muted-foreground text-xs">No team activity yet.</div>}
         </div>
       </CardContent>
     </Card>

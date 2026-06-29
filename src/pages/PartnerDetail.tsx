@@ -1079,15 +1079,15 @@ export default function PartnerDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Renewal Dialog */}
-      <Dialog open={showAddRenewal} onOpenChange={setShowAddRenewal}>
+      {/* Add / Edit Renewal Dialog */}
+      <Dialog open={showAddRenewal} onOpenChange={(o) => { setShowAddRenewal(o); if (!o) { setEditingRenewalId(null); resetRenewalForm(); } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Renewal</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingRenewalId && !editingRenewalId.startsWith("derived-") ? "Edit Renewal" : "Add Renewal"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Client *</Label>
               <Select value={renewalForm.client_id} onValueChange={v => setRenewalForm(f => ({ ...f, client_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select client..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={clients.length === 0 ? "No clients for this partner" : "Select client..."} /></SelectTrigger>
                 <SelectContent>
                   {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.commercial_name}</SelectItem>)}
                 </SelectContent>
@@ -1099,9 +1099,14 @@ export default function PartnerDetail() {
                 <Select value={renewalForm.renewal_type} onValueChange={v => setRenewalForm(f => ({ ...f, renewal_type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Contract">Contract</SelectItem>
                     <SelectItem value="License">License</SelectItem>
-                    <SelectItem value="SAT">SAT</SelectItem>
+                    <SelectItem value="SAT">S&AT</SelectItem>
+                    <SelectItem value="Business KeepIT Renewal">Business KeepIT Renewal</SelectItem>
+                    <SelectItem value="Business UseIT Renewal">Business UseIT Renewal</SelectItem>
+                    <SelectItem value="Professional Renewal">Professional Renewal</SelectItem>
                     <SelectItem value="Hosting">Hosting</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1113,21 +1118,54 @@ export default function PartnerDetail() {
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Renewal Date *</Label><Input type="date" value={renewalForm.renewal_date} onChange={e => setRenewalForm(f => ({ ...f, renewal_date: e.target.value }))} /></div>
+              <div>
+                <Label>Renewal Date *</Label>
+                <Input type="date" value={renewalForm.renewal_date} onChange={e => {
+                  const v = e.target.value;
+                  setRenewalForm(f => {
+                    // Auto-suggest status from date when user hasn't manually picked Completed/Lost
+                    const keepManual = f.status === "Completed" || f.status === "Lost";
+                    if (keepManual || !v) return { ...f, renewal_date: v };
+                    const days = Math.ceil((new Date(v).getTime() - Date.now()) / 86400000);
+                    const suggested = days < 0 ? "Overdue" : days <= 30 ? "Due Soon" : "Upcoming";
+                    return { ...f, renewal_date: v, status: suggested };
+                  });
+                }} />
+              </div>
               <div><Label>Estimated Value</Label><Input type="number" value={renewalForm.estimated_value} onChange={e => setRenewalForm(f => ({ ...f, estimated_value: parseFloat(e.target.value) || 0 }))} /></div>
             </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={renewalForm.status} onValueChange={v => setRenewalForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Upcoming">Upcoming</SelectItem>
+                  <SelectItem value="Due Soon">Due Soon</SelectItem>
+                  <SelectItem value="Overdue">Overdue</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Notes / Conditions</Label>
+              <Textarea rows={3} value={renewalForm.notes} onChange={e => setRenewalForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes about this renewal..." />
+            </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddRenewal(false)}>Cancel</Button>
-              <Button onClick={handleAddRenewal}>Add Renewal</Button>
+              <Button variant="outline" onClick={() => { setShowAddRenewal(false); setEditingRenewalId(null); resetRenewalForm(); }}>Cancel</Button>
+              <Button onClick={handleSaveRenewal}>{editingRenewalId && !editingRenewalId.startsWith("derived-") ? "Save Changes" : "Add Renewal"}</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
 
       <CreateLeadDialog
         open={showCreateLead}

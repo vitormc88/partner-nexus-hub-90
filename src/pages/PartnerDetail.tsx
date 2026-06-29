@@ -79,7 +79,8 @@ export default function PartnerDetail() {
   const [showAddCert, setShowAddCert] = useState(false);
   const [certForm, setCertForm] = useState({ user_name: "", certification_name: "", certification_type: "Sales", certification_level: 1, issue_date: "", expiry_date: "", file_url: "" });
   const [showAddRenewal, setShowAddRenewal] = useState(false);
-  const [renewalForm, setRenewalForm] = useState({ client_id: "", renewal_type: "License", renewal_date: "", estimated_value: 0, priority: "Medium" });
+  const [editingRenewalId, setEditingRenewalId] = useState<string | null>(null);
+  const [renewalForm, setRenewalForm] = useState({ client_id: "", renewal_type: "License", renewal_date: "", estimated_value: 0, priority: "Medium", status: "Upcoming", notes: "" });
   const [clientForm, setClientForm] = useState({ commercial_name: "", country: "", sector: "", email: "", phone: "" });
   const [saving, setSaving] = useState(false);
 

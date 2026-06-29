@@ -165,41 +165,26 @@ function TodaysFocus() {
   const { data } = useTodaysFocus();
   const items = [
     { label: "Open", value: data?.total ?? 0, tone: "text-foreground" },
-    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive", emphasize: true },
+    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive" },
     { label: "Due today", value: data?.dueToday ?? 0, tone: "text-warning-foreground" },
     { label: "Revenue at stake", value: formatEur(data?.revenue ?? 0), tone: "text-foreground" },
     { label: "Time budget", value: formatDuration(data?.estMinutes ?? 0), tone: "text-foreground" },
   ];
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
-          Today's Focus
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-1">
-        <div className="grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border/60">
+      <div className="flex items-center gap-4 px-4 py-2.5 overflow-x-auto">
+        <span className="text-[10px] font-semibold text-muted-foreground tracking-[0.12em] uppercase shrink-0">
+          Today
+        </span>
+        <div className="flex items-center gap-5 flex-1">
           {items.map((it, i) => (
-            <div
-              key={it.label}
-              className={cn(
-                "flex flex-col justify-center px-0 md:px-5 py-2 md:py-0",
-                i === 0 && "md:pl-0",
-                i === items.length - 1 && "md:pr-0",
-              )}
-            >
-              <div className={cn(
-                "font-semibold tabular-nums leading-tight tracking-tight",
-                it.emphasize ? "text-2xl" : "text-xl",
-                it.tone,
-              )}>
-                {it.value}
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wide">{it.label}</div>
+            <div key={it.label} className={cn("flex items-baseline gap-2 shrink-0", i > 0 && "pl-5 border-l border-border/60")}>
+              <span className={cn("font-semibold tabular-nums text-base leading-none", it.tone)}>{it.value}</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">{it.label}</span>
             </div>
           ))}
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }
@@ -208,16 +193,17 @@ function TodaysFocus() {
 
 function WorkloadCard() {
   const { data } = useWorkload();
+  const { data: today } = useTodaysFocus();
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">My Workload</CardTitle>
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">My Workload</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
-        <Row label="Avg completion" value={`${(data?.avgCompletionHours ?? 0).toFixed(1)}h`} />
+      <CardContent className="space-y-1.5 text-sm px-4 pb-3">
         <Row label="Open" value={data?.openCount ?? 0} />
+        <Row label="Due today" value={today?.dueToday ?? 0} />
         <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-destructive font-medium" : ""} />
+        <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
       </CardContent>
     </Card>
   );
@@ -234,33 +220,35 @@ function Row({ label, value, tone }: { label: string; value: any; tone?: string 
 
 function TeamWorkloadCard() {
   const { data } = useTeamWorkload();
+  const { data: assignable } = useAssignableUsers();
   if (!data) return null;
+  if ((assignable?.length ?? 0) < 4) return null;
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">Team Distribution</CardTitle>
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">Team Distribution</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm max-h-72 overflow-y-auto pr-1">
+      <CardContent className="px-4 pb-3">
+        <div className="space-y-1.5 text-sm max-h-60 overflow-y-auto pr-1">
           {data.slice(0, 12).map((m) => {
             const total = m.open || 1;
             const overduePct = Math.round((m.overdue / total) * 100);
             return (
-              <div key={m.id} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="truncate">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{m.open} open · {m.completed} done</span>
+              <div key={m.id} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs">{m.name}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{m.open} open · {m.completed} done</span>
                 </div>
-                <div className="h-1.5 bg-muted rounded overflow-hidden">
+                <div className="h-1 bg-muted rounded overflow-hidden">
                   <div className="h-full bg-destructive" style={{ width: `${overduePct}%` }} />
                 </div>
                 {m.overdue > 0 && (
-                  <div className="text-[11px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
+                  <div className="text-[10px] text-destructive">{m.overdue} overdue · {m.critical} critical</div>
                 )}
               </div>
             );
           })}
-          {data.length === 0 && <div className="text-muted-foreground">No team activity yet.</div>}
+          {data.length === 0 && <div className="text-muted-foreground text-xs">No team activity yet.</div>}
         </div>
       </CardContent>
     </Card>
@@ -1034,79 +1022,69 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
 
   return (
     <Card>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between gap-3 space-y-0">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 border-b">
         <div className="flex items-center gap-2">
           <Target className="h-3.5 w-3.5 text-muted-foreground" />
-          <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
             Priority Focus
-          </CardTitle>
+          </span>
+          <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border", toneClass)}>
+            <Compass className="h-2.5 w-2.5" />
+            {mode.label}
+          </span>
         </div>
-        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border", toneClass)}>
-          <Compass className="h-3 w-3" />
-          {mode.label}
-        </span>
-      </CardHeader>
-      <CardContent className="pt-1">
-        <ol className="divide-y divide-border/60">
-          {top.map(({ task, reason }, i) => {
-            const due = formatDue(task.due_date);
-            const Body = (
-              <div className="flex items-start gap-3 py-2.5 group">
-                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground w-4 mt-0.5">{i + 1}</span>
-                <span
-                  aria-hidden
-                  className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", PRIORITY_ACCENT[task.priority])}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-foreground truncate">{task.title}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
-                    {task.company_name && (
-                      <span className="font-medium text-foreground/80 truncate max-w-[180px]">{task.company_name}</span>
-                    )}
-                    {task.company_name && <span className="text-border">·</span>}
-                    <span>{TYPE_META[task.task_type]?.label ?? SOURCE_LABEL[task.source]}</span>
+        {open.length > 3 && (
+          <span className="text-[11px] text-muted-foreground">{open.length - 3} more in list</span>
+        )}
+      </div>
+      <ol className="divide-y divide-border/60">
+        {top.map(({ task }, i) => {
+          const due = formatDue(task.due_date);
+          const Body = (
+            <div className="flex items-center gap-2.5 px-4 py-1.5 group">
+              <span
+                aria-hidden
+                className={cn("h-1.5 w-1.5 rounded-full shrink-0", PRIORITY_ACCENT[task.priority])}
+              />
+              <span className="text-sm font-medium text-foreground truncate flex-1 min-w-0">{task.title}</span>
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 shrink-0 tabular-nums">
+                {task.company_name && (
+                  <>
+                    <span className="font-medium text-foreground/80 truncate max-w-[140px]">{task.company_name}</span>
                     <span className="text-border">·</span>
-                    <span>{RELATED_TYPE_LABEL[task.related_type ?? ""] ?? SOURCE_LABEL[task.source]}</span>
-                    {task.revenue_impact > 0 && (
-                      <>
-                        <span className="text-border">·</span>
-                        <span className="tabular-nums text-foreground/80">
-                          {formatEur(task.revenue_impact)}
-                          {task.source === "renewal" ? " ARR at risk" : ""}
-                        </span>
-                      </>
-                    )}
-
-                    <span className="text-border">·</span>
-                    <span className={cn(
-                      "tabular-nums",
-                      due.tone === "danger" && "text-destructive font-medium",
-                      due.tone === "warn" && "text-warning-foreground font-medium",
-                    )}>
-                      {due.label}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground/80 mt-1 italic">{reason}</div>
-                </div>
-                {task.related_route && (
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </>
                 )}
+                <span>{RELATED_TYPE_LABEL[task.related_type ?? ""] ?? SOURCE_LABEL[task.source]}</span>
+                {task.revenue_impact > 0 && (
+                  <>
+                    <span className="text-border">·</span>
+                    <span className="text-foreground/80">{formatEur(task.revenue_impact)}</span>
+                  </>
+                )}
+                <span className="text-border">·</span>
+                <span className={cn(
+                  due.tone === "danger" && "text-destructive font-medium",
+                  due.tone === "warn" && "text-warning-foreground font-medium",
+                )}>
+                  {due.label}
+                </span>
               </div>
-            );
-            return (
-              <li key={task.id}>
-                {task.related_route ? (
-                  <Link to={task.related_route} className="block hover:bg-muted/40 -mx-2 px-2 rounded-sm transition-colors">
-                    {Body}
-                  </Link>
-                ) : Body}
-              </li>
-            );
-          })}
-        </ol>
-      </CardContent>
+              {task.related_route && (
+                <ArrowRight className="h-3 w-3 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              )}
+            </div>
+          );
+          return (
+            <li key={task.id}>
+              {task.related_route ? (
+                <Link to={task.related_route} className="block hover:bg-muted/40 transition-colors">
+                  {Body}
+                </Link>
+              ) : Body}
+            </li>
+          );
+        })}
+      </ol>
     </Card>
   );
 }
@@ -1152,18 +1130,18 @@ function WorkGuidance({ tasks }: { tasks: UnifiedTask[] }) {
     if (out.length === 0) {
       out.push("Workload is balanced. Focus on closing critical items.");
     }
-    return out.slice(0, 3);
+    return out.slice(0, 2);
   }, [tasks]);
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase flex items-center gap-2">
-          <Compass className="h-3.5 w-3.5" />
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase flex items-center gap-2">
+          <Compass className="h-3 w-3" />
           Work Guidance
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1.5 text-sm text-foreground/80 leading-snug">
+      <CardContent className="space-y-1 text-xs text-foreground/80 leading-snug px-4 pb-3">
         {lines.map((l, i) => (
           <p key={i}>{l}</p>
         ))}
@@ -1305,7 +1283,7 @@ export default function Tasks() {
 
   return (
     <TooltipProvider delayDuration={250}>
-    <div className="container mx-auto max-w-[1400px] px-4 py-6 space-y-6">
+    <div className="container mx-auto max-w-[1400px] px-4 py-4 space-y-3">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Tasks</h1>
@@ -1333,9 +1311,9 @@ export default function Tasks() {
       <TodaysFocus />
       {!isLoading && tasks.length > 0 && view !== "completed" && <PriorityFocus tasks={tasks} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-3">
           <Card className="overflow-hidden">
             {/* Unified toolbar: tabs + filters attached to list */}
             <div className="border-b bg-muted/20">
@@ -1560,7 +1538,7 @@ export default function Tasks() {
                   )}
                 </div>
               ) : (
-                <div className="relative max-h-[70vh] overflow-y-auto">
+                <div className="relative min-h-[60vh] max-h-[calc(100vh-220px)] overflow-y-auto">
                   {groups.map(([label, items]) => (
                     <TaskGroup
                       key={label}
@@ -1581,7 +1559,7 @@ export default function Tasks() {
 
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {!isLoading && <WorkGuidance tasks={tasks} />}
           <WorkloadCard />
           {isManager && <TeamWorkloadCard />}

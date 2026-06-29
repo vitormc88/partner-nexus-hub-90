@@ -479,7 +479,7 @@ export function useUpdateManualTask() {
       }
       const { data, error } = await supabase
         .from("manual_tasks")
-        .update(patch)
+        .update(patch as any)
         .eq("id", id)
         .select()
         .single();

@@ -31,7 +31,6 @@ export default function Renewals() {
   const { data: clients = [] } = useClients();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -61,11 +60,10 @@ export default function Renewals() {
     return enriched.filter(r => {
       if (search && !r.clientName.toLowerCase().includes(search.toLowerCase()) && !r.clientCode.toLowerCase().includes(search.toLowerCase())) return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (typeFilter !== "all" && r.renewal_type !== typeFilter) return false;
       if (partnerFilter !== "all" && r.partner_id !== partnerFilter) return false;
       return true;
     });
-  }, [enriched, search, statusFilter, typeFilter, partnerFilter]);
+  }, [enriched, search, statusFilter, partnerFilter]);
 
   const stats = useMemo(() => ({
     total: enriched.length,
@@ -83,13 +81,13 @@ export default function Renewals() {
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Renewals Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track and manage all license, SAT and contract renewals</p>
+          <p className="text-sm text-muted-foreground mt-1">One commercial renewal per client — License, Contract and Support are managed together</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 animate-reveal-up stagger-1">
         {[
-          { label: "Total", value: stats.total, color: "text-foreground" },
+          { label: "Clients", value: stats.total, color: "text-foreground" },
           { label: "Due Soon", value: stats.dueSoon, color: "text-amber-600" },
           { label: "In Progress", value: stats.inProgress, color: "text-purple-600" },
           { label: "At Risk", value: stats.atRisk, color: "text-destructive" },
@@ -115,15 +113,6 @@ export default function Renewals() {
             {["Upcoming", "Due Soon", "In Negotiation", "Quoted", "Won", "Lost", "Expired"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="License">License</SelectItem>
-            <SelectItem value="SAT">SAT</SelectItem>
-            <SelectItem value="Contract">Contract</SelectItem>
-          </SelectContent>
-        </Select>
         <Select value={partnerFilter} onValueChange={setPartnerFilter}>
           <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Partner" /></SelectTrigger>
           <SelectContent>
@@ -140,8 +129,7 @@ export default function Renewals() {
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal Date</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
               <th className="text-right px-4 py-3 font-medium text-muted-foreground">Value</th>
@@ -149,15 +137,14 @@ export default function Renewals() {
             </tr></thead>
             <tbody className="divide-y">
               {isLoading ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setSelectedId(r.id)}>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>
                   <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>
-                  <td className="px-4 py-3"><Badge variant="outline" className="text-[11px]">{r.renewal_type}</Badge></td>
                   <td className="px-4 py-3 tabular-nums text-xs">{r.renewal_date}</td>
                   <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
@@ -176,7 +163,7 @@ export default function Renewals() {
             <>
               <DialogHeader>
                 <DialogTitle>{detail.clientName}</DialogTitle>
-                <p className="text-sm text-muted-foreground">{detail.renewal_type} Renewal · {detail.clientCode}</p>
+                <p className="text-sm text-muted-foreground">Commercial Renewal · {detail.clientCode}</p>
               </DialogHeader>
               <div className="space-y-4 mt-2">
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -185,8 +172,18 @@ export default function Renewals() {
                   <div><span className="text-muted-foreground">Renewal Date</span><p className="font-medium mt-0.5 tabular-nums">{detail.renewal_date}</p></div>
                   <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
                   <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">€{Number(detail.estimated_value || 0).toLocaleString()}</p></div>
-                  <div><span className="text-muted-foreground">Owner</span><p className="font-medium mt-0.5">{detail.assigned_owner}</p></div>
+                  <div><span className="text-muted-foreground">Owner</span><p className="font-medium mt-0.5">{detail.assigned_owner || "—"}</p></div>
                 </div>
+                {detail.included_services?.length > 0 && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Includes</p>
+                    <ul className="text-sm text-foreground space-y-1">
+                      {detail.included_services.map((s: string) => (
+                        <li key={s} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {detail.notes && (
                   <div className="border-t pt-3"><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm text-muted-foreground">{detail.notes}</p></div>
                 )}

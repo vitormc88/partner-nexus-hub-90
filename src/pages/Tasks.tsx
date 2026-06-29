@@ -165,41 +165,26 @@ function TodaysFocus() {
   const { data } = useTodaysFocus();
   const items = [
     { label: "Open", value: data?.total ?? 0, tone: "text-foreground" },
-    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive", emphasize: true },
+    { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive" },
     { label: "Due today", value: data?.dueToday ?? 0, tone: "text-warning-foreground" },
     { label: "Revenue at stake", value: formatEur(data?.revenue ?? 0), tone: "text-foreground" },
     { label: "Time budget", value: formatDuration(data?.estMinutes ?? 0), tone: "text-foreground" },
   ];
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
-          Today's Focus
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-1">
-        <div className="grid grid-cols-2 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border/60">
+      <div className="flex items-center gap-4 px-4 py-2.5 overflow-x-auto">
+        <span className="text-[10px] font-semibold text-muted-foreground tracking-[0.12em] uppercase shrink-0">
+          Today
+        </span>
+        <div className="flex items-center gap-5 flex-1">
           {items.map((it, i) => (
-            <div
-              key={it.label}
-              className={cn(
-                "flex flex-col justify-center px-0 md:px-5 py-2 md:py-0",
-                i === 0 && "md:pl-0",
-                i === items.length - 1 && "md:pr-0",
-              )}
-            >
-              <div className={cn(
-                "font-semibold tabular-nums leading-tight tracking-tight",
-                it.emphasize ? "text-2xl" : "text-xl",
-                it.tone,
-              )}>
-                {it.value}
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-1 uppercase tracking-wide">{it.label}</div>
+            <div key={it.label} className={cn("flex items-baseline gap-2 shrink-0", i > 0 && "pl-5 border-l border-border/60")}>
+              <span className={cn("font-semibold tabular-nums text-base leading-none", it.tone)}>{it.value}</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">{it.label}</span>
             </div>
           ))}
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }

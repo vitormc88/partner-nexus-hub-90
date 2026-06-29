@@ -256,28 +256,38 @@ export default function PartnerDetail() {
 
   const updateRenewalStatus = async (renewal: any, status: string) => {
     try {
-      let targetId: string | null = renewal.id;
-      if (typeof targetId === "string" && targetId.startsWith("derived-")) {
-        targetId = await materializeDerivedRenewal(renewal);
+      // Consolidated commercial renewal — apply status to every underlying component
+      // (License / Contract / S&AT), materializing derived rows as needed.
+      const components: any[] = Array.isArray(renewal._components) && renewal._components.length
+        ? renewal._components
+        : [renewal];
+      for (const c of components) {
+        let targetId: string | null = c.id;
+        if (typeof targetId === "string" && targetId.startsWith("derived-")) {
+          targetId = await materializeDerivedRenewal(c);
+        }
+        if (!targetId) continue;
+        const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
+        if (error) throw error;
       }
-      if (!targetId) throw new Error("Could not resolve renewal");
-      const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
-      if (error) throw error;
       toast.success(status === "Completed" ? "Renewal marked completed" : "Renewal updated");
       queryClient.invalidateQueries({ queryKey: ["renewals"] });
     } catch (e: any) { toast.error(e?.message || "Failed to update renewal"); }
   };
 
   const openEditRenewal = (r: any) => {
-    setEditingRenewalId(r.id);
+    // r may be a consolidated commercial renewal; edit the underlying explicit row.
+    const explicit = (Array.isArray(r._components) ? r._components : [r])
+      .find((c: any) => !String(c.id || "").startsWith("derived-")) || r;
+    setEditingRenewalId(explicit.id);
     setRenewalForm({
-      client_id: r.client_id || "",
-      renewal_type: r.renewal_type || "License",
-      renewal_date: r.renewal_date || "",
-      estimated_value: Number(r.estimated_value || 0),
-      priority: r.priority || "Medium",
-      status: r.status || "Upcoming",
-      notes: r.notes || "",
+      client_id: explicit.client_id || r.client_id || "",
+      renewal_type: explicit.renewal_type && explicit.renewal_type !== "Commercial" ? explicit.renewal_type : "License",
+      renewal_date: explicit.renewal_date || r.renewal_date || "",
+      estimated_value: Number(explicit.estimated_value || r.estimated_value || 0),
+      priority: explicit.priority || r.priority || "Medium",
+      status: explicit.status || r.status || "Upcoming",
+      notes: explicit.notes || r.notes || "",
     });
     setShowAddRenewal(true);
   };
@@ -774,7 +784,7 @@ export default function PartnerDetail() {
                       <TableHeader>
                         <TableRow className="bg-muted/40 hover:bg-muted/40">
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Client</TableHead>
-                          <TableHead className="h-9 text-xs uppercase tracking-wide">Type</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Includes</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Renewal Date</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide text-right">Days</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Status</TableHead>
@@ -806,7 +816,16 @@ export default function PartnerDetail() {
                                   <span className="text-sm text-muted-foreground">—</span>
                                 )}
                               </TableCell>
-                              <TableCell className="py-2.5"><span className="text-xs text-muted-foreground">{r.renewal_type}</span></TableCell>
+                              <TableCell className="py-2.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {(r.included_services && r.included_services.length > 0
+                                    ? r.included_services
+                                    : [r.renewal_type]
+                                  ).map((s: string) => (
+                                    <span key={s} className="inline-flex items-center rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{s}</span>
+                                  ))}
+                                </div>
+                              </TableCell>
                               <TableCell className="py-2.5 text-sm tabular-nums">{r.renewal_date ? fmt(r.renewal_date) : "—"}</TableCell>
                               <TableCell className={`py-2.5 text-right text-xs tabular-nums ${daysCls}`}>{isCompleted ? "—" : daysLabel}</TableCell>
                               <TableCell className="py-2.5">

@@ -1559,7 +1559,7 @@ export default function Tasks() {
 
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {!isLoading && <WorkGuidance tasks={tasks} />}
           <WorkloadCard />
           {isManager && <TeamWorkloadCard />}

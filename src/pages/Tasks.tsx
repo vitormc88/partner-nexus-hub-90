@@ -193,16 +193,17 @@ function TodaysFocus() {
 
 function WorkloadCard() {
   const { data } = useWorkload();
+  const { data: today } = useTodaysFocus();
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">My Workload</CardTitle>
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">My Workload</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
-        <Row label="Avg completion" value={`${(data?.avgCompletionHours ?? 0).toFixed(1)}h`} />
+      <CardContent className="space-y-1.5 text-sm px-4 pb-3">
         <Row label="Open" value={data?.openCount ?? 0} />
+        <Row label="Due today" value={today?.dueToday ?? 0} />
         <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-destructive font-medium" : ""} />
+        <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
       </CardContent>
     </Card>
   );

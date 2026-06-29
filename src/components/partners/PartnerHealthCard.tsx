@@ -75,7 +75,7 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
           />
         </div>
       </div>
-      {void summary}
+      
 
 
       {/* ── Causal: what's holding the score up ──────────────────── */}

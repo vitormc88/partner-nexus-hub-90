@@ -1130,18 +1130,18 @@ function WorkGuidance({ tasks }: { tasks: UnifiedTask[] }) {
     if (out.length === 0) {
       out.push("Workload is balanced. Focus on closing critical items.");
     }
-    return out.slice(0, 3);
+    return out.slice(0, 2);
   }, [tasks]);
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase flex items-center gap-2">
-          <Compass className="h-3.5 w-3.5" />
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase flex items-center gap-2">
+          <Compass className="h-3 w-3" />
           Work Guidance
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1.5 text-sm text-foreground/80 leading-snug">
+      <CardContent className="space-y-1 text-xs text-foreground/80 leading-snug px-4 pb-3">
         {lines.map((l, i) => (
           <p key={i}>{l}</p>
         ))}

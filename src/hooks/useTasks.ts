@@ -23,7 +23,7 @@ export type TaskType =
   | "manual";
 
 export type TaskPriority = "Critical" | "High" | "Medium" | "Low";
-export type TaskStatus = "open" | "in_progress" | "done" | "snoozed";
+export type TaskStatus = "open" | "in_progress" | "waiting" | "done" | "snoozed";
 
 export type UnifiedTask = {
   id: string;
@@ -34,6 +34,7 @@ export type UnifiedTask = {
   description: string | null;
   company_name: string | null;
   related_entity_id: string | null;
+  related_type: string | null;
   related_route: string | null;
   due_date: string | null;
   owner_user_id: string | null;
@@ -62,7 +63,11 @@ export type TaskFilters = {
   priority?: TaskPriority | "all";
   search?: string;
   ownerId?: string | "all";
+  relatedType?: string | "all";
+  taskType?: string | "all";
+  status?: "all" | "open" | "in_progress" | "waiting";
 };
+
 
 export function useTasks(filters: TaskFilters) {
   const { user, profile, roles } = useAuth();
@@ -104,6 +109,10 @@ export function useTasks(filters: TaskFilters) {
       if (filters.ownerId && filters.ownerId !== "all") q = q.eq("owner_user_id", filters.ownerId);
       if (filters.search) q = q.ilike("title", `%${filters.search}%`);
 
+      if (filters.relatedType && filters.relatedType !== "all") q = q.eq("related_type", filters.relatedType);
+      if (filters.taskType && filters.taskType !== "all") q = q.eq("task_type", filters.taskType);
+      if (filters.status && filters.status !== "all") q = q.eq("status", filters.status);
+
       const { data, error } = await q.order("priority_score", { ascending: false }).order("due_date", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return (data || []) as unknown as UnifiedTask[];
@@ -111,6 +120,7 @@ export function useTasks(filters: TaskFilters) {
     enabled: !!user,
   });
 }
+
 
 export function useTodaysFocus() {
   const { user, profile, roles } = useAuth();
@@ -377,6 +387,67 @@ export function useAssignTask() {
     onSettled: () => qc.invalidateQueries({ queryKey: ["unified_tasks"] }),
   });
 }
+
+/**
+ * Quick inline status change.
+ * Only manual tasks fully support arbitrary statuses (Open / In Progress / Waiting / Completed).
+ * Lead and pipeline tasks accept Open / In Progress / Completed via their legacy `status` column.
+ * Auto-generated tasks (partner action items, renewal/stalled signals) cannot change status here.
+ */
+export function useUpdateTaskStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ task, status }: { task: UnifiedTask; status: ManualTaskStatus }) => {
+      const now = new Date().toISOString();
+      const completedAt = status === "Completed" ? now : null;
+
+      if (task.source === "manual") {
+        await supabase
+          .from("manual_tasks")
+          .update({ task_status: status as any, completed_at: completedAt } as any)
+          .eq("id", parseRawId(task.id));
+        return;
+      }
+      // Map to legacy values supported by lead_tasks / deal_tasks
+      const legacy =
+        status === "Completed" ? "Done" :
+        status === "In Progress" ? "In Progress" :
+        "Pending";
+      if (task.id.startsWith("lead:")) {
+        await supabase.from("lead_tasks").update({ status: legacy, completed_at: completedAt }).eq("id", parseRawId(task.id));
+        return;
+      }
+      if (task.id.startsWith("pipeline:") && !task.id.startsWith("pipeline:deal_stalled")) {
+        await supabase
+          .from("deal_tasks")
+          .update({ status: legacy, is_completed: status === "Completed", completed_at: completedAt })
+          .eq("id", parseRawId(task.id));
+        return;
+      }
+      throw new Error("This task is auto-generated and cannot change status here.");
+    },
+    onMutate: async ({ task, status }) => {
+      await qc.cancelQueries({ queryKey: ["unified_tasks"] });
+      const snapshots = qc.getQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] });
+      const mapped: TaskStatus =
+        status === "Completed" ? "done" :
+        status === "In Progress" ? "in_progress" :
+        status === "Waiting" ? "waiting" : "open";
+      qc.setQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] }, (old) =>
+        (old || []).map((t) => (t.id === task.id ? { ...t, status: mapped } : t)),
+      );
+      return { snapshots };
+    },
+    onError: (_e, _v, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["unified_tasks"] });
+      qc.invalidateQueries({ queryKey: ["unified_tasks_focus"] });
+    },
+  });
+}
+
 
 export const TASK_RELATED_TYPES = [
   "client",

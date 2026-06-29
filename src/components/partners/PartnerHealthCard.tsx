@@ -38,7 +38,7 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
   const negatives = rank(factors, "negative");
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5 space-y-5">
+    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
       {/* ── Score header ─────────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">

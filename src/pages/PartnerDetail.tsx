@@ -203,34 +203,91 @@ export default function PartnerDetail() {
     } catch (e: any) { toast.error(e?.message || "Failed to add certification"); }
   };
 
-  const handleAddRenewal = async () => {
-    if (!renewalForm.client_id || !renewalForm.renewal_date) { toast.error("Client and date are required"); return; }
+  const resetRenewalForm = () => setRenewalForm({ client_id: "", renewal_type: "License", renewal_date: "", estimated_value: 0, priority: "Medium", status: "Upcoming", notes: "" });
+
+  const handleSaveRenewal = async () => {
+    if (!renewalForm.client_id || !renewalForm.renewal_date) { toast.error("Client and renewal date are required"); return; }
     try {
-      const { error } = await supabase.from("renewals").insert({
+      const payload: any = {
         client_id: renewalForm.client_id,
         partner_id: partner.id,
         renewal_type: renewalForm.renewal_type,
         renewal_date: renewalForm.renewal_date,
-        estimated_value: renewalForm.estimated_value,
+        estimated_value: renewalForm.estimated_value || null,
         priority: renewalForm.priority,
-        status: "Upcoming",
-      });
-      if (error) throw error;
-      toast.success("Renewal added");
+        status: renewalForm.status || "Upcoming",
+        notes: renewalForm.notes?.trim() || null,
+      };
+      if (editingRenewalId && !editingRenewalId.startsWith("derived-")) {
+        const { error } = await supabase.from("renewals").update(payload).eq("id", editingRenewalId);
+        if (error) throw error;
+        toast.success("Renewal updated");
+      } else {
+        const { error } = await supabase.from("renewals").insert(payload);
+        if (error) throw error;
+        toast.success("Renewal added");
+      }
       setShowAddRenewal(false);
-      setRenewalForm({ client_id: "", renewal_type: "License", renewal_date: "", estimated_value: 0, priority: "Medium" });
+      setEditingRenewalId(null);
+      resetRenewalForm();
       queryClient.invalidateQueries({ queryKey: ["renewals"] });
-    } catch (e: any) { toast.error(e?.message || "Failed to add renewal"); }
+    } catch (e: any) { toast.error(e?.message || "Failed to save renewal"); }
   };
 
-  const updateRenewalStatus = async (renewalId: string, status: string) => {
+  /** Materialize a derived (license/contract/SAT) renewal into a real row, return new id. */
+  const materializeDerivedRenewal = async (r: any): Promise<string | null> => {
+    const payload: any = {
+      client_id: r.client_id,
+      partner_id: r.partner_id || partner.id,
+      renewal_type: r.renewal_type,
+      renewal_date: r.renewal_date,
+      estimated_value: r.estimated_value || null,
+      priority: r.priority || "Medium",
+      status: r.status || "Upcoming",
+    };
+    if (typeof r.id === "string") {
+      if (r.id.startsWith("derived-license-")) payload.license_id = r.id.replace("derived-license-", "");
+      else if (r.id.startsWith("derived-sat-")) payload.license_id = r.id.replace("derived-sat-", "");
+    }
+    const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
+    if (error) throw error;
+    return data?.id || null;
+  };
+
+  const updateRenewalStatus = async (renewal: any, status: string) => {
     try {
-      const { error } = await supabase.from("renewals").update({ status }).eq("id", renewalId);
+      let targetId: string | null = renewal.id;
+      if (typeof targetId === "string" && targetId.startsWith("derived-")) {
+        targetId = await materializeDerivedRenewal(renewal);
+      }
+      if (!targetId) throw new Error("Could not resolve renewal");
+      const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
       if (error) throw error;
-      toast.success("Renewal updated");
+      toast.success(status === "Completed" ? "Renewal marked completed" : "Renewal updated");
       queryClient.invalidateQueries({ queryKey: ["renewals"] });
     } catch (e: any) { toast.error(e?.message || "Failed to update renewal"); }
   };
+
+  const openEditRenewal = (r: any) => {
+    setEditingRenewalId(r.id);
+    setRenewalForm({
+      client_id: r.client_id || "",
+      renewal_type: r.renewal_type || "License",
+      renewal_date: r.renewal_date || "",
+      estimated_value: Number(r.estimated_value || 0),
+      priority: r.priority || "Medium",
+      status: r.status || "Upcoming",
+      notes: r.notes || "",
+    });
+    setShowAddRenewal(true);
+  };
+
+  const openAddRenewal = () => {
+    setEditingRenewalId(null);
+    resetRenewalForm();
+    setShowAddRenewal(true);
+  };
+
 
   const score = metrics?.health_score ?? partner.health_score ?? 0;
   const healthLabel = score >= 80 ? "Healthy" : score >= 40 ? "Moderate" : "At Risk";

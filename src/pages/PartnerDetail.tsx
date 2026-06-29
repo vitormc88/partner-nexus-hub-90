@@ -774,7 +774,7 @@ export default function PartnerDetail() {
                       <TableHeader>
                         <TableRow className="bg-muted/40 hover:bg-muted/40">
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Client</TableHead>
-                          <TableHead className="h-9 text-xs uppercase tracking-wide">Type</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Includes</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Renewal Date</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide text-right">Days</TableHead>
                           <TableHead className="h-9 text-xs uppercase tracking-wide">Status</TableHead>

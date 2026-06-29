@@ -456,7 +456,7 @@ export function useCreateManualTask() {
 
       const { data, error } = await supabase
         .from("manual_tasks")
-        .insert(payload)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;

@@ -4263,6 +4263,7 @@ export type Database = {
           priority_score: number | null
           related_entity_id: string | null
           related_route: string | null
+          related_type: string | null
           revenue_impact: number | null
           source: string | null
           source_id: string | null

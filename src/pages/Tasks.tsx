@@ -9,11 +9,17 @@ import {
 } from "lucide-react";
 import {
   useTasks, useTodaysFocus, useWorkload, useTeamWorkload,
-  useCompleteTask, useUncompleteTask, useRescheduleTask, useAssignTask, useCreateManualTask,
+  useCompleteTask, useUncompleteTask, useRescheduleTask, useAssignTask,
+  useCreateManualTask, useUpdateTaskStatus,
+  TASK_RELATED_TYPES, TASK_TYPES,
   type UnifiedTask, type TaskView, type TaskPriority, type TaskSource,
+  type TaskRelatedType, type ManualTaskType, type ManualTaskStatus,
 } from "@/hooks/useTasks";
 import { useUsers } from "@/hooks/useUsers";
+import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useAuth } from "@/contexts/AuthContext";
+import { EntityCombobox } from "@/components/tasks/EntityCombobox";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,15 +49,43 @@ type Density = "comfortable" | "compact";
 
 const TYPE_META: Record<string, { icon: any; label: string }> = {
   call: { icon: Phone, label: "Call" },
-  email: { icon: Mail, label: "Follow-up Email" },
+  email: { icon: Mail, label: "Email" },
   meeting: { icon: CalendarIcon, label: "Meeting" },
   proposal: { icon: FileText, label: "Proposal" },
   renewal: { icon: RefreshCcw, label: "Renewal" },
+  follow_up: { icon: ArrowRight, label: "Follow-up" },
+  internal: { icon: Pin, label: "Internal" },
+  other: { icon: Pin, label: "Other" },
+  // legacy / auto types
   review: { icon: UsersIcon, label: "Partner Review" },
   customer: { icon: UsersIcon, label: "Customer" },
   escalation: { icon: AlertTriangle, label: "Escalation" },
   manual: { icon: Pin, label: "Manual" },
 };
+
+const RELATED_TYPE_LABEL: Record<string, string> = {
+  client: "Client",
+  deal: "Pipeline Opportunity",
+  renewal: "Renewal",
+  lead: "Incoming Lead",
+  partner: "Partner",
+  general: "General",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  open: "Open",
+  in_progress: "In Progress",
+  waiting: "Waiting",
+  done: "Completed",
+};
+
+const STATUS_CHIP: Record<string, string> = {
+  open: "bg-muted text-muted-foreground border-border",
+  in_progress: "bg-info/10 text-info border-info/30",
+  waiting: "bg-warning/10 text-warning-foreground border-warning/30",
+  done: "bg-success/10 text-success border-success/30",
+};
+
 
 const SOURCE_LABEL: Record<TaskSource, string> = {
   manual: "Manual",
@@ -328,6 +362,16 @@ function TaskRow({
   const uncomplete = useUncompleteTask();
   const reschedule = useRescheduleTask();
   const assign = useAssignTask();
+  const updateStatus = useUpdateTaskStatus();
+  const handleStatus = async (status: ManualTaskStatus) => {
+    try {
+      await updateStatus.mutateAsync({ task, status });
+      toast.success(`Status: ${status}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not update status");
+    }
+  };
+
   const { data: users } = useUsers();
   const [openAssign, setOpenAssign] = useState(false);
   const [newOwner, setNewOwner] = useState<string>(task.owner_user_id ?? "");
@@ -480,7 +524,31 @@ function TaskRow({
                   Auto
                 </Badge>
               )}
+              {/* task type chip */}
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-[10px] px-1.5 py-0 rounded border h-[18px]",
+                  archived
+                    ? "bg-transparent border-border/50 text-muted-foreground/80"
+                    : "bg-muted border-border/60 text-muted-foreground",
+                )}
+              >
+                <Icon className="h-2.5 w-2.5" />
+                {meta.label}
+              </span>
+              {/* live status chip (Open / In Progress / Waiting) */}
+              {!archived && task.status !== "done" && task.status !== "open" && (
+                <span
+                  className={cn(
+                    "text-[10px] px-1.5 py-0 rounded border h-[18px] inline-flex items-center",
+                    STATUS_CHIP[task.status] ?? STATUS_CHIP.open,
+                  )}
+                >
+                  {STATUS_LABEL[task.status] ?? task.status}
+                </span>
+              )}
             </div>
+
             {task.description && density !== "compact" && (
               <p
                 className={cn(
@@ -509,7 +577,8 @@ function TaskRow({
                 </span>
               )}
               {task.company_name && <span className="text-border">·</span>}
-              <span>{SOURCE_LABEL[task.source]}</span>
+              <span>{RELATED_TYPE_LABEL[task.related_type ?? ""] ?? SOURCE_LABEL[task.source]}</span>
+
               <span className="text-border">·</span>
               <span
                 className={cn(
@@ -543,18 +612,35 @@ function TaskRow({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {!archived && (
-                  <DropdownMenuItem onSelect={() => handleComplete(true)}>Complete</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleComplete(true)}>Mark complete</DropdownMenuItem>
                 )}
+                {!archived && !task.is_auto && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Status
+                    </div>
+                    {(["Open", "In Progress", "Waiting"] as ManualTaskStatus[]).map((s) => (
+                      <DropdownMenuItem key={s} onSelect={() => handleStatus(s)}>
+                        Set to {s}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                <DropdownMenuSeparator />
                 <ReschedulePopover task={task} onPick={handleReschedule}>
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Reschedule…</DropdownMenuItem>
                 </ReschedulePopover>
                 <DropdownMenuItem onSelect={() => setOpenAssign(true)}>Assign…</DropdownMenuItem>
-                <DropdownMenuSeparator />
                 {task.related_route && (
-                  <DropdownMenuItem asChild>
-                    <Link to={task.related_route}>Open related record</Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to={task.related_route}>Open related record</Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
+
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -688,45 +774,116 @@ function CreateTaskDialog({
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
 } = {}) {
+  const { user } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = (o: boolean) => {
     onOpenChange ? onOpenChange(o) : setInternalOpen(o);
   };
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [priority, setPriority] = useState<TaskPriority>("Medium");
-  const [company, setCompany] = useState("");
+  const { data: assignableUsers = [] } = useAssignableUsers();
   const create = useCreateManualTask();
 
-  const reset = () => { setTitle(""); setDescription(""); setDueDate(""); setPriority("Medium"); setCompany(""); };
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [relatedType, setRelatedType] = useState<TaskRelatedType>("general");
+  const [relatedId, setRelatedId] = useState<string | null>(null);
+  const [relatedLabel, setRelatedLabel] = useState<string | null>(null);
+  const [ownerId, setOwnerId] = useState<string>(user?.id ?? "");
+  const [taskType, setTaskType] = useState<ManualTaskType>("other");
+  const [status, setStatus] = useState<ManualTaskStatus>("Open");
+  const [priority, setPriority] = useState<TaskPriority>("Medium");
+  const [dueDate, setDueDate] = useState("");
+
+  const reset = () => {
+    setTitle(""); setNotes("");
+    setRelatedType("general"); setRelatedId(null); setRelatedLabel(null);
+    setOwnerId(user?.id ?? "");
+    setTaskType("other"); setStatus("Open"); setPriority("Medium"); setDueDate("");
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
         <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Task</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>New Task</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to happen?" />
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">What needs to be done?</Label>
+            <Input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Send proposal to Watsons"
+              className="mt-1 text-sm"
+            />
           </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Due</Label>
-              <Input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Label className="text-xs">Related To</Label>
+              <Select
+                value={relatedType}
+                onValueChange={(v: TaskRelatedType) => {
+                  setRelatedType(v);
+                  setRelatedId(null);
+                  setRelatedLabel(null);
+                }}
+              >
+                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TASK_RELATED_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{RELATED_TYPE_LABEL[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {relatedType !== "general" && (
+              <div>
+                <Label className="text-xs">Related Record</Label>
+                <div className="mt-1">
+                  <EntityCombobox
+                    relatedType={relatedType}
+                    value={relatedId}
+                    onChange={(id, label) => { setRelatedId(id); setRelatedLabel(label); }}
+                    placeholder={`Select ${RELATED_TYPE_LABEL[relatedType].toLowerCase()}`}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Owner</Label>
+              <Select value={ownerId} onValueChange={setOwnerId}>
+                <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Assign owner" /></SelectTrigger>
+                <SelectContent>
+                  {assignableUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label>Priority</Label>
+              <Label className="text-xs">Task Type</Label>
+              <Select value={taskType} onValueChange={(v: ManualTaskType) => setTaskType(v)}>
+                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TASK_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{TYPE_META[t]?.label ?? t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Priority</Label>
               <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["Critical", "High", "Medium", "Low"].map((p) => (
                     <SelectItem key={p} value={p}>{p}</SelectItem>
@@ -734,36 +891,69 @@ function CreateTaskDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label className="text-xs">Status</Label>
+              <Select value={status} onValueChange={(v: ManualTaskStatus) => setStatus(v)}>
+                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["Open", "In Progress", "Waiting", "Completed"] as ManualTaskStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Due Date</Label>
+              <Input
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="mt-1 h-9"
+              />
+            </div>
           </div>
+
           <div>
-            <Label>Related company (optional)</Label>
-            <Input value={company} onChange={(e) => setCompany(e.target.value)} />
+            <Label className="text-xs">Notes (optional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Context, links, or anything that helps execute this task"
+              className="mt-1"
+            />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button
-            disabled={!title.trim()}
+            disabled={!title.trim() || (relatedType !== "general" && !relatedId)}
             onClick={async () => {
               try {
                 await create.mutateAsync({
                   title: title.trim(),
-                  description: description.trim() || undefined,
+                  description: notes.trim() || undefined,
                   due_date: dueDate ? new Date(dueDate).toISOString() : null,
                   priority,
-                  related_company: company.trim() || null,
+                  owner_user_id: ownerId || null,
+                  task_type: taskType,
+                  task_status: status,
+                  related_type: relatedType,
+                  related_entity_id: relatedId,
+                  related_company: relatedLabel,
                 });
                 toast.success("Task created");
                 setOpen(false);
                 reset();
               } catch (e: any) { toast.error(e?.message ?? "Failed"); }
             }}
-          >Create</Button>
+          >Create task</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 /* ---------- Mission Control: Priority Focus + Work Guidance ---------- */
 
@@ -876,13 +1066,19 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
                       <span className="font-medium text-foreground/80 truncate max-w-[180px]">{task.company_name}</span>
                     )}
                     {task.company_name && <span className="text-border">·</span>}
-                    <span>{SOURCE_LABEL[task.source]}</span>
+                    <span>{TYPE_META[task.task_type]?.label ?? SOURCE_LABEL[task.source]}</span>
+                    <span className="text-border">·</span>
+                    <span>{RELATED_TYPE_LABEL[task.related_type ?? ""] ?? SOURCE_LABEL[task.source]}</span>
                     {task.revenue_impact > 0 && (
                       <>
                         <span className="text-border">·</span>
-                        <span className="tabular-nums text-foreground/80">{formatEur(task.revenue_impact)}</span>
+                        <span className="tabular-nums text-foreground/80">
+                          {formatEur(task.revenue_impact)}
+                          {task.source === "renewal" ? " ARR at risk" : ""}
+                        </span>
                       </>
                     )}
+
                     <span className="text-border">·</span>
                     <span className={cn(
                       "tabular-nums",
@@ -988,13 +1184,20 @@ export default function Tasks() {
   const [groupBy, setGroupBy] = useState<GroupKey>("priority");
   const [search, setSearch] = useState("");
   const [ownerId, setOwnerId] = useState<string>("all");
+  const [relatedType, setRelatedTypeFilter] = useState<string>("all");
+  const [taskTypeFilter, setTaskTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "in_progress" | "waiting">("all");
   const [density, setDensity] = useState<Density>(() => {
     try { return (localStorage.getItem("tasks.density") as Density) || "comfortable"; }
     catch { return "comfortable"; }
   });
   useEffect(() => { try { localStorage.setItem("tasks.density", density); } catch {} }, [density]);
 
-  const { data: tasks = [], isLoading } = useTasks({ view, source, priority, search, ownerId });
+  const { data: tasks = [], isLoading } = useTasks({
+    view, source, priority, search, ownerId,
+    relatedType, taskType: taskTypeFilter, status: statusFilter,
+  });
+
   const { data: users } = useUsers();
 
   const groups = useMemo(() => groupTasks(tasks, groupBy), [tasks, groupBy]);
@@ -1079,10 +1282,26 @@ export default function Tasks() {
       clear: () => setOwnerId("all"),
     });
   }
+  if (relatedType !== "all") activeFilters.push({
+    key: "relatedType", label: `Related: ${RELATED_TYPE_LABEL[relatedType] ?? relatedType}`,
+    clear: () => setRelatedTypeFilter("all"),
+  });
+  if (taskTypeFilter !== "all") activeFilters.push({
+    key: "taskType", label: `Type: ${TYPE_META[taskTypeFilter]?.label ?? taskTypeFilter}`,
+    clear: () => setTaskTypeFilter("all"),
+  });
+  if (statusFilter !== "all") activeFilters.push({
+    key: "status", label: `Status: ${STATUS_LABEL[statusFilter] ?? statusFilter}`,
+    clear: () => setStatusFilter("all"),
+  });
   if (search.trim()) activeFilters.push({
     key: "search", label: `"${search.trim()}"`, clear: () => setSearch(""),
   });
-  const clearAll = () => { setSource("all"); setPriority("all"); setOwnerId("all"); setSearch(""); };
+  const clearAll = () => {
+    setSource("all"); setPriority("all"); setOwnerId("all"); setSearch("");
+    setRelatedTypeFilter("all"); setTaskTypeFilter("all"); setStatusFilter("all");
+  };
+
 
   return (
     <TooltipProvider delayDuration={250}>
@@ -1182,6 +1401,34 @@ export default function Tasks() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select value={relatedType} onValueChange={setRelatedTypeFilter}>
+                  <SelectTrigger className="h-8 w-[160px] bg-background"><SelectValue placeholder="Related to" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any relation</SelectItem>
+                    {TASK_RELATED_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{RELATED_TYPE_LABEL[t]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={taskTypeFilter} onValueChange={setTaskTypeFilter}>
+                  <SelectTrigger className="h-8 w-[140px] bg-background"><SelectValue placeholder="Task type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any type</SelectItem>
+                    {TASK_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{TYPE_META[t]?.label ?? t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="h-8 w-[130px] bg-background"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any status</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="waiting">Waiting</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                   <SelectTrigger className="h-8 w-[160px] bg-background"><SelectValue placeholder="Group by" /></SelectTrigger>
                   <SelectContent>

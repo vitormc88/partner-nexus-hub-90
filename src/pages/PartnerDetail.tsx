@@ -716,65 +716,150 @@ export default function PartnerDetail() {
         </TabsContent>
 
         <TabsContent value="renewals" className="mt-5 animate-fade-in space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{partnerRenewals.length} renewal{partnerRenewals.length === 1 ? "" : "s"} {expiredRenewalsCount > 0 && <span className="text-destructive font-medium">· {expiredRenewalsCount} expired</span>}</p>
-            <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
-          </div>
-          {partnerRenewals.length === 0 ? (
-            <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
-              <p className="text-sm text-foreground font-medium">No renewals tracked yet</p>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">Add upcoming license, SAT or contract renewals to monitor expirations and never miss a deadline.</p>
-              <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add first renewal</Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {partnerRenewals.map((r: any) => {
-                const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - Date.now()) / 86400000) : null;
-                const isExpired = days !== null && days < 0 && r.status !== "Completed";
-                const isCompleted = r.status === "Completed";
-                const accent = isCompleted ? "border-l-success bg-success/5" : isExpired ? "border-l-destructive bg-destructive/5" : "border-l-info bg-info/5";
-                const statusBadge: any = isCompleted ? "success" : isExpired ? "destructive" : r.status === "In Progress" ? "warning" : "default";
-                const cl = clients.find(c => c.id === r.client_id);
-                return (
-                  <div key={r.id} className={`bg-card rounded-xl border border-l-4 shadow-sm p-4 space-y-3 ${accent}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline">{r.renewal_type}</Badge>
-                          <Badge variant={statusBadge}>{isExpired ? "Expired" : r.status}</Badge>
-                        </div>
-                        <p className="text-sm font-medium mt-1.5 truncate">{cl?.commercial_name || "Client"}</p>
-                      </div>
-                      <span className="text-base font-bold tabular-nums shrink-0">€{Number(r.estimated_value || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground tabular-nums">{r.renewal_date}</span>
-                      {days !== null && !isCompleted && (
-                        <span className={`tabular-nums font-medium ${days < 0 ? "text-destructive" : days <= 30 ? "text-warning-foreground" : "text-muted-foreground"}`}>
-                          {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                      <Select value={r.status} onValueChange={(v) => updateRenewalStatus(r.id, v)}>
-                        <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Upcoming">Upcoming</SelectItem>
-                          <SelectItem value="In Progress">In Progress</SelectItem>
-                          <SelectItem value="Completed">Completed</SelectItem>
-                          <SelectItem value="Lost">Lost</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {!isCompleted && (
-                        <Button size="sm" variant="default" onClick={() => updateRenewalStatus(r.id, "Completed")}>Mark Completed</Button>
-                      )}
-                    </div>
+          {(() => {
+            // Bucket + sort rows by urgency
+            const bucketOf = (r: any): { key: string; label: string; rank: number; tone: string; chip: string } => {
+              if (r.status === "Completed") return { key: "completed", label: "Completed", rank: 5, tone: "border-l-success/40", chip: "bg-success/10 text-success border-success/20" };
+              if (r.status === "Lost") return { key: "lost", label: "Lost", rank: 6, tone: "border-l-muted", chip: "bg-muted text-muted-foreground border-border" };
+              const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - Date.now()) / 86400000) : null;
+              if (days === null) return { key: "upcoming", label: "Upcoming", rank: 3, tone: "border-l-info/60", chip: "bg-info/10 text-info border-info/20" };
+              if (days < 0) return { key: "overdue", label: "Overdue", rank: 0, tone: "border-l-destructive", chip: "bg-destructive/10 text-destructive border-destructive/20" };
+              if (days <= 30) return { key: "due_soon", label: "Due Soon", rank: 1, tone: "border-l-warning", chip: "bg-warning/15 text-warning-foreground border-warning/30" };
+              if (days <= 90) return { key: "upcoming", label: "Upcoming", rank: 2, tone: "border-l-info/60", chip: "bg-info/10 text-info border-info/20" };
+              return { key: "active", label: "Active", rank: 4, tone: "border-l-border", chip: "bg-muted/60 text-foreground border-border" };
+            };
+
+            const enriched = partnerRenewals.map((r: any) => {
+              const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - Date.now()) / 86400000) : null;
+              return { ...r, _days: days, _bucket: bucketOf(r), _client: clients.find(c => c.id === r.client_id) };
+            }).sort((a: any, b: any) => {
+              if (a._bucket.rank !== b._bucket.rank) return a._bucket.rank - b._bucket.rank;
+              return (a.renewal_date || "").localeCompare(b.renewal_date || "");
+            });
+
+            const totals = {
+              total: enriched.length,
+              overdue: enriched.filter(r => r._bucket.key === "overdue").length,
+              dueSoon: enriched.filter(r => r._bucket.key === "due_soon").length,
+              upcoming: enriched.filter(r => r._bucket.key === "upcoming").length,
+              completed: enriched.filter(r => r._bucket.key === "completed").length,
+              value: enriched.filter(r => r._bucket.key !== "completed" && r._bucket.key !== "lost").reduce((s, r) => s + Number(r.estimated_value || 0), 0),
+            };
+            const fmtVal = (n: number) => n >= 1000 ? `€${Math.round(n / 1000)}k` : `€${n.toLocaleString()}`;
+
+            return (
+              <>
+                {/* Summary bar */}
+                <div className="bg-card rounded-xl border shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 justify-between">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+                    <span className="font-semibold text-foreground">{totals.total} Renewals</span>
+                    {totals.overdue > 0 && <span className="text-destructive font-medium">· {totals.overdue} Overdue</span>}
+                    {totals.dueSoon > 0 && <span className="text-warning-foreground font-medium">· {totals.dueSoon} Due Soon</span>}
+                    {totals.upcoming > 0 && <span className="text-muted-foreground">· {totals.upcoming} Upcoming</span>}
+                    {totals.completed > 0 && <span className="text-muted-foreground">· {totals.completed} Completed</span>}
+                    <span className="text-muted-foreground">· {fmtVal(totals.value)} Value</span>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <Button size="sm" onClick={openAddRenewal}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
+                </div>
+
+                {enriched.length === 0 ? (
+                  <div className="bg-card rounded-xl border-2 border-dashed shadow-sm p-10 text-center space-y-3">
+                    <CalendarClock className="h-7 w-7 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-foreground font-medium">No renewals registered for this partner yet.</p>
+                    <Button size="sm" onClick={openAddRenewal}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
+                  </div>
+                ) : (
+                  <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Client</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Type</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Renewal Date</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide text-right">Days</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Status</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide text-right">Value</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide">Priority</TableHead>
+                          <TableHead className="h-9 text-xs uppercase tracking-wide text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {enriched.map((r: any) => {
+                          const b = r._bucket;
+                          const isCompleted = b.key === "completed";
+                          const isUrgent = b.key === "overdue" || b.key === "due_soon";
+                          const isDerived = typeof r.id === "string" && r.id.startsWith("derived-");
+                          const daysLabel = r._days === null ? "—"
+                            : r._days < 0 ? `${Math.abs(r._days)}d overdue`
+                            : r._days === 0 ? "Today"
+                            : `${r._days}d left`;
+                          const daysCls = r._days === null ? "text-muted-foreground"
+                            : r._days < 0 ? "text-destructive font-medium"
+                            : r._days <= 30 ? "text-warning-foreground font-medium"
+                            : "text-muted-foreground";
+                          return (
+                            <TableRow key={r.id} className={`border-l-2 ${b.tone} ${isCompleted ? "opacity-70" : ""}`}>
+                              <TableCell className="py-2.5">
+                                {r._client ? (
+                                  <Link to={`/clients/${r._client.id}`} className="text-sm font-medium text-foreground hover:underline">{r._client.commercial_name}</Link>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2.5"><span className="text-xs text-muted-foreground">{r.renewal_type}</span></TableCell>
+                              <TableCell className="py-2.5 text-sm tabular-nums">{r.renewal_date ? fmt(r.renewal_date) : "—"}</TableCell>
+                              <TableCell className={`py-2.5 text-right text-xs tabular-nums ${daysCls}`}>{isCompleted ? "—" : daysLabel}</TableCell>
+                              <TableCell className="py-2.5">
+                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${b.chip}`}>{b.label}</span>
+                              </TableCell>
+                              <TableCell className="py-2.5 text-right text-sm tabular-nums">{r.estimated_value ? `€${Number(r.estimated_value).toLocaleString()}` : <span className="text-muted-foreground">—</span>}</TableCell>
+                              <TableCell className="py-2.5 text-xs text-muted-foreground">{r.priority || "—"}</TableCell>
+                              <TableCell className="py-2.5">
+                                <div className="flex items-center justify-end gap-1">
+                                  {!isCompleted && isUrgent && (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => updateRenewalStatus(r, "Completed")}>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
+                                    </Button>
+                                  )}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                      {!isCompleted && (
+                                        <DropdownMenuItem onClick={() => updateRenewalStatus(r, "Completed")}>
+                                          <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Completed
+                                        </DropdownMenuItem>
+                                      )}
+                                      {!isDerived && (
+                                        <DropdownMenuItem onClick={() => openEditRenewal(r)}>
+                                          <Pencil className="h-4 w-4 mr-2" /> Edit
+                                        </DropdownMenuItem>
+                                      )}
+                                      {r._client && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => navigate(`/clients/${r._client.id}`)}>
+                                            <ExternalLink className="h-4 w-4 mr-2" /> Open Client
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </TabsContent>
+
 
         <TabsContent value="certifications" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">

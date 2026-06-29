@@ -1538,7 +1538,7 @@ export default function Tasks() {
                   )}
                 </div>
               ) : (
-                <div className="relative max-h-[70vh] overflow-y-auto">
+                <div className="relative min-h-[60vh] max-h-[calc(100vh-220px)] overflow-y-auto">
                   {groups.map(([label, items]) => (
                     <TaskGroup
                       key={label}

@@ -25,29 +25,30 @@ const PRIORITY_LABEL: Record<NextBestAction["priority"], string> = {
 };
 
 export function NextBestActionsCard({ actions }: NextBestActionsCardProps) {
+  const visible = actions.slice(0, 3);
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-primary" />
         <h3 className="font-semibold text-foreground text-sm">Next Best Actions</h3>
       </div>
 
-      {actions.length === 0 ? (
-        <p className="text-sm text-muted-foreground leading-snug">
+      {visible.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground leading-snug">
           No immediate actions recommended. Continue maintaining regular engagement
           with this partner.
         </p>
       ) : (
-        <ul className="space-y-3">
-          {actions.map((a) => (
+        <ul className="space-y-2">
+          {visible.map((a) => (
             <li
               key={a.id}
-              className="rounded-lg border border-border/60 p-3 space-y-2 hover:border-border transition-colors"
+              className="rounded-lg border border-border/60 px-3 py-2 space-y-1 hover:border-border transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2 min-w-0">
-                  <ArrowRight className="h-3.5 w-3.5 mt-1 shrink-0 text-primary" />
-                  <span className="text-sm font-medium text-foreground leading-snug">
+                  <ArrowRight className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                  <span className="text-[13px] font-medium text-foreground leading-snug">
                     {a.title}
                   </span>
                 </div>
@@ -61,8 +62,8 @@ export function NextBestActionsCard({ actions }: NextBestActionsCardProps) {
                 {a.why}
               </p>
               <div className="pl-5">
-                <Badge variant="outline" className="text-[10px] font-normal">
-                  Improves: {DIMENSION_LABEL[a.improves]}
+                <Badge variant="outline" className="text-[10px] font-normal h-4 px-1.5">
+                  {DIMENSION_LABEL[a.improves]}
                 </Badge>
               </div>
             </li>

@@ -38,9 +38,9 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
   const negatives = rank(factors, "negative");
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-5 space-y-5">
+    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
       {/* ── Score header ─────────────────────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-foreground text-sm">Partner Health</h3>
           <TooltipProvider>
@@ -53,35 +53,30 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
               <TooltipContent className="max-w-xs text-xs leading-relaxed">
                 Partner Health reflects the overall strength of this partnership by
                 considering relationship quality, commercial momentum and
-                operational engagement. Its purpose is to help identify where
-                attention should be focused to build stronger and more successful
-                partnerships.
+                operational engagement.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-          <span className="text-2xl font-bold tabular-nums">
+          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+          <span className="text-2xl font-bold tabular-nums leading-none">
             {score}
             <span className="text-sm font-normal text-muted-foreground">/100</span>
           </span>
-          <Badge variant="outline" className="ml-2">{label}</Badge>
+          <Badge variant="outline" className="ml-1">{label}</Badge>
         </div>
 
-        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
           <div
             className="h-full transition-all"
             style={{ width: `${Math.max(0, Math.min(100, score))}%`, backgroundColor: color }}
           />
         </div>
-
-        {/* ── Business narrative summary ─────────────────────────── */}
-        {summary && (
-          <p className="text-sm text-foreground/90 leading-snug pt-1">{summary}</p>
-        )}
       </div>
+      
+
 
       {/* ── Causal: what's holding the score up ──────────────────── */}
       <FactorSection
@@ -114,17 +109,17 @@ function FactorSection({ title, tone, items, emptyText }: FactorSectionProps) {
   const iconColor = tone === "positive" ? "text-success" : "text-warning";
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h4>
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground italic">{emptyText}</p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1">
           {items.map((label, i) => (
-            <li key={`${tone}-${i}`} className="flex items-start gap-2 text-sm text-foreground">
-              <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${iconColor}`} />
+            <li key={`${tone}-${i}`} className="flex items-start gap-2 text-[13px] text-foreground">
+              <Icon className={`h-3 w-3 mt-0.5 shrink-0 ${iconColor}`} />
               <span className="leading-snug">{label}</span>
             </li>
           ))}

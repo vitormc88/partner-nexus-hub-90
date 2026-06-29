@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowLeft, Pencil, Archive, Save, X, Plus, Info, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Pencil, Archive, Save, X, Plus, Info, Trash2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useState } from "react";
@@ -337,193 +337,159 @@ export default function PartnerDetail() {
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="mt-6 animate-fade-in space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Partner Profile — compact executive profile */}
-            <aside className="lg:col-span-4 space-y-4">
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground text-sm">Partner Profile</h3>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={startEdit}>
-                    <Pencil className="h-3 w-3 mr-1" /> Edit
-                  </Button>
-                </div>
+        <TabsContent value="overview" className="mt-5 animate-fade-in space-y-4">
+          {(() => {
+            const upcomingRenewals = partnerRenewals.filter((r: any) => {
+              if (!r.renewal_date) return false;
+              const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+              return days >= 0 && days <= 120 && r.status !== "Completed";
+            }).length;
+            const narrative = buildPartnerNarrative({
+              score,
+              maturity: metrics?.maturity,
+              partner: {
+                onboarding_status: partner.onboarding_status,
+                next_meeting_date: (partner as any).next_meeting_date,
+                last_meeting_date: (partner as any).last_meeting_date,
+                account_owner_id: (partner as any).account_owner_id,
+                assigned_manager_id: (partner as any).assigned_manager_id,
+              },
+              clients,
+              deals,
+              notes,
+              leadsOpen: openDeals.length,
+              renewalsUpcoming: upcomingRenewals,
+            });
+            const nextActions = buildNextBestActions({
+              maturity: metrics?.maturity,
+              partner: {
+                onboarding_status: partner.onboarding_status,
+                next_meeting_date: (partner as any).next_meeting_date,
+                last_meeting_date: (partner as any).last_meeting_date,
+                account_owner_id: (partner as any).account_owner_id,
+              },
+              clients,
+              deals,
+              notes,
+              leadsOpen: openDeals.length,
+              renewalsUpcoming: upcomingRenewals,
+            });
+            const brief = buildPartnerBrief({
+              partner: {
+                company_name: partner.company_name,
+                onboarding_status: partner.onboarding_status,
+                start_date: partner.start_date,
+                created_at: (partner as any).created_at,
+              },
+              maturity: metrics?.maturity,
+              score,
+              clients,
+              deals,
+              notes,
+              renewalsUpcoming: upcomingRenewals,
+            });
 
-                {/* Identity */}
-                <div className="space-y-1.5">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</h4>
-                  <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 text-sm">
-                    <dt className="text-muted-foreground">Legal name</dt>
-                    <dd className="text-foreground truncate">{partner.legal_name || "—"}</dd>
-                    <dt className="text-muted-foreground">Region</dt>
-                    <dd className="text-foreground">{partner.region || "—"}</dd>
-                    <dt className="text-muted-foreground">Country</dt>
-                    <dd className="text-foreground">{countryName}</dd>
-                    <dt className="text-muted-foreground">Onboarding</dt>
-                    <dd className="text-foreground">{partner.onboarding_status || "—"}</dd>
-                  </dl>
-                </div>
+            return (
+              <>
+                {/* 1. Executive Summary — primary focus */}
+                <PartnerBriefCard brief={brief} variant="primary" />
 
-                {/* Contact */}
-                <div className="space-y-1.5 pt-1 border-t border-border/60">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pt-2">Primary Contact</h4>
-                  <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 text-sm">
-                    <dt className="text-muted-foreground">Name</dt>
-                    <dd className="text-foreground truncate">{partner.primary_contact_name || "—"}</dd>
-                    <dt className="text-muted-foreground">Email</dt>
-                    <dd className="text-foreground truncate">
-                      {partner.primary_contact_email ? (
-                        <a href={`mailto:${partner.primary_contact_email}`} className="hover:text-primary">{partner.primary_contact_email}</a>
-                      ) : "—"}
-                    </dd>
-                    <dt className="text-muted-foreground">Phone</dt>
-                    <dd className="text-foreground">{partner.phone || "—"}</dd>
-                    <dt className="text-muted-foreground">Website</dt>
-                    <dd className="text-foreground truncate">
-                      {partner.website ? (
-                        <a href={partner.website} target="_blank" rel="noreferrer" className="hover:text-primary">{partner.website.replace(/^https?:\/\//, "")}</a>
-                      ) : "—"}
-                    </dd>
-                  </dl>
+                {/* 2. Health + Next Best Actions */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <PartnerHealthCard
+                    score={score}
+                    summary={narrative.summary}
+                    factors={narrative.factors}
+                  />
+                  <NextBestActionsCard actions={nextActions} />
                 </div>
+              </>
+            );
+          })()}
 
-                {/* Setup */}
-                <div className="space-y-1.5 pt-1 border-t border-border/60">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pt-2">Setup</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(partner as any).uses_own_database && (
-                      <Badge variant="outline" className="text-[10px] font-normal">Own DB</Badge>
-                    )}
-                    {(partner as any).uses_manwinwin_database && (
-                      <Badge variant="outline" className="text-[10px] font-normal">ManWinWin DB</Badge>
-                    )}
-                    {accountOwner && (
-                      <Badge variant="outline" className="text-[10px] font-normal">Owner: {accountOwner.full_name || accountOwner.email}</Badge>
-                    )}
-                    {!(partner as any).uses_own_database && !(partner as any).uses_manwinwin_database && !accountOwner && (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </div>
+          {/* 3. Partner Profile + Relationship Management */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Partner Profile */}
+            <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground text-[14px]">Partner Profile</h3>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={startEdit}>
+                  <Pencil className="h-3 w-3 mr-1" /> Edit
+                </Button>
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</h4>
+                <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-0.5 text-[13px]">
+                  <dt className="text-muted-foreground">Legal name</dt>
+                  <dd className="text-foreground truncate">{partner.legal_name || "—"}</dd>
+                  <dt className="text-muted-foreground">Region</dt>
+                  <dd className="text-foreground">{partner.region || "—"}</dd>
+                  <dt className="text-muted-foreground">Country</dt>
+                  <dd className="text-foreground">{countryName}</dd>
+                  <dt className="text-muted-foreground">Onboarding</dt>
+                  <dd className="text-foreground">{partner.onboarding_status || "—"}</dd>
+                </dl>
+              </div>
+
+              <div className="space-y-1 pt-2 border-t border-border/60">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Primary Contact</h4>
+                <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-0.5 text-[13px]">
+                  <dt className="text-muted-foreground">Name</dt>
+                  <dd className="text-foreground truncate">{partner.primary_contact_name || "—"}</dd>
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="text-foreground truncate">
+                    {partner.primary_contact_email ? (
+                      <a href={`mailto:${partner.primary_contact_email}`} className="hover:text-primary">{partner.primary_contact_email}</a>
+                    ) : "—"}
+                  </dd>
+                  <dt className="text-muted-foreground">Phone</dt>
+                  <dd className="text-foreground">{partner.phone || "—"}</dd>
+                  <dt className="text-muted-foreground">Website</dt>
+                  <dd className="text-foreground truncate">
+                    {partner.website ? (
+                      <a href={partner.website} target="_blank" rel="noreferrer" className="hover:text-primary">{partner.website.replace(/^https?:\/\//, "")}</a>
+                    ) : "—"}
+                  </dd>
+                </dl>
+              </div>
+
+              <div className="space-y-1 pt-2 border-t border-border/60">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Setup</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(partner as any).uses_own_database && (
+                    <Badge variant="outline" className="text-[10px] font-normal">Own DB</Badge>
+                  )}
+                  {(partner as any).uses_manwinwin_database && (
+                    <Badge variant="outline" className="text-[10px] font-normal">ManWinWin DB</Badge>
+                  )}
+                  {accountOwner && (
+                    <Badge variant="outline" className="text-[10px] font-normal">Owner: {accountOwner.full_name || accountOwner.email}</Badge>
+                  )}
+                  {!(partner as any).uses_own_database && !(partner as any).uses_manwinwin_database && !accountOwner && (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </div>
               </div>
-            </aside>
+            </div>
 
-            {/* Partner Intelligence — unified workspace */}
-            {(() => {
-              const narrative = buildPartnerNarrative({
-                score,
-                maturity: metrics?.maturity,
-                partner: {
-                  onboarding_status: partner.onboarding_status,
-                  next_meeting_date: (partner as any).next_meeting_date,
-                  last_meeting_date: (partner as any).last_meeting_date,
-                  account_owner_id: (partner as any).account_owner_id,
-                  assigned_manager_id: (partner as any).assigned_manager_id,
-                },
-                clients,
-                deals,
-                notes,
-                leadsOpen: openDeals.length,
-                renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                  if (!r.renewal_date) return false;
-                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                  return days >= 0 && days <= 120 && r.status !== "Completed";
-                }).length,
-              });
-              const nextActions = buildNextBestActions({
-                maturity: metrics?.maturity,
-                partner: {
-                  onboarding_status: partner.onboarding_status,
-                  next_meeting_date: (partner as any).next_meeting_date,
-                  last_meeting_date: (partner as any).last_meeting_date,
-                  account_owner_id: (partner as any).account_owner_id,
-                },
-                clients,
-                deals,
-                notes,
-                leadsOpen: openDeals.length,
-                renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                  if (!r.renewal_date) return false;
-                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                  return days >= 0 && days <= 120 && r.status !== "Completed";
-                }).length,
-              });
-              const brief = buildPartnerBrief({
-                partner: {
-                  company_name: partner.company_name,
-                  onboarding_status: partner.onboarding_status,
-                  start_date: partner.start_date,
-                  created_at: (partner as any).created_at,
-                },
-                maturity: metrics?.maturity,
-                score,
-                clients,
-                deals,
-                notes,
-                renewalsUpcoming: partnerRenewals.filter((r: any) => {
-                  if (!r.renewal_date) return false;
-                  const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
-                  return days >= 0 && days <= 120 && r.status !== "Completed";
-                }).length,
-              });
-              return (
-                <section aria-label="Partner intelligence" className="lg:col-span-8 space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Partner Intelligence
-                    </span>
-                    <span className="h-px flex-1 bg-border/60" />
-                  </div>
-
-                  {/* Primary: Brief as executive narrative */}
-                  <PartnerBriefCard brief={brief} variant="primary" />
-
-                  {/* Diagnostic row: Health + Next Best Actions side-by-side */}
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <PartnerHealthCard
-                      score={score}
-                      summary={narrative.summary}
-                      factors={narrative.factors}
-                    />
-                    <NextBestActionsCard actions={nextActions} />
-                  </div>
-                </section>
-              );
-            })()}
-          </div>
-
-          {/* Relationship Settings — secondary management section */}
-          <details className="group bg-card/60 rounded-xl border border-border/70 shadow-sm">
-            <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-3 select-none">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Relationship Management</span>
+            {/* Relationship Management — compact management panel */}
+            <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-foreground text-[14px]">Relationship Management</h3>
                 <Badge
                   variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"}
                   className="text-[10px] font-normal"
                 >
                   {relStatus}
                 </Badge>
-                {accountOwner && (
-                  <span className="text-xs text-muted-foreground hidden sm:inline">· {accountOwner.full_name || accountOwner.email}</span>
-                )}
-                {(partner as any).meeting_cadence && (
-                  <span className="text-xs text-muted-foreground hidden sm:inline">· {(partner as any).meeting_cadence}</span>
-                )}
-                {daysUntilMeeting !== null && (
-                  <span className={`text-[11px] hidden md:inline ${daysUntilMeeting < 0 ? "text-destructive" : daysUntilMeeting <= 7 ? "text-warning-foreground" : "text-muted-foreground"}`}>
-                    · {daysUntilMeeting < 0 ? `Overdue ${Math.abs(daysUntilMeeting)}d` : daysUntilMeeting === 0 ? "Today" : `${daysUntilMeeting}d`}
-                  </span>
-                )}
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
 
-            <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border/60">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
                 <div>
                   <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
                   <Select value={(partner as any).account_owner_id || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, account_owner_id: v || null } as any)}>
-                    <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectTrigger className="h-8 mt-1 text-[13px]"><SelectValue placeholder="Unassigned" /></SelectTrigger>
                     <SelectContent>
                       {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
                     </SelectContent>
@@ -532,7 +498,7 @@ export default function PartnerDetail() {
                 <div>
                   <Label className="text-[11px] text-muted-foreground font-normal">Meeting Cadence</Label>
                   <Select value={(partner as any).meeting_cadence || ""} onValueChange={v => updatePartner.mutate({ id: partner.id, meeting_cadence: v || null } as any)}>
-                    <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="h-8 mt-1 text-[13px]"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Monthly">Monthly</SelectItem>
                       <SelectItem value="Quarterly">Quarterly</SelectItem>
@@ -540,18 +506,10 @@ export default function PartnerDetail() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
-                  <Input type="date" className="h-8 mt-1" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
-                </div>
-                <div>
-                  <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
-                  <Input type="date" className="h-8 mt-1" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
-                </div>
-                <div className="col-span-2 md:col-span-4">
+                <div className="col-span-2">
                   <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
                   <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
-                    <SelectTrigger className="h-8 mt-1 max-w-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 mt-1 text-[13px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Healthy">Healthy</SelectItem>
                       <SelectItem value="Growing">Growing</SelectItem>
@@ -561,28 +519,43 @@ export default function PartnerDetail() {
                   </Select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 pt-2 border-t border-border/60">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground font-normal">Last Meeting</Label>
+                  <Input type="date" className="h-8 mt-1 text-[13px]" value={(partner as any).last_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, last_meeting_date: e.target.value || null } as any)} />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground font-normal">Next Meeting</Label>
+                  <Input type="date" className="h-8 mt-1 text-[13px]" value={(partner as any).next_meeting_date || ""} onChange={e => updatePartner.mutate({ id: partner.id, next_meeting_date: e.target.value || null } as any)} />
+                </div>
+              </div>
+
               {(daysUntilMeeting !== null || expiringCertCount > 0 || expiredRenewalsCount > 0) && (
-                <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/60">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-full">Upcoming Reminders</span>
                   {daysUntilMeeting !== null && (
-                    <span className={`text-[11px] rounded-md px-2 py-1 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
+                    <span className={`text-[11px] rounded-md px-2 py-0.5 border ${daysUntilMeeting < 0 ? "bg-destructive/10 text-destructive border-destructive/30" : daysUntilMeeting <= 7 ? "bg-warning/10 text-warning-foreground border-warning/30" : "bg-info/10 text-info border-info/20"}`}>
                       {daysUntilMeeting < 0 ? `Meeting overdue by ${Math.abs(daysUntilMeeting)}d` : daysUntilMeeting === 0 ? "Meeting today" : `Meeting in ${daysUntilMeeting}d`}
                     </span>
                   )}
                   {expiringCertCount > 0 && (
-                    <span className="text-[11px] rounded-md px-2 py-1 border bg-warning/10 text-warning-foreground border-warning/30">
+                    <span className="text-[11px] rounded-md px-2 py-0.5 border bg-warning/10 text-warning-foreground border-warning/30">
                       {expiringCertCount} cert{expiringCertCount > 1 ? "s" : ""} expiring ≤30d
                     </span>
                   )}
                   {expiredRenewalsCount > 0 && (
-                    <span className="text-[11px] rounded-md px-2 py-1 border bg-destructive/10 text-destructive border-destructive/30">
+                    <span className="text-[11px] rounded-md px-2 py-0.5 border bg-destructive/10 text-destructive border-destructive/30">
                       {expiredRenewalsCount} renewal{expiredRenewalsCount > 1 ? "s" : ""} expired
                     </span>
                   )}
                 </div>
               )}
             </div>
-          </details>
+          </div>
         </TabsContent>
+
+
 
 
         <TabsContent value="relationship" className="mt-5 animate-fade-in space-y-4">

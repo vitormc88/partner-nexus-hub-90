@@ -305,39 +305,9 @@ export default function Analytics() {
           <PartnerCockpit partners={partners.data || []} navigate={navigate} />
         </TabsContent>
 
-        {/* ---------- RENEWALS ---------- */}
-        <TabsContent value="renewals" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Success Rate" value={`${renewals.data?.success_rate ?? 0}%`} sub={`${renewals.data?.won ?? 0} of ${(renewals.data?.won ?? 0) + (renewals.data?.lost ?? 0)} closed`} trend={(renewals.data?.success_rate ?? 0) >= 70 ? "up" : "down"} />
-            <KPI label="Renewal Revenue" value={fmtEuroK(renewals.data?.won_value ?? 0)} sub={`${renewals.data?.won ?? 0} won`} />
-            <KPI label="Upcoming" value={String(renewals.data?.upcoming ?? 0)} sub="Active, not yet due" />
-            <KPI label="Overdue" value={String(renewals.data?.overdue ?? 0)} trend={(renewals.data?.overdue ?? 0) > 0 ? "down" : undefined} />
-          </div>
-
-          <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Renewal Outcomes</h3></div>
-            <div className="p-5">
-              {(renewals.data?.total ?? 0) > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart
-                    data={[
-                      { status: "Won", count: renewals.data?.won ?? 0 },
-                      { status: "Lost", count: renewals.data?.lost ?? 0 },
-                      { status: "Upcoming", count: renewals.data?.upcoming ?? 0 },
-                      { status: "Overdue", count: renewals.data?.overdue ?? 0 },
-                    ]}
-                    barSize={28}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="status" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-                    <Bar dataKey="count" name="Count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <EmptyState hint="Renewal data will appear once renewals are tracked." />}
-            </div>
-          </div>
+        {/* ---------- RENEWALS (Executive Cockpit) ---------- */}
+        <TabsContent value="renewals" className="space-y-4 mt-4">
+          <RenewalsCockpit summary={renewals.data} navigate={navigate} />
         </TabsContent>
       </Tabs>
 

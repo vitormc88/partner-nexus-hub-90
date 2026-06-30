@@ -794,7 +794,7 @@ function SalesCockpit({
   const topConversionKey = byConversion[0]?.key;
   const lowestConvKey = [...sales]
     .filter(r => r.won_count + r.lost_count >= 2)
-    .sort((a, b) => a.conversion - b.conversion)[0]?.key;
+    .sort((a, b) => a.conversion - b.conversion)[0]?.sales_key;
 
   // Health signals
   const noPipelineCount = sales.filter(r => r.pipeline_value === 0 && r.open_count === 0).length;

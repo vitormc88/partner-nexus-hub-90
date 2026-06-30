@@ -295,52 +295,10 @@ export default function Analytics() {
 
 
         {/* ---------- SALES ---------- */}
-        <TabsContent value="sales" className="space-y-6 mt-4">
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Sales Performance</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">By assigned user · revenue from won deals only</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-secondary/50">
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue (Won)</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Open</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Won</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Lost</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Conversion</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Weighted Pipeline</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(sales.data || []).map(s => (
-                    <tr key={s.sales_key} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-foreground">
-                        <div className="flex items-center gap-2">
-                          <span>{s.sales_name}</span>
-                          {isAdmin && s.is_unlinked && <Badge variant="outline" className="text-[10px] opacity-60" title="No linked user profile (HQ-only diagnostic)">Unlinked</Badge>}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(s.won_revenue)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.open_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.won_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.lost_count}</td>
-                      <td className="px-5 py-3 text-right">
-                        <span className={`tabular-nums font-medium ${s.conversion >= 50 ? "text-emerald-600" : "text-foreground"}`}>{s.conversion}%</span>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(s.weighted_pipeline)}</td>
-                    </tr>
-                  ))}
-                  {(sales.data || []).length === 0 && (
-                    <tr><td colSpan={7} className="p-0"><EmptyState hint="Assign opportunities to users to see performance breakdown." /></td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <TabsContent value="sales" className="space-y-4 mt-4">
+          <SalesCockpit sales={sales.data || []} isAdmin={isAdmin} navigate={navigate} />
         </TabsContent>
+
 
         {/* ---------- PARTNERS ---------- */}
         <TabsContent value="partners" className="space-y-6 mt-4">

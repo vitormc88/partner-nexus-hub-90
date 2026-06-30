@@ -300,42 +300,9 @@ export default function Analytics() {
         </TabsContent>
 
 
-        {/* ---------- PARTNERS ---------- */}
-        <TabsContent value="partners" className="space-y-6 mt-4">
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Partner Performance Ranking</h3></div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-secondary/50">
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">#</th>
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Partner</th>
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Country</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue (Won)</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Open Deals</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Active Clients</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(partners.data || []).map((p, i) => (
-                    <tr key={p.partner_id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-muted-foreground">{i + 1}</td>
-                      <td className="px-5 py-3 font-medium text-foreground">{p.company_name}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{p.country || "—"}</td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(p.revenue)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{p.open_deal_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(p.pipeline)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{p.client_count}</td>
-                    </tr>
-                  ))}
-                  {(partners.data || []).length === 0 && (
-                    <tr><td colSpan={7} className="p-0"><EmptyState /></td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {/* ---------- PARTNERS (Executive Cockpit) ---------- */}
+        <TabsContent value="partners" className="space-y-4 mt-4">
+          <PartnerCockpit partners={partners.data || []} navigate={navigate} />
         </TabsContent>
 
         {/* ---------- RENEWALS ---------- */}

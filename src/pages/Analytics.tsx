@@ -73,6 +73,7 @@ const fmtEuroK = (v: number) => `€${(v / 1000).toFixed(0)}k`;
 export default function Analytics() {
   const [tab, setTab] = useState("overview");
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const pipelineStage = usePipelineStageBreakdown();
   const sales = useSalesPerformance();
@@ -108,14 +109,70 @@ export default function Analytics() {
     outcomes.dataUpdatedAt || 0,
   );
 
+  // --- Executive derivations (presentation-only, no business logic changes) ---
+  const topCountry = (country.data || [])[0];
+  const topCountryPct = topCountry && totalRevenue > 0 ? Math.round((topCountry.revenue / totalRevenue) * 100) : 0;
+
+  const largestStage = useMemo(() => stageData.slice().sort((a, b) => b.total_value - a.total_value)[0], [stageData]);
+  const mostOppStage = useMemo(() => stageData.slice().sort((a, b) => b.deal_count - a.deal_count)[0], [stageData]);
+  // Bottleneck = stage holding the largest commercial exposure (value)
+  const bottleneckStage = largestStage;
+
+  const topPartner = (partners.data || [])[0];
+  const overdueRenewals = renewals.data?.overdue ?? 0;
+
+  const alerts = useMemo(() => {
+    const out: Array<{ tone: "red" | "orange" | "yellow" | "green"; text: string; onClick?: () => void }> = [];
+    if (overdueRenewals > 0) {
+      out.push({ tone: "red", text: `${overdueRenewals} renewal${overdueRenewals !== 1 ? "s" : ""} overdue`, onClick: () => navigate("/renewals") });
+    }
+    if (bottleneckStage && bottleneckStage.total_value > 0) {
+      out.push({ tone: "orange", text: `${bottleneckStage.stage} concentrates ${fmtEuroK(bottleneckStage.total_value)} of exposure`, onClick: () => navigate("/pipeline") });
+    }
+    (partners.data || []).forEach(p => {
+      if (p.pipeline > 0 && p.client_count === 0) {
+        out.push({ tone: "yellow", text: `${p.company_name} has pipeline but no active clients`, onClick: () => navigate(`/partners/${p.partner_id}`) });
+      }
+    });
+    if (topPartner && topPartner.won_deal_count >= 3) {
+      out.push({ tone: "green", text: `${topPartner.company_name} closed ${topPartner.won_deal_count} deals (${fmtEuroK(topPartner.revenue)})`, onClick: () => navigate(`/partners/${topPartner.partner_id}`) });
+    }
+    return out.slice(0, 5);
+  }, [overdueRenewals, bottleneckStage, partners.data, topPartner, navigate]);
+
+  const highlights = useMemo(() => {
+    const out: string[] = [];
+    if (topCountry) out.push(`Revenue is led by ${topCountry.country} (${topCountryPct}% of total).`);
+    if (largestStage) out.push(`Pipeline value is concentrated in ${largestStage.stage}.`);
+    if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${mostOppStage.stage} holds the most opportunities (${mostOppStage.deal_count}).`);
+    if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
+    if (overdueRenewals > 0) out.push(`Renewals are the primary commercial risk (${overdueRenewals} overdue).`);
+    else if ((renewals.data?.upcoming ?? 0) > 0) out.push(`${renewals.data?.upcoming} renewals upcoming — protect recurring revenue.`);
+    if (topPartner) out.push(`${topPartner.company_name} remains the strongest performing partner.`);
+    return out.slice(0, 5);
+  }, [topCountry, topCountryPct, largestStage, mostOppStage, conversionRate, overdueRenewals, renewals.data, topPartner]);
+
+  const toneStyles: Record<string, string> = {
+    red: "bg-destructive/10 text-destructive border-destructive/30",
+    orange: "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300",
+    yellow: "bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300",
+    green: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/20 dark:text-emerald-300",
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between animate-reveal-up gap-4">
+    <div className="max-w-7xl mx-auto space-y-5">
+      <div className="flex items-center justify-between animate-reveal-up gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-1">Single source of truth · all metrics from live database</p>
+          <p className="text-sm text-muted-foreground mt-1">Executive cockpit · live commercial intelligence</p>
         </div>
-        <span className="text-[11px] text-muted-foreground shrink-0">{lastUpdatedLabel(lastUpdated)}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live database
+          </span>
+          <span className="text-[11px] text-muted-foreground">{lastUpdatedLabel(lastUpdated)}</span>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="animate-reveal-up stagger-1">
@@ -127,8 +184,8 @@ export default function Analytics() {
           <TabsTrigger value="renewals">Renewals</TabsTrigger>
         </TabsList>
 
-        {/* ---------- OVERVIEW ---------- */}
-        <TabsContent value="overview" className="space-y-6 mt-4">
+        {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
+        <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KPI label="Total Revenue (Won)" value={fmtEuroK(totalRevenue)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""}`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
@@ -136,48 +193,93 @@ export default function Analytics() {
             <KPI label="Conversion Rate" value={`${conversionRate}%`} sub={`${wonOutcomes.length} won / ${lostOutcomes.length} lost`} trend={conversionRate >= 50 ? "up" : conversionRate > 0 ? "down" : "neutral"} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-xl border shadow-sm">
-              <div className="p-5 border-b">
-                <h3 className="font-semibold text-foreground">Revenue by Country</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">From won deals only</p>
-              </div>
-              <div className="p-5">
-                {(country.data || []).length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={country.data} layout="vertical" barSize={16}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                      <YAxis type="category" dataKey="country" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={80} />
-                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [fmtEuro(v), "Revenue"]} />
-                      <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <EmptyState hint="Win your first deal to populate this chart." />}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Card 1 — Revenue by Country */}
+            <ExecCard title="Revenue by Country" icon={Globe2} onClick={() => setTab("partners")}>
+              {(country.data || []).length > 0 ? (
+                <div className="grid grid-cols-5 gap-4 items-center">
+                  <div className="col-span-2 space-y-1">
+                    <p className="text-xs text-muted-foreground">Top country</p>
+                    <p className="text-lg font-bold text-foreground">{topCountry?.country}</p>
+                    <p className="text-sm font-semibold text-primary tabular-nums">{fmtEuroK(topCountry?.revenue || 0)}</p>
+                    <p className="text-[11px] text-muted-foreground">{topCountryPct}% of total · {topCountry?.won_deal_count} won deal{(topCountry?.won_deal_count || 0) !== 1 ? "s" : ""}</p>
+                  </div>
+                  <div className="col-span-3">
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={(country.data || []).slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                        <XAxis type="number" hide tickFormatter={v => `€${v / 1000}k`} />
+                        <YAxis type="category" dataKey="country" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Revenue"]} />
+                        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : <EmptyState hint="Win your first deal to populate this card." />}
+            </ExecCard>
 
-            <div className="bg-card rounded-xl border shadow-sm">
-              <div className="p-5 border-b">
-                <h3 className="font-semibold text-foreground">Open Pipeline by Stage</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Excludes Won and Lost</p>
-              </div>
-              <div className="p-5">
-                {stageData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={stageData} barSize={24}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="stage" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} formatter={(v: number) => [fmtEuro(v), undefined]} />
-                      <Bar dataKey="total_value" name="Pipeline Value" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <EmptyState hint="Create open opportunities to see stage distribution." />}
-              </div>
-            </div>
+            {/* Card 2 — Pipeline Health */}
+            <ExecCard title="Pipeline Health" icon={Activity} onClick={() => setTab("pipeline")}>
+              {stageData.length > 0 ? (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Largest stage</p>
+                    <p className="font-semibold text-foreground mt-0.5">{largestStage?.stage}</p>
+                    <p className="text-xs text-primary tabular-nums">{fmtEuroK(largestStage?.total_value || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Most opportunities</p>
+                    <p className="font-semibold text-foreground mt-0.5">{mostOppStage?.stage}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{mostOppStage?.deal_count} deals</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Weighted pipeline</p>
+                    <p className="font-semibold text-foreground mt-0.5 tabular-nums">{fmtEuroK(totalWeightedPipeline)}</p>
+                    <p className="text-xs text-muted-foreground">Probability-adjusted</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Attention</p>
+                    <p className="text-xs text-foreground mt-0.5 leading-snug">{bottleneckStage?.stage} holds the highest commercial exposure.</p>
+                  </div>
+                </div>
+              ) : <EmptyState hint="Create open opportunities to see pipeline health." />}
+            </ExecCard>
+
+            {/* Card 3 — Commercial Alerts */}
+            <ExecCard title="Commercial Alerts" icon={AlertTriangle}>
+              {alerts.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {alerts.map((a, i) => (
+                    <li
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); a.onClick?.(); }}
+                      className={`flex items-start gap-2 text-xs px-2.5 py-2 rounded-md border ${toneStyles[a.tone]} ${a.onClick ? "cursor-pointer hover:opacity-80" : ""}`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 bg-current" />
+                      <span className="leading-snug">{a.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
+            </ExecCard>
+
+            {/* Card 4 — Executive Highlights */}
+            <ExecCard title="Executive Highlights" icon={Sparkles}>
+              {highlights.length > 0 ? (
+                <ul className="space-y-2 text-sm">
+                  {highlights.map((h, i) => (
+                    <li key={i} className="flex items-start gap-2 text-foreground leading-snug">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span>{h}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyState hint="Highlights will appear as data accumulates." />}
+            </ExecCard>
           </div>
         </TabsContent>
+
+
 
         {/* ---------- PIPELINE ---------- */}
         <TabsContent value="pipeline" className="space-y-6 mt-4">

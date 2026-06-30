@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles } from "lucide-react";
+import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { PIPELINE_STAGES } from "@/data/pipeline-stages";
 import { useAuth } from "@/contexts/AuthContext";
 import {

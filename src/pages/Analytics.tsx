@@ -281,51 +281,18 @@ export default function Analytics() {
 
 
 
-        {/* ---------- PIPELINE ---------- */}
-        <TabsContent value="pipeline" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Open Deals" value={String(totalOpenDeals)} />
-            <KPI label="Pipeline Value" value={fmtEuroK(totalPipelineValue)} />
-            <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="Probability-adjusted" />
-            <KPI label="Avg Deal Size" value={totalOpenDeals > 0 ? fmtEuroK(totalPipelineValue / totalOpenDeals) : "—"} />
-          </div>
-
-          <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Pipeline by Stage</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Active stages only · Won and Lost shown separately as outcomes</p>
-            </div>
-            <div className="p-5">
-              {stageData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={stageData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="stage" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="value" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={v => `€${v / 1000}k`} />
-                    <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-                    <Legend wrapperStyle={{ fontSize: "11px" }} />
-                    <Bar yAxisId="value" dataKey="total_value" name="Value (€)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="count" dataKey="deal_count" name="Deals" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <EmptyState hint="Create open opportunities to see pipeline analytics." />}
-            </div>
-          </div>
-
-          {/* Outcomes shown separately, not mixed with active pipeline */}
-          <div className="bg-card rounded-xl border shadow-sm">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Outcomes</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Closed deals — separate from active pipeline</p>
-            </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <KPI label="Won" value={String(wonOutcomes.length)} sub={fmtEuroK(totalRevenue)} trend={wonOutcomes.length > 0 ? "up" : "neutral"} />
-              <KPI label="Lost" value={String(lostOutcomes.length)} sub={fmtEuroK(lostOutcomes.reduce((s, o) => s + o.value, 0))} trend={lostOutcomes.length > 0 ? "down" : "neutral"} />
-              <KPI label="Conversion Rate" value={`${conversionRate}%`} sub="won / (won + lost)" />
-            </div>
-          </div>
+        {/* ---------- PIPELINE (Commercial Intelligence) ---------- */}
+        <TabsContent value="pipeline" className="space-y-4 mt-4">
+          <PipelineCockpit
+            stageData={stageData}
+            totalOpenDeals={totalOpenDeals}
+            totalPipelineValue={totalPipelineValue}
+            totalWeightedPipeline={totalWeightedPipeline}
+            wonCount={wonOutcomes.length}
+            navigate={navigate}
+          />
         </TabsContent>
+
 
         {/* ---------- SALES ---------- */}
         <TabsContent value="sales" className="space-y-6 mt-4">

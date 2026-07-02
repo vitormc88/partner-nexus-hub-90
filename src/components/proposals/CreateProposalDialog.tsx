@@ -49,6 +49,15 @@ import {
 } from "./BusinessSteps";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
+import { LICENSE_ORDER } from "@/lib/license-evolution";
+
+// Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
+function appendStagedLine(prev: string, line: string): string {
+  const marker = "[Staged from wizard]";
+  const suffix = `${marker} ${line}`;
+  if (prev?.includes(suffix)) return prev;
+  return prev ? `${prev}\n${suffix}` : suffix;
+}
 import {
   computeBusinessOption,
   computeBusinessOptions,
@@ -728,15 +737,55 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const showWizard = !wizardDone && !!commercialContext && !editingProposal;
 
   const handleWizardContinue = (result: WizardResult) => {
-    if (typeof result.plan === "number") setPlan(result.plan);
-    if (typeof result.additionalWebUsers === "number" && result.additionalWebUsers > 0) {
+    const mode = commercialContext?.mode;
+
+    // ── Upgrade / Change License: apply target license to Builder state ──
+    if (mode === "upgrade_license" && result.targetLicenseId) {
+      const target = LICENSE_ORDER.find((l) => l.id === result.targetLicenseId);
+      if (target) {
+        setProductFamily(target.family as ProposalProductFamily);
+        if (target.family === "Professional" && target.plan) setPlan(target.plan);
+        if (target.family === "Business") {
+          // Business licenses drive their own compare/keepit/useit mode
+          const bMode = target.variant === "KeepIT" ? "keepit_only"
+                      : target.variant === "UseIT" ? "useit_only"
+                      : "compare_keepit_useit";
+          setProposalMode(bMode as ProposalMode);
+        }
+      }
+    } else if (typeof result.plan === "number") {
+      setPlan(result.plan);
+    }
+
+    // ── Add Users: stage only the additional users, don't re-price existing ──
+    if (mode === "add_users") {
+      setWebUsers(Math.max(0, result.additionalWebUsers ?? 0));
+    } else if (typeof result.additionalWebUsers === "number" && result.additionalWebUsers > 0) {
       setWebUsers((prev) => (prev || 0) + result.additionalWebUsers!);
     }
-    if (result.selectedModules?.some((m) => /request/i.test(m))) {
-      setIncludeRequests(true);
+
+    // ── Add Modules: capture the picked modules as staged additions ──
+    if (result.selectedModules?.length) {
+      if (result.selectedModules.some((m) => /request/i.test(m))) setIncludeRequests(true);
+      setNotes((prev) => appendStagedLine(prev, `Additional modules: ${result.selectedModules!.join(", ")}`));
     }
+
+    // ── Add Plugins: capture the picked plugins as staged additions ──
+    if (result.selectedPlugins?.length) {
+      setNotes((prev) => appendStagedLine(prev, `Additional plugins: ${result.selectedPlugins!.join(", ")}`));
+    }
+
+    // ── Change Hosting: apply the target hosting to Builder state ──
+    if (mode === "change_hosting" && result.newHosting) {
+      const target: ProposalHosting = result.newHosting === "OnPremise" ? "On-Premise" : "SaaS";
+      setHosting(target);
+      setDeployment(result.newHosting === "OnPremise" ? "on_premise" : "saas");
+      setNotes((prev) => appendStagedLine(prev, `Hosting change: switch to ${target}`));
+    }
+
     setWizardDone(true);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -238,9 +238,41 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ActionButton icon={FilePlus2} label="Create Proposal" hint="Existing Customer Mode" onClick={() => openProposal("new")} />
-            <ActionButton icon={RefreshCw} label="Prepare Renewal" hint="Renewal Mode" onClick={() => openProposal("renewal")} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="group flex flex-col items-start gap-2 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left hover:border-primary hover:bg-primary/10 transition-colors">
+                  <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                    <FilePlus2 className="h-4 w-4" />
+                  </div>
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">New Proposal</p>
+                      <p className="text-[11px] text-muted-foreground">Existing customer commercial action</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Commercial Proposal Type
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {PROPOSAL_MODES.map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">
+                      <Icon className="h-4 w-4 text-primary" />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{m.label}</div>
+                        <div className="text-[11px] text-muted-foreground">{m.hint}</div>
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ActionButton icon={CalendarPlus} label="Schedule Meeting" hint="Task linked to client" onClick={() => setShowMeeting(true)} />
             <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />
           </div>

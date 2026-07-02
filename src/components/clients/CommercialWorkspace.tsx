@@ -18,7 +18,11 @@ import { toast } from "sonner";
 import { useCreateNote } from "@/hooks/useClients";
 import { useCreateManualTask } from "@/hooks/useTasks";
 import { useLifecycleEvents } from "@/hooks/useLifecycleEvents";
-import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
+import { CreateProposalDialog, type CommercialContext, type CommercialProposalMode } from "@/components/proposals/CreateProposalDialog";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal } from "lucide-react";
 
 interface Props {
   client: any;

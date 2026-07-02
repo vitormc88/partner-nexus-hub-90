@@ -44,9 +44,10 @@ interface Props {
   primaryContract: any | null;
   modules: any[];
   notes: any[];
+  plugins?: any[];
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [] }: Props) {
   const navigate = useNavigate();
   const createNote = useCreateNote();
   const createTask = useCreateManualTask();
@@ -129,13 +130,36 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   const projectBase = client?.commercial_name ?? clientName;
 
   const buildContext = (mode: CommercialProposalMode): CommercialContext => {
+    const lic: any = primaryLicense || {};
+    const backofficeUsers = Number(lic.backoffice_users ?? lic.back_office_users ?? lic.bo_users ?? 0) || 0;
+    const renewalDate =
+      primaryContract?.contract_end_date ||
+      primaryLicense?.license_end_date ||
+      null;
+
+    const snapshot = {
+      clientId: client?.id ?? null,
+      clientName: clientName || null,
+      partnerId: client?.partner_id ?? null,
+      partnerName: client?.partner_name ?? client?.partner?.company_name ?? null,
+      license: primaryLicense ?? null,
+      contract: primaryContract ?? null,
+      modules: modules || [],
+      plugins: plugins || [],
+      backofficeUsers,
+      webUsers: presets.webUsers,
+      renewalDate,
+    };
+
     const base: CommercialContext = {
+      source: "commercial_workspace",
       mode,
       label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
       presetPlan: presets.plan,
       presetWebUsers: presets.webUsers,
       presetIncludeRequests: presets.includeRequests,
       presetProductFamily: presets.family,
+      existingCustomer: snapshot,
     };
     switch (mode) {
       case "upgrade_license":

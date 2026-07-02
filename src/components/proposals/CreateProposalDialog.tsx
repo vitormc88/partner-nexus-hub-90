@@ -62,7 +62,35 @@ export type CommercialProposalMode =
   | "renew_agreement"
   | "other";
 
+/**
+ * Where the Proposal Builder was launched from.
+ * - "pipeline": legacy new-business flow (default when unset).
+ * - "commercial_workspace": existing-customer flow launched from a client.
+ */
+export type ProposalLaunchSource = "pipeline" | "commercial_workspace";
+
+/**
+ * Snapshot of the existing customer's current commercial state.
+ * Used to preload the Proposal Builder in Existing Customer Mode.
+ * Consumed as read-only context; no calculations change based on it.
+ */
+export interface ExistingCustomerSnapshot {
+  clientId?: string | null;
+  clientName?: string | null;
+  partnerId?: string | null;
+  partnerName?: string | null;
+  license?: any | null;
+  contract?: any | null;
+  modules?: any[];
+  plugins?: any[];
+  backofficeUsers?: number | null;
+  webUsers?: number | null;
+  renewalDate?: string | null;
+}
+
 export interface CommercialContext {
+  /** Launch origin — defaults to "pipeline" when this whole object is absent. */
+  source?: ProposalLaunchSource;
   mode: CommercialProposalMode;
   label: string;
   presetPlan?: ProposalPlan;
@@ -71,6 +99,8 @@ export interface CommercialContext {
   presetProductFamily?: ProposalProductFamily;
   initialStep?: number;
   projectNameHint?: string;
+  /** Full existing-customer snapshot (available to future UI, not used by engine). */
+  existingCustomer?: ExistingCustomerSnapshot;
 }
 
 interface Props {

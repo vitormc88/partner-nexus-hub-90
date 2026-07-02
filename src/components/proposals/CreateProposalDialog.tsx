@@ -1031,13 +1031,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
           {/* STEP 4: Preview */}
           {step === 4 && isBusiness && (
-            <BusinessPreviewStep
-              rules={rules}
-              language={language}
-              config={businessConfig}
-              onChange={setBusinessConfig}
-              proposalMode={proposalMode}
-            />
+            <div className="space-y-4">
+              {commercialContext && !editingProposal && (
+                <CommercialIntelligencePanel
+                  ctx={commercialContext}
+                  newRecurring={businessHeadline?.totalYear2Plus || 0}
+                  slot="summary"
+                />
+              )}
+              <BusinessPreviewStep
+                rules={rules}
+                language={language}
+                config={businessConfig}
+                onChange={setBusinessConfig}
+                proposalMode={proposalMode}
+              />
+            </div>
           )}
           {step === 4 && !isBusiness && (
             <div className="space-y-4">

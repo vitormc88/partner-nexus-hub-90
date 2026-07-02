@@ -913,6 +913,18 @@ export default function ClientDetail() {
           )}
         </TabsContent>
 
+        {/* ═══════════════════ COMMERCIAL TAB ═══════════════════ */}
+        <TabsContent value="commercial" className="mt-5">
+          <CommercialWorkspace
+            client={client}
+            primaryLicense={primaryLicense}
+            primaryContract={primaryContract}
+            modules={modules}
+            notes={notes}
+          />
+        </TabsContent>
+
+
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
         <TabsContent value="licensing" className="space-y-5 mt-5">
           {/* License Config */}

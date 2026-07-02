@@ -18,7 +18,25 @@ import { toast } from "sonner";
 import { useCreateNote } from "@/hooks/useClients";
 import { useCreateManualTask } from "@/hooks/useTasks";
 import { useLifecycleEvents } from "@/hooks/useLifecycleEvents";
-import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
+import { CreateProposalDialog, type CommercialContext, type CommercialProposalMode } from "@/components/proposals/CreateProposalDialog";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal } from "lucide-react";
+
+const PROPOSAL_MODES: {
+  mode: CommercialProposalMode;
+  label: string;
+  hint: string;
+  icon: any;
+}[] = [
+  { mode: "upgrade_license", label: "Upgrade License", hint: "Move to a higher plan", icon: ArrowUpCircle },
+  { mode: "add_modules", label: "Add Modules", hint: "Extend current license with modules", icon: Puzzle },
+  { mode: "add_plugins", label: "Add Plugins", hint: "Enable additional plugins", icon: Plug },
+  { mode: "add_users", label: "Add Users", hint: "Increase licensed users", icon: Users2 },
+  { mode: "renew_agreement", label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal", icon: RefreshCcw },
+  { mode: "other", label: "Other Commercial Proposal", hint: "Custom commercial change", icon: MoreHorizontal },
+];
 
 interface Props {
   client: any;
@@ -34,7 +52,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   const createTask = useCreateManualTask();
 
   const [showProposal, setShowProposal] = useState(false);
-  const [proposalMode, setProposalMode] = useState<"new" | "renewal">("new");
+  const [commercialCtx, setCommercialCtx] = useState<CommercialContext | null>(null);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showNote, setShowNote] = useState(false);
 
@@ -97,6 +115,49 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       .slice(0, 12);
   }, [proposals, commercialNotes, events]);
 
+  // Derive presets from current commercial state to preload the Proposal Builder.
+  const presets = useMemo(() => {
+    const lic: any = primaryLicense || {};
+    const rawPlan = Number(lic.plan ?? lic.plan_level ?? lic.edition_level ?? NaN);
+    const plan = (rawPlan === 1 || rawPlan === 2 || rawPlan === 3 ? rawPlan : undefined) as 1 | 2 | 3 | undefined;
+    const family: any = (lic.product_family || lic.license_family || "").toString().toLowerCase().includes("business")
+      ? "Business" : "Professional";
+    const webUsers = Number(lic.web_users ?? lic.additional_web_users ?? 0) || 0;
+    const includeRequests = Boolean(lic.include_requests_module ?? lic.requests_module);
+    return { plan, family: family as "Business" | "Professional", webUsers, includeRequests };
+  }, [primaryLicense]);
+  const projectBase = client?.commercial_name ?? clientName;
+
+  const buildContext = (mode: CommercialProposalMode): CommercialContext => {
+    const base: CommercialContext = {
+      mode,
+      label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
+      presetPlan: presets.plan,
+      presetWebUsers: presets.webUsers,
+      presetIncludeRequests: presets.includeRequests,
+      presetProductFamily: presets.family,
+    };
+    switch (mode) {
+      case "upgrade_license":
+        return { ...base, initialStep: 0, projectNameHint: `License upgrade — ${projectBase}` };
+      case "add_modules":
+        return { ...base, initialStep: 1, projectNameHint: `Additional modules — ${projectBase}` };
+      case "add_plugins":
+        return { ...base, initialStep: 1, projectNameHint: `Plugins expansion — ${projectBase}` };
+      case "add_users":
+        return { ...base, initialStep: 1, projectNameHint: `Additional users — ${projectBase}` };
+      case "renew_agreement":
+        return { ...base, initialStep: 4, projectNameHint: `Renewal — ${projectBase}` };
+      default:
+        return { ...base, initialStep: 0, projectNameHint: `Commercial proposal — ${projectBase}` };
+    }
+  };
+
+  const openProposal = (mode: CommercialProposalMode) => {
+    setCommercialCtx(buildContext(mode));
+    setShowProposal(true);
+  };
+
   // Recommended actions (deterministic, lightweight)
   const recommendations = useMemo(() => {
     const recs: { title: string; hint: string; action?: () => void; label?: string }[] = [];
@@ -108,14 +169,14 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           title: "Renewal overdue",
           hint: `Contract ended ${Math.abs(days)}d ago — prepare renewal now.`,
           label: "Prepare Renewal",
-          action: () => { setProposalMode("renewal"); setShowProposal(true); },
+          action: () => openProposal("renew_agreement"),
         });
       } else if (days <= 90) {
         recs.push({
           title: `Renewal due in ${days}d`,
           hint: "Kick off renewal conversation and prepare pricing.",
           label: "Prepare Renewal",
-          action: () => { setProposalMode("renewal"); setShowProposal(true); },
+          action: () => openProposal("renew_agreement"),
         });
       }
     }
@@ -123,8 +184,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       recs.push({
         title: "No commercial proposals on file",
         hint: "Create the first proposal to formalize the relationship.",
-        label: "Create Proposal",
-        action: () => { setProposalMode("new"); setShowProposal(true); },
+        label: "New Proposal",
+        action: () => openProposal("other"),
       });
     }
     if (commercialNotes.length === 0) {
@@ -146,10 +207,6 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     return recs.slice(0, 3);
   }, [primaryContract, primaryLicense, proposals, commercialNotes]);
 
-  const openProposal = (mode: "new" | "renewal") => {
-    setProposalMode(mode);
-    setShowProposal(true);
-  };
 
   const handleCreateMeeting = async () => {
     if (!meetingTitle.trim()) { toast.error("Add a meeting title"); return; }
@@ -195,9 +252,41 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ActionButton icon={FilePlus2} label="Create Proposal" hint="Existing Customer Mode" onClick={() => openProposal("new")} />
-            <ActionButton icon={RefreshCw} label="Prepare Renewal" hint="Renewal Mode" onClick={() => openProposal("renewal")} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="group flex flex-col items-start gap-2 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left hover:border-primary hover:bg-primary/10 transition-colors">
+                  <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                    <FilePlus2 className="h-4 w-4" />
+                  </div>
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">New Proposal</p>
+                      <p className="text-[11px] text-muted-foreground">Existing customer commercial action</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Commercial Proposal Type
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {PROPOSAL_MODES.map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">
+                      <Icon className="h-4 w-4 text-primary" />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{m.label}</div>
+                        <div className="text-[11px] text-muted-foreground">{m.hint}</div>
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ActionButton icon={CalendarPlus} label="Schedule Meeting" hint="Task linked to client" onClick={() => setShowMeeting(true)} />
             <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />
           </div>
@@ -232,7 +321,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" /> Proposal History
           </CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => openProposal("new")}>
+          <Button size="sm" variant="ghost" onClick={() => openProposal("other")}>
             <FilePlus2 className="h-3.5 w-3.5 mr-1" /> New
           </Button>
         </CardHeader>
@@ -343,6 +432,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           leadId={client.id}
           defaultClientName={clientName}
           defaultCountry={client.country || null}
+          commercialContext={commercialCtx}
         />
       )}
 

@@ -54,6 +54,25 @@ import {
   type BusinessConfig,
 } from "@/lib/proposal-business-engine";
 
+export type CommercialProposalMode =
+  | "upgrade_license"
+  | "add_modules"
+  | "add_plugins"
+  | "add_users"
+  | "renew_agreement"
+  | "other";
+
+export interface CommercialContext {
+  mode: CommercialProposalMode;
+  label: string;
+  presetPlan?: ProposalPlan;
+  presetWebUsers?: number;
+  presetIncludeRequests?: boolean;
+  presetProductFamily?: ProposalProductFamily;
+  initialStep?: number;
+  projectNameHint?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,11 +80,12 @@ interface Props {
   defaultClientName: string;
   defaultCountry?: string | null;
   editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
+  commercialContext?: CommercialContext | null;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: rules = [] } = usePricingRules();
@@ -116,12 +136,23 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [items, setItems] = useState<ProposalItem[]>([]);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    setClientName(defaultClientName);
+    setCountry(defaultCountry || "");
+    if (editingProposal) return;
+    // Apply commercial context presets (existing-customer flows)
+    if (commercialContext) {
+      if (commercialContext.presetProductFamily) setProductFamily(commercialContext.presetProductFamily);
+      if (commercialContext.presetPlan) setPlan(commercialContext.presetPlan);
+      if (typeof commercialContext.presetWebUsers === "number") setWebUsers(commercialContext.presetWebUsers);
+      if (typeof commercialContext.presetIncludeRequests === "boolean") setIncludeRequests(commercialContext.presetIncludeRequests);
+      if (commercialContext.projectNameHint) setProjectName(commercialContext.projectNameHint);
+      setStep(typeof commercialContext.initialStep === "number" ? commercialContext.initialStep : 0);
+    } else {
       setStep(0);
-      setClientName(defaultClientName);
-      setCountry(defaultCountry || "");
     }
-  }, [open, defaultClientName, defaultCountry]);
+  }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
+
 
   useEffect(() => {
     if (!open || !editingProposal) return;
@@ -627,9 +658,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
             {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
+            {commercialContext && !editingProposal && (
+              <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
+                Existing Customer · {commercialContext.label}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 

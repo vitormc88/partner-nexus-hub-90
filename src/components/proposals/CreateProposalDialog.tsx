@@ -691,6 +691,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
   const formatPrice = (n: number) => formatEuro(n, language);
 
+  const showWizard = !wizardDone && !!commercialContext && !editingProposal;
+
+  const handleWizardContinue = (result: WizardResult) => {
+    if (typeof result.plan === "number") setPlan(result.plan);
+    if (typeof result.additionalWebUsers === "number" && result.additionalWebUsers > 0) {
+      setWebUsers((prev) => (prev || 0) + result.additionalWebUsers!);
+    }
+    if (result.selectedModules?.some((m) => /request/i.test(m))) {
+      setIncludeRequests(true);
+    }
+    setWizardDone(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

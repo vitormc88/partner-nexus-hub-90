@@ -727,6 +727,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </div>
         ) : (
           <>
+        {commercialContext && !editingProposal && (
+          <div className="mt-3">
+            <CommercialIntelligencePanel
+              ctx={commercialContext}
+              newRecurring={isBusiness ? (businessHeadline?.totalYear2Plus || 0) : totals.totalRecurring}
+              slot="banners"
+            />
+          </div>
+        )}
         {/* Step indicator */}
         <div className="flex items-center gap-1 mt-2">
           {STEPS.map((label, idx) => (

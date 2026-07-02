@@ -753,6 +753,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </DialogTitle>
         </DialogHeader>
 
+        {commercialContext && !editingProposal && !commercialContext.existingCustomer?.license && (
+          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+            Current license could not be loaded from this client. Please check the Licensing tab before creating this proposal.
+          </div>
+        )}
+
         {showWizard ? (
           <div className="mt-4">
             <CommercialWizard ctx={commercialContext!} onContinue={handleWizardContinue} />

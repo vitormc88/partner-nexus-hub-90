@@ -49,6 +49,15 @@ import {
 } from "./BusinessSteps";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
+import { LICENSE_ORDER } from "@/lib/license-evolution";
+
+// Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
+function appendStagedLine(prev: string, line: string): string {
+  const marker = "[Staged from wizard]";
+  const suffix = `${marker} ${line}`;
+  if (prev?.includes(suffix)) return prev;
+  return prev ? `${prev}\n${suffix}` : suffix;
+}
 import {
   computeBusinessOption,
   computeBusinessOptions,

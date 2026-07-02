@@ -239,7 +239,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     const base: CommercialContext = {
       source: "commercial_workspace",
       mode,
-      label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
+      label: PROPOSAL_MODES[mode as CommercialActionId]?.label || "Commercial Proposal",
       presetPlan: derivedLicense.plan,
       presetWebUsers: webUsers,
       presetProductFamily: derivedLicense.family ?? "Professional",

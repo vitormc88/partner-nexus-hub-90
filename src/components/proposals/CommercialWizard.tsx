@@ -293,7 +293,7 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
         <div className="grid gap-3 md:grid-cols-2">
           <SectionCard title="Current license">
             <p className="text-sm font-semibold text-foreground">
-              {currentPlan ? PLAN_LABEL[currentPlan] : "—"}
+              {currentLicenseLabel}
             </p>
           </SectionCard>
           <SectionCard title="Renewal date">

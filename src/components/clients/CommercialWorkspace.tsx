@@ -22,21 +22,28 @@ import { CreateProposalDialog, type CommercialContext, type CommercialProposalMo
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal, Server } from "lucide-react";
+import {
+  availableCommercialActions,
+  resolveLicenseId,
+  type CommercialActionId,
+} from "@/lib/license-evolution";
 
-const PROPOSAL_MODES: {
+const PROPOSAL_MODES: Record<CommercialActionId, {
   mode: CommercialProposalMode;
   label: string;
   hint: string;
   icon: any;
-}[] = [
-  { mode: "upgrade_license", label: "Upgrade License", hint: "Move to a higher plan", icon: ArrowUpCircle },
-  { mode: "add_modules", label: "Add Modules", hint: "Extend current license with modules", icon: Puzzle },
-  { mode: "add_plugins", label: "Add Plugins", hint: "Enable additional plugins", icon: Plug },
-  { mode: "add_users", label: "Add Users", hint: "Increase licensed users", icon: Users2 },
-  { mode: "renew_agreement", label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal", icon: RefreshCcw },
-  { mode: "other", label: "Other Commercial Proposal", hint: "Custom commercial change", icon: MoreHorizontal },
-];
+}> = {
+  upgrade_license:  { mode: "upgrade_license",  label: "Change / Upgrade License",  hint: "Move to a higher plan or Business model", icon: ArrowUpCircle },
+  add_modules:      { mode: "add_modules",      label: "Add Modules",               hint: "Extend current license with modules",     icon: Puzzle },
+  add_plugins:      { mode: "add_plugins",      label: "Add Plugins",               hint: "Enable additional plugins",               icon: Plug },
+  add_users:        { mode: "add_users",        label: "Add Users",                 hint: "Increase licensed users",                 icon: Users2 },
+  change_hosting:   { mode: "change_hosting",   label: "Change Hosting",            hint: "Switch SaaS / On-Premise",                icon: Server },
+  renew_agreement:  { mode: "renew_agreement",  label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal",             icon: RefreshCcw },
+  other:            { mode: "other",            label: "Other Commercial Proposal", hint: "Custom commercial change",                icon: MoreHorizontal },
+};
+
 
 interface Props {
   client: any;
@@ -173,6 +180,16 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     return { family, variant, plan, label };
   }, [primaryLicense]);
 
+  const currentLicenseId = useMemo(
+    () => resolveLicenseId(derivedLicense.family, derivedLicense.variant),
+    [derivedLicense.family, derivedLicense.variant],
+  );
+  const allowedActions = useMemo(
+    () => availableCommercialActions(currentLicenseId),
+    [currentLicenseId],
+  );
+
+
   const backofficeUsers = Number(
     (primaryLicense as any)?.backoffice_users ??
     (primaryLicense as any)?.backoffice_employee_users ?? 0,
@@ -232,7 +249,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     const base: CommercialContext = {
       source: "commercial_workspace",
       mode,
-      label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
+      label: PROPOSAL_MODES[mode as CommercialActionId]?.label || "Commercial Proposal",
       presetPlan: derivedLicense.plan,
       presetWebUsers: webUsers,
       presetProductFamily: derivedLicense.family ?? "Professional",
@@ -247,6 +264,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         return { ...base, initialStep: 1, projectNameHint: `Plugins expansion — ${projectBase}` };
       case "add_users":
         return { ...base, initialStep: 1, projectNameHint: `Additional users — ${projectBase}` };
+      case "change_hosting":
+        return { ...base, initialStep: 0, projectNameHint: `Change hosting — ${projectBase}` };
       case "renew_agreement":
         return { ...base, initialStep: 4, projectNameHint: `Renewal — ${projectBase}` };
       default:
@@ -375,7 +394,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                   Commercial Proposal Type
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {PROPOSAL_MODES.map((m) => {
+                {allowedActions.map((id) => {
+                  const m = PROPOSAL_MODES[id];
                   const Icon = m.icon;
                   return (
                     <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">

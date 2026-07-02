@@ -3,10 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw } from "lucide-react";
+import { ArrowRight, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, Server } from "lucide-react";
 import type { CommercialContext, CommercialProposalMode } from "./CreateProposalDialog";
 import type { ProposalPlan } from "@/types/proposal";
+import {
+  LICENSE_ORDER,
+  resolveLicenseId,
+  validUpgradeTargets,
+  type LicenseId,
+} from "@/lib/license-evolution";
+
 
 /**
  * Contextual wizard shown as the first screen of the Proposal Builder when
@@ -44,7 +52,10 @@ export interface WizardResult {
   additionalBackofficeUsers?: number;
   selectedModules?: string[];
   selectedPlugins?: string[];
+  targetLicenseId?: LicenseId;
+  newHosting?: "SaaS" | "OnPremise";
 }
+
 
 interface Props {
   ctx: CommercialContext;
@@ -82,26 +93,43 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
     () => ALL_MODULES.filter((m) => !currentModuleNames.some((cm) => cm.toLowerCase() === m.toLowerCase())),
     [currentModuleNames],
   );
+  // API plugin is filtered when API access is already enabled on the license.
+  const apiAlreadyOn =
+    Boolean((snap as any).apiAccess)
+    || currentPluginNames.some((p) => /\bapi\b/i.test(p));
   const availablePlugins = useMemo(
-    () => ALL_PLUGINS.filter((p) => !currentPluginNames.some((cp) => cp.toLowerCase() === p.toLowerCase())),
-    [currentPluginNames],
+    () => ALL_PLUGINS.filter((p) => {
+      if (currentPluginNames.some((cp) => cp.toLowerCase() === p.toLowerCase())) return false;
+      if (apiAlreadyOn && /api/i.test(p)) return false;
+      return true;
+    }),
+    [currentPluginNames, apiAlreadyOn],
   );
 
+  // ── License evolution (Sprint I.7) ──
+  const currentLicenseId = useMemo(
+    () => resolveLicenseId((snap as any).licenseFamily ?? null, (snap as any).licenseVariant ?? null),
+    [snap],
+  );
+  const upgradeTargets = useMemo(() => validUpgradeTargets(currentLicenseId), [currentLicenseId]);
+
   // Local state per mode
-  const [newPlan, setNewPlan] = useState<ProposalPlan>(
-    currentPlan && currentPlan < 3 ? ((currentPlan + 1) as ProposalPlan) : 3,
+  const [targetLicenseId, setTargetLicenseId] = useState<LicenseId | undefined>(
+    upgradeTargets[0]?.id,
   );
   const [addBoUsers, setAddBoUsers] = useState(0);
   const [addWebUsers, setAddWebUsers] = useState(0);
   const [pickedModules, setPickedModules] = useState<string[]>([]);
   const [pickedPlugins, setPickedPlugins] = useState<string[]>([]);
+  const currentHosting: "SaaS" | "OnPremise" = /on.?prem/i.test(String((snap as any).deployment || ""))
+    ? "OnPremise" : "SaaS";
+  const [newHosting, setNewHosting] = useState<"SaaS" | "OnPremise">(
+    currentHosting === "SaaS" ? "OnPremise" : "SaaS",
+  );
+
 
   const toggle = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
-
-  const upgradeOptions: ProposalPlan[] = (currentPlan
-    ? ([1, 2, 3] as ProposalPlan[]).filter((p) => p > currentPlan)
-    : ([1, 2, 3] as ProposalPlan[])) as ProposalPlan[];
 
   const iconFor = (mode: CommercialProposalMode) => {
     switch (mode) {
@@ -109,6 +137,7 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
       case "add_modules": return Puzzle;
       case "add_plugins": return Plug;
       case "add_users": return Users2;
+      case "change_hosting": return Server;
       case "renew_agreement": return RefreshCcw;
       default: return ArrowUpCircle;
     }
@@ -116,9 +145,13 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
   const Icon = iconFor(ctx.mode);
 
   const handleContinue = () => {
+    const target = upgradeTargets.find((t) => t.id === targetLicenseId);
     switch (ctx.mode) {
       case "upgrade_license":
-        onContinue({ plan: newPlan });
+        onContinue({
+          plan: target?.plan,
+          targetLicenseId: targetLicenseId,
+        });
         break;
       case "add_users":
         onContinue({
@@ -132,11 +165,15 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
       case "add_plugins":
         onContinue({ selectedPlugins: pickedPlugins });
         break;
+      case "change_hosting":
+        onContinue({ newHosting });
+        break;
       case "renew_agreement":
       default:
         onContinue({});
     }
   };
+
 
   return (
     <div className="space-y-5">
@@ -161,20 +198,56 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
 
             </p>
           </div>
-          <div>
-            <Label className="text-xs">Select new license</Label>
-            <Select value={String(newPlan)} onValueChange={(v) => setNewPlan(Number(v) as ProposalPlan)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(upgradeOptions.length ? upgradeOptions : ([1, 2, 3] as ProposalPlan[])).map((p) => (
-                  <SelectItem key={p} value={String(p)}>{PLAN_LABEL[p]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {upgradeOptions.length === 0 && currentPlan === 3 && (
-              <p className="text-xs text-muted-foreground mt-2">Customer is already on the highest plan.</p>
-            )}
+          {upgradeTargets.length === 0 ? (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-xs text-amber-700 dark:text-amber-400">
+              This customer is already on a Business license. Use Add Modules, Add Plugins, Add Users, Change Hosting or Renew Commercial Agreement instead.
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Select new license</Label>
+              <Select
+                value={targetLicenseId ?? ""}
+                onValueChange={(v) => setTargetLicenseId(v as LicenseId)}
+              >
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Choose a target license" /></SelectTrigger>
+                <SelectContent>
+                  {upgradeTargets.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Downgrades are never offered. Business UseIT and Business KeepIT are mutually exclusive commercial models.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {ctx.mode === "change_hosting" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current Hosting</p>
+            <p className="text-lg font-semibold text-foreground mt-1">
+              {currentHosting === "OnPremise" ? "On-Premise" : "SaaS"}
+            </p>
           </div>
+          <div>
+            <Label className="text-xs">Switch to</Label>
+            <RadioGroup
+              value={newHosting}
+              onValueChange={(v) => setNewHosting(v as "SaaS" | "OnPremise")}
+              className="mt-2 grid grid-cols-2 gap-2"
+            >
+              <label className="flex items-center gap-2 rounded-md border border-border/60 p-3 cursor-pointer">
+                <RadioGroupItem value="SaaS" /> <span className="text-sm">SaaS</span>
+              </label>
+              <label className="flex items-center gap-2 rounded-md border border-border/60 p-3 cursor-pointer">
+                <RadioGroupItem value="OnPremise" /> <span className="text-sm">On-Premise</span>
+              </label>
+            </RadioGroup>
+          </div>
+
         </div>
       )}
 

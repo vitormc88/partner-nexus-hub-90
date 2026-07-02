@@ -61,6 +61,7 @@ export type CommercialProposalMode =
   | "add_modules"
   | "add_plugins"
   | "add_users"
+  | "change_hosting"
   | "renew_agreement"
   | "other";
 

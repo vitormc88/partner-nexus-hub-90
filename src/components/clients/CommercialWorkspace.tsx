@@ -180,6 +180,16 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     return { family, variant, plan, label };
   }, [primaryLicense]);
 
+  const currentLicenseId = useMemo(
+    () => resolveLicenseId(derivedLicense.family, derivedLicense.variant),
+    [derivedLicense.family, derivedLicense.variant],
+  );
+  const allowedActions = useMemo(
+    () => availableCommercialActions(currentLicenseId),
+    [currentLicenseId],
+  );
+
+
   const backofficeUsers = Number(
     (primaryLicense as any)?.backoffice_users ??
     (primaryLicense as any)?.backoffice_employee_users ?? 0,

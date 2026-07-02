@@ -171,7 +171,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     if (!open) return;
     setClientName(defaultClientName);
     setCountry(defaultCountry || "");
-    if (editingProposal) return;
+    if (editingProposal) { setWizardDone(true); return; }
     // Apply commercial context presets (existing-customer flows)
     if (commercialContext) {
       if (commercialContext.presetProductFamily) setProductFamily(commercialContext.presetProductFamily);
@@ -180,8 +180,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       if (typeof commercialContext.presetIncludeRequests === "boolean") setIncludeRequests(commercialContext.presetIncludeRequests);
       if (commercialContext.projectNameHint) setProjectName(commercialContext.projectNameHint);
       setStep(typeof commercialContext.initialStep === "number" ? commercialContext.initialStep : 0);
+      const showWizard =
+        commercialContext.source === "commercial_workspace" &&
+        commercialContext.mode !== "other";
+      setWizardDone(!showWizard);
     } else {
       setStep(0);
+      setWizardDone(true);
     }
   }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
 

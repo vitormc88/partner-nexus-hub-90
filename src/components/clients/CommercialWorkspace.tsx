@@ -384,7 +384,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                   Commercial Proposal Type
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {PROPOSAL_MODES.map((m) => {
+                {allowedActions.map((id) => {
+                  const m = PROPOSAL_MODES[id];
                   const Icon = m.icon;
                   return (
                     <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">

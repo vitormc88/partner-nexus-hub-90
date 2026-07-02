@@ -52,7 +52,10 @@ export interface WizardResult {
   additionalBackofficeUsers?: number;
   selectedModules?: string[];
   selectedPlugins?: string[];
+  targetLicenseId?: LicenseId;
+  newHosting?: "SaaS" | "OnPremise";
 }
+
 
 interface Props {
   ctx: CommercialContext;

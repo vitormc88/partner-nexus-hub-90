@@ -1249,6 +1249,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             <span />
           )}
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

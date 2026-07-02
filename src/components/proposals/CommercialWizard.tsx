@@ -131,16 +131,13 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
   const toggle = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
-  const upgradeOptions: ProposalPlan[] = (currentPlan
-    ? ([1, 2, 3] as ProposalPlan[]).filter((p) => p > currentPlan)
-    : ([1, 2, 3] as ProposalPlan[])) as ProposalPlan[];
-
   const iconFor = (mode: CommercialProposalMode) => {
     switch (mode) {
       case "upgrade_license": return ArrowUpCircle;
       case "add_modules": return Puzzle;
       case "add_plugins": return Plug;
       case "add_users": return Users2;
+      case "change_hosting": return Server;
       case "renew_agreement": return RefreshCcw;
       default: return ArrowUpCircle;
     }
@@ -148,9 +145,13 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
   const Icon = iconFor(ctx.mode);
 
   const handleContinue = () => {
+    const target = upgradeTargets.find((t) => t.id === targetLicenseId);
     switch (ctx.mode) {
       case "upgrade_license":
-        onContinue({ plan: newPlan });
+        onContinue({
+          plan: target?.plan,
+          targetLicenseId: targetLicenseId,
+        });
         break;
       case "add_users":
         onContinue({
@@ -164,11 +165,15 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
       case "add_plugins":
         onContinue({ selectedPlugins: pickedPlugins });
         break;
+      case "change_hosting":
+        onContinue({ newHosting });
+        break;
       case "renew_agreement":
       default:
         onContinue({});
     }
   };
+
 
   return (
     <div className="space-y-5">

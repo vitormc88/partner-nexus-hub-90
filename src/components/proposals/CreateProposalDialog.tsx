@@ -47,6 +47,7 @@ import {
   BusinessServicesStep,
   BusinessPreviewStep,
 } from "./BusinessSteps";
+import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import {
   computeBusinessOption,
   computeBusinessOptions,

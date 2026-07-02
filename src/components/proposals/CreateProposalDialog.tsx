@@ -54,6 +54,25 @@ import {
   type BusinessConfig,
 } from "@/lib/proposal-business-engine";
 
+export type CommercialProposalMode =
+  | "upgrade_license"
+  | "add_modules"
+  | "add_plugins"
+  | "add_users"
+  | "renew_agreement"
+  | "other";
+
+export interface CommercialContext {
+  mode: CommercialProposalMode;
+  label: string;
+  presetPlan?: ProposalPlan;
+  presetWebUsers?: number;
+  presetIncludeRequests?: boolean;
+  presetProductFamily?: ProposalProductFamily;
+  initialStep?: number;
+  projectNameHint?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +80,7 @@ interface Props {
   defaultClientName: string;
   defaultCountry?: string | null;
   editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
+  commercialContext?: CommercialContext | null;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];

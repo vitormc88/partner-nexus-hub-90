@@ -44,9 +44,10 @@ interface Props {
   primaryContract: any | null;
   modules: any[];
   notes: any[];
+  plugins?: any[];
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [] }: Props) {
   const navigate = useNavigate();
   const createNote = useCreateNote();
   const createTask = useCreateManualTask();

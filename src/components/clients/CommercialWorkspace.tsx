@@ -101,6 +101,49 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       .slice(0, 12);
   }, [proposals, commercialNotes, events]);
 
+  // Derive presets from current commercial state to preload the Proposal Builder.
+  const presets = useMemo(() => {
+    const lic: any = primaryLicense || {};
+    const rawPlan = Number(lic.plan ?? lic.plan_level ?? lic.edition_level ?? NaN);
+    const plan = (rawPlan === 1 || rawPlan === 2 || rawPlan === 3 ? rawPlan : undefined) as 1 | 2 | 3 | undefined;
+    const family: any = (lic.product_family || lic.license_family || "").toString().toLowerCase().includes("business")
+      ? "Business" : "Professional";
+    const webUsers = Number(lic.web_users ?? lic.additional_web_users ?? 0) || 0;
+    const includeRequests = Boolean(lic.include_requests_module ?? lic.requests_module);
+    return { plan, family: family as "Business" | "Professional", webUsers, includeRequests };
+  }, [primaryLicense]);
+  const projectBase = client?.commercial_name ?? clientName;
+
+  const buildContext = (mode: CommercialProposalMode): CommercialContext => {
+    const base: CommercialContext = {
+      mode,
+      label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
+      presetPlan: presets.plan,
+      presetWebUsers: presets.webUsers,
+      presetIncludeRequests: presets.includeRequests,
+      presetProductFamily: presets.family,
+    };
+    switch (mode) {
+      case "upgrade_license":
+        return { ...base, initialStep: 0, projectNameHint: `License upgrade — ${projectBase}` };
+      case "add_modules":
+        return { ...base, initialStep: 1, projectNameHint: `Additional modules — ${projectBase}` };
+      case "add_plugins":
+        return { ...base, initialStep: 1, projectNameHint: `Plugins expansion — ${projectBase}` };
+      case "add_users":
+        return { ...base, initialStep: 1, projectNameHint: `Additional users — ${projectBase}` };
+      case "renew_agreement":
+        return { ...base, initialStep: 4, projectNameHint: `Renewal — ${projectBase}` };
+      default:
+        return { ...base, initialStep: 0, projectNameHint: `Commercial proposal — ${projectBase}` };
+    }
+  };
+
+  const openProposal = (mode: CommercialProposalMode) => {
+    setCommercialCtx(buildContext(mode));
+    setShowProposal(true);
+  };
+
   // Recommended actions (deterministic, lightweight)
   const recommendations = useMemo(() => {
     const recs: { title: string; hint: string; action?: () => void; label?: string }[] = [];
@@ -112,14 +155,14 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           title: "Renewal overdue",
           hint: `Contract ended ${Math.abs(days)}d ago — prepare renewal now.`,
           label: "Prepare Renewal",
-          action: () => { setProposalMode("renewal"); setShowProposal(true); },
+          action: () => openProposal("renew_agreement"),
         });
       } else if (days <= 90) {
         recs.push({
           title: `Renewal due in ${days}d`,
           hint: "Kick off renewal conversation and prepare pricing.",
           label: "Prepare Renewal",
-          action: () => { setProposalMode("renewal"); setShowProposal(true); },
+          action: () => openProposal("renew_agreement"),
         });
       }
     }
@@ -127,8 +170,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       recs.push({
         title: "No commercial proposals on file",
         hint: "Create the first proposal to formalize the relationship.",
-        label: "Create Proposal",
-        action: () => { setProposalMode("new"); setShowProposal(true); },
+        label: "New Proposal",
+        action: () => openProposal("other"),
       });
     }
     if (commercialNotes.length === 0) {
@@ -150,10 +193,6 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     return recs.slice(0, 3);
   }, [primaryContract, primaryLicense, proposals, commercialNotes]);
 
-  const openProposal = (mode: "new" | "renewal") => {
-    setProposalMode(mode);
-    setShowProposal(true);
-  };
 
   const handleCreateMeeting = async () => {
     if (!meetingTitle.trim()) { toast.error("Add a meeting title"); return; }

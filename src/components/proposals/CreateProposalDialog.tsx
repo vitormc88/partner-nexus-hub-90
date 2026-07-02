@@ -123,6 +123,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [wizardDone, setWizardDone] = useState(false);
 
   // Step 1
   const [language, setLanguage] = useState<ProposalLanguage>("EN");

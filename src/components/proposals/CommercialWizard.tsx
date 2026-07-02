@@ -157,7 +157,8 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
           <div className="rounded-lg border border-border/60 p-4">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current License</p>
             <p className="text-lg font-semibold text-foreground mt-1">
-              {currentPlan ? PLAN_LABEL[currentPlan] : "—"}
+              {currentLicenseLabel}
+
             </p>
           </div>
           <div>

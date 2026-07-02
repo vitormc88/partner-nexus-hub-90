@@ -197,11 +197,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         commercialContext.source === "commercial_workspace" &&
         commercialContext.mode !== "other";
       setWizardDone(!showWizard);
+
+      // Development-only diagnostic logging (Sprint I.6).
+      if (import.meta.env?.DEV) {
+        const snap = commercialContext.existingCustomer || {};
+        // eslint-disable-next-line no-console
+        console.log("[ProposalBuilder/ExistingCustomer]", {
+          clientId: snap.clientId,
+          mode: commercialContext.mode,
+          licenseLabel: snap.licenseLabel,
+          licenseFamily: snap.licenseFamily,
+          licenseVariant: snap.licenseVariant,
+          backofficeUsers: snap.backofficeUsers,
+          webUsers: snap.webUsers,
+          activeModules: (snap.modules || []).length,
+          activePlugins: (snap.plugins || []).length,
+          renewalDate: snap.renewalDate,
+          satActive: snap.satActive,
+        });
+      }
     } else {
       setStep(0);
       setWizardDone(true);
     }
   }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
+
 
 
   useEffect(() => {

@@ -892,7 +892,6 @@ export default function ClientDetail() {
           <TabsTrigger value="notes" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Notes</TabsTrigger>
           <TabsTrigger value="credentials" className="gap-1.5 text-xs"><KeyRound className="h-3.5 w-3.5" /> Credentials</TabsTrigger>
         </TabsList>
-        </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
         <TabsContent value="overview" className="mt-4 space-y-5">

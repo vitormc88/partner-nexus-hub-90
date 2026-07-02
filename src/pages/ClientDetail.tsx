@@ -884,12 +884,14 @@ export default function ClientDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
-        <TabsList className="grid w-full grid-cols-5 h-10">
+        <TabsList className="grid w-full grid-cols-6 h-10">
           <TabsTrigger value="overview" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Overview</TabsTrigger>
+          <TabsTrigger value="commercial" className="gap-1.5 text-xs"><Sparkles className="h-3.5 w-3.5" /> Commercial</TabsTrigger>
           <TabsTrigger value="licensing" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> Licensing</TabsTrigger>
           <TabsTrigger value="contract" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contract</TabsTrigger>
           <TabsTrigger value="notes" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Notes</TabsTrigger>
           <TabsTrigger value="credentials" className="gap-1.5 text-xs"><KeyRound className="h-3.5 w-3.5" /> Credentials</TabsTrigger>
+        </TabsList>
         </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}

@@ -47,6 +47,7 @@ import {
   BusinessServicesStep,
   BusinessPreviewStep,
 } from "./BusinessSteps";
+import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import {
   computeBusinessOption,
   computeBusinessOptions,
@@ -122,6 +123,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [wizardDone, setWizardDone] = useState(false);
 
   // Step 1
   const [language, setLanguage] = useState<ProposalLanguage>("EN");
@@ -169,7 +171,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     if (!open) return;
     setClientName(defaultClientName);
     setCountry(defaultCountry || "");
-    if (editingProposal) return;
+    if (editingProposal) { setWizardDone(true); return; }
     // Apply commercial context presets (existing-customer flows)
     if (commercialContext) {
       if (commercialContext.presetProductFamily) setProductFamily(commercialContext.presetProductFamily);
@@ -178,8 +180,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       if (typeof commercialContext.presetIncludeRequests === "boolean") setIncludeRequests(commercialContext.presetIncludeRequests);
       if (commercialContext.projectNameHint) setProjectName(commercialContext.projectNameHint);
       setStep(typeof commercialContext.initialStep === "number" ? commercialContext.initialStep : 0);
+      const showWizard =
+        commercialContext.source === "commercial_workspace" &&
+        commercialContext.mode !== "other";
+      setWizardDone(!showWizard);
     } else {
       setStep(0);
+      setWizardDone(true);
     }
   }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
 
@@ -684,13 +691,27 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
   const formatPrice = (n: number) => formatEuro(n, language);
 
+  const showWizard = !wizardDone && !!commercialContext && !editingProposal;
+
+  const handleWizardContinue = (result: WizardResult) => {
+    if (typeof result.plan === "number") setPlan(result.plan);
+    if (typeof result.additionalWebUsers === "number" && result.additionalWebUsers > 0) {
+      setWebUsers((prev) => (prev || 0) + result.additionalWebUsers!);
+    }
+    if (result.selectedModules?.some((m) => /request/i.test(m))) {
+      setIncludeRequests(true);
+    }
+    setWizardDone(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
-            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
+            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"}
+            {!showWizard && ` — ${STEPS[step]}`}
             {commercialContext && !editingProposal && (
               <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
                 Existing Customer · {commercialContext.label}
@@ -699,6 +720,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </DialogTitle>
         </DialogHeader>
 
+        {showWizard ? (
+          <div className="mt-4">
+            <CommercialWizard ctx={commercialContext!} onContinue={handleWizardContinue} />
+          </div>
+        ) : (
+          <>
         {/* Step indicator */}
         <div className="flex items-center gap-1 mt-2">
           {STEPS.map((label, idx) => (
@@ -1222,6 +1249,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             <span />
           )}
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

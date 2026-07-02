@@ -48,6 +48,7 @@ import {
   BusinessPreviewStep,
 } from "./BusinessSteps";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
+import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import {
   computeBusinessOption,
   computeBusinessOptions,
@@ -726,6 +727,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </div>
         ) : (
           <>
+        {commercialContext && !editingProposal && (
+          <div className="mt-3">
+            <CommercialIntelligencePanel
+              ctx={commercialContext}
+              newRecurring={isBusiness ? (businessHeadline?.totalYear2Plus || 0) : totals.totalRecurring}
+              slot="banners"
+            />
+          </div>
+        )}
         {/* Step indicator */}
         <div className="flex items-center gap-1 mt-2">
           {STEPS.map((label, idx) => (
@@ -1021,16 +1031,32 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
           {/* STEP 4: Preview */}
           {step === 4 && isBusiness && (
-            <BusinessPreviewStep
-              rules={rules}
-              language={language}
-              config={businessConfig}
-              onChange={setBusinessConfig}
-              proposalMode={proposalMode}
-            />
+            <div className="space-y-4">
+              {commercialContext && !editingProposal && (
+                <CommercialIntelligencePanel
+                  ctx={commercialContext}
+                  newRecurring={businessHeadline?.totalYear2Plus || 0}
+                  slot="summary"
+                />
+              )}
+              <BusinessPreviewStep
+                rules={rules}
+                language={language}
+                config={businessConfig}
+                onChange={setBusinessConfig}
+                proposalMode={proposalMode}
+              />
+            </div>
           )}
           {step === 4 && !isBusiness && (
             <div className="space-y-4">
+              {commercialContext && !editingProposal && (
+                <CommercialIntelligencePanel
+                  ctx={commercialContext}
+                  newRecurring={totals.totalRecurring}
+                  slot="summary"
+                />
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <div className="px-3 py-2 bg-secondary/50 flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-foreground">Line Items (editable)</h4>

@@ -307,7 +307,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" /> Proposal History
           </CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => openProposal("new")}>
+          <Button size="sm" variant="ghost" onClick={() => openProposal("other")}>
             <FilePlus2 className="h-3.5 w-3.5 mr-1" /> New
           </Button>
         </CardHeader>

@@ -710,7 +710,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
-            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
+            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"}
+            {!showWizard && ` — ${STEPS[step]}`}
             {commercialContext && !editingProposal && (
               <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
                 Existing Customer · {commercialContext.label}
@@ -719,6 +720,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </DialogTitle>
         </DialogHeader>
 
+        {showWizard ? (
+          <div className="mt-4">
+            <CommercialWizard ctx={commercialContext!} onContinue={handleWizardContinue} />
+          </div>
+        ) : (
+          <>
         {/* Step indicator */}
         <div className="flex items-center gap-1 mt-2">
           {STEPS.map((label, idx) => (

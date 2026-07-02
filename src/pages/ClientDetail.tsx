@@ -30,6 +30,7 @@ import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTim
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { ContactsCard } from "@/components/clients/ContactsCard";
+import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -883,8 +884,9 @@ export default function ClientDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
-        <TabsList className="grid w-full grid-cols-5 h-10">
+        <TabsList className="grid w-full grid-cols-6 h-10">
           <TabsTrigger value="overview" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Overview</TabsTrigger>
+          <TabsTrigger value="commercial" className="gap-1.5 text-xs"><Sparkles className="h-3.5 w-3.5" /> Commercial</TabsTrigger>
           <TabsTrigger value="licensing" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> Licensing</TabsTrigger>
           <TabsTrigger value="contract" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contract</TabsTrigger>
           <TabsTrigger value="notes" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Notes</TabsTrigger>
@@ -910,6 +912,18 @@ export default function ClientDetail() {
             />
           )}
         </TabsContent>
+
+        {/* ═══════════════════ COMMERCIAL TAB ═══════════════════ */}
+        <TabsContent value="commercial" className="mt-5">
+          <CommercialWorkspace
+            client={client}
+            primaryLicense={primaryLicense}
+            primaryContract={primaryContract}
+            modules={modules}
+            notes={notes}
+          />
+        </TabsContent>
+
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
         <TabsContent value="licensing" className="space-y-5 mt-5">

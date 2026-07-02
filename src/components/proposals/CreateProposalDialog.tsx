@@ -136,12 +136,23 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [items, setItems] = useState<ProposalItem[]>([]);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    setClientName(defaultClientName);
+    setCountry(defaultCountry || "");
+    if (editingProposal) return;
+    // Apply commercial context presets (existing-customer flows)
+    if (commercialContext) {
+      if (commercialContext.presetProductFamily) setProductFamily(commercialContext.presetProductFamily);
+      if (commercialContext.presetPlan) setPlan(commercialContext.presetPlan);
+      if (typeof commercialContext.presetWebUsers === "number") setWebUsers(commercialContext.presetWebUsers);
+      if (typeof commercialContext.presetIncludeRequests === "boolean") setIncludeRequests(commercialContext.presetIncludeRequests);
+      if (commercialContext.projectNameHint) setProjectName(commercialContext.projectNameHint);
+      setStep(typeof commercialContext.initialStep === "number" ? commercialContext.initialStep : 0);
+    } else {
       setStep(0);
-      setClientName(defaultClientName);
-      setCountry(defaultCountry || "");
     }
-  }, [open, defaultClientName, defaultCountry]);
+  }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
+
 
   useEffect(() => {
     if (!open || !editingProposal) return;

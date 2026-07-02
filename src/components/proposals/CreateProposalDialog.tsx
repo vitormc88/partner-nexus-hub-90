@@ -1041,6 +1041,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           )}
           {step === 4 && !isBusiness && (
             <div className="space-y-4">
+              {commercialContext && !editingProposal && (
+                <CommercialIntelligencePanel
+                  ctx={commercialContext}
+                  newRecurring={totals.totalRecurring}
+                  slot="summary"
+                />
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <div className="px-3 py-2 bg-secondary/50 flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-foreground">Line Items (editable)</h4>

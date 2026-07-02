@@ -198,20 +198,56 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
 
             </p>
           </div>
-          <div>
-            <Label className="text-xs">Select new license</Label>
-            <Select value={String(newPlan)} onValueChange={(v) => setNewPlan(Number(v) as ProposalPlan)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(upgradeOptions.length ? upgradeOptions : ([1, 2, 3] as ProposalPlan[])).map((p) => (
-                  <SelectItem key={p} value={String(p)}>{PLAN_LABEL[p]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {upgradeOptions.length === 0 && currentPlan === 3 && (
-              <p className="text-xs text-muted-foreground mt-2">Customer is already on the highest plan.</p>
-            )}
+          {upgradeTargets.length === 0 ? (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-xs text-amber-700 dark:text-amber-400">
+              This customer is already on a Business license. Use Add Modules, Add Plugins, Add Users, Change Hosting or Renew Commercial Agreement instead.
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Select new license</Label>
+              <Select
+                value={targetLicenseId ?? ""}
+                onValueChange={(v) => setTargetLicenseId(v as LicenseId)}
+              >
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Choose a target license" /></SelectTrigger>
+                <SelectContent>
+                  {upgradeTargets.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Downgrades are never offered. Business UseIT and Business KeepIT are mutually exclusive commercial models.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {ctx.mode === "change_hosting" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border/60 p-4">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current Hosting</p>
+            <p className="text-lg font-semibold text-foreground mt-1">
+              {currentHosting === "OnPremise" ? "On-Premise" : "SaaS"}
+            </p>
           </div>
+          <div>
+            <Label className="text-xs">Switch to</Label>
+            <RadioGroup
+              value={newHosting}
+              onValueChange={(v) => setNewHosting(v as "SaaS" | "OnPremise")}
+              className="mt-2 grid grid-cols-2 gap-2"
+            >
+              <label className="flex items-center gap-2 rounded-md border border-border/60 p-3 cursor-pointer">
+                <RadioGroupItem value="SaaS" /> <span className="text-sm">SaaS</span>
+              </label>
+              <label className="flex items-center gap-2 rounded-md border border-border/60 p-3 cursor-pointer">
+                <RadioGroupItem value="OnPremise" /> <span className="text-sm">On-Premise</span>
+              </label>
+            </RadioGroup>
+          </div>
+
         </div>
       )}
 

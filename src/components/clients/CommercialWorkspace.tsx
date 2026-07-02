@@ -254,6 +254,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         return { ...base, initialStep: 1, projectNameHint: `Plugins expansion — ${projectBase}` };
       case "add_users":
         return { ...base, initialStep: 1, projectNameHint: `Additional users — ${projectBase}` };
+      case "change_hosting":
+        return { ...base, initialStep: 0, projectNameHint: `Change hosting — ${projectBase}` };
       case "renew_agreement":
         return { ...base, initialStep: 4, projectNameHint: `Renewal — ${projectBase}` };
       default:

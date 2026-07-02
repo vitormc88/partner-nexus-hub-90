@@ -22,21 +22,28 @@ import { CreateProposalDialog, type CommercialContext, type CommercialProposalMo
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal, Server } from "lucide-react";
+import {
+  availableCommercialActions,
+  resolveLicenseId,
+  type CommercialActionId,
+} from "@/lib/license-evolution";
 
-const PROPOSAL_MODES: {
+const PROPOSAL_MODES: Record<CommercialActionId, {
   mode: CommercialProposalMode;
   label: string;
   hint: string;
   icon: any;
-}[] = [
-  { mode: "upgrade_license", label: "Upgrade License", hint: "Move to a higher plan", icon: ArrowUpCircle },
-  { mode: "add_modules", label: "Add Modules", hint: "Extend current license with modules", icon: Puzzle },
-  { mode: "add_plugins", label: "Add Plugins", hint: "Enable additional plugins", icon: Plug },
-  { mode: "add_users", label: "Add Users", hint: "Increase licensed users", icon: Users2 },
-  { mode: "renew_agreement", label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal", icon: RefreshCcw },
-  { mode: "other", label: "Other Commercial Proposal", hint: "Custom commercial change", icon: MoreHorizontal },
-];
+}> = {
+  upgrade_license:  { mode: "upgrade_license",  label: "Change / Upgrade License",  hint: "Move to a higher plan or Business model", icon: ArrowUpCircle },
+  add_modules:      { mode: "add_modules",      label: "Add Modules",               hint: "Extend current license with modules",     icon: Puzzle },
+  add_plugins:      { mode: "add_plugins",      label: "Add Plugins",               hint: "Enable additional plugins",               icon: Plug },
+  add_users:        { mode: "add_users",        label: "Add Users",                 hint: "Increase licensed users",                 icon: Users2 },
+  change_hosting:   { mode: "change_hosting",   label: "Change Hosting",            hint: "Switch SaaS / On-Premise",                icon: Server },
+  renew_agreement:  { mode: "renew_agreement",  label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal",             icon: RefreshCcw },
+  other:            { mode: "other",            label: "Other Commercial Proposal", hint: "Custom commercial change",                icon: MoreHorizontal },
+};
+
 
 interface Props {
   client: any;

@@ -658,9 +658,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
             {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"} — {STEPS[step]}
+            {commercialContext && !editingProposal && (
+              <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
+                Existing Customer · {commercialContext.label}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 

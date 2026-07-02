@@ -87,7 +87,19 @@ export interface ExistingCustomerSnapshot {
   plugins?: any[];
   backofficeUsers?: number | null;
   webUsers?: number | null;
+  mobileUsers?: number | null;
   renewalDate?: string | null;
+  /** Normalized license fields (single source of truth for Existing Customer Mode UI). */
+  licenseFamily?: "Business" | "Professional" | null;
+  licenseVariant?: string | null;
+  licenseLabel?: string | null;
+  deployment?: string | null;
+  billingFrequency?: string | null;
+  currency?: string | null;
+  satActive?: boolean | null;
+  apiAccess?: boolean | null;
+  arr?: number | null;
+  year1?: number | null;
 }
 
 export interface CommercialContext {

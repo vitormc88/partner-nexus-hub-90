@@ -116,26 +116,78 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       .slice(0, 12);
   }, [proposals, commercialNotes, events]);
 
-  // Derive presets from current commercial state to preload the Proposal Builder.
-  const presets = useMemo(() => {
+  // ─── Existing Customer Context (Sprint I.6) ───────────────────────────────
+  // Normalize the real client commercial configuration into a single source of
+  // truth for the Proposal Builder wizards. Mirrors field usage of the
+  // Licensing / Contract tabs (product/edition, web_accesses, backoffice_users,
+  // sat_active, api_access, license_end_date).
+  const activeModuleRows = useMemo(
+    () => (modules || []).filter((m: any) => m?.enabled !== false && !m?.plugin_id && (m?.item_type ?? "module") !== "plugin"),
+    [modules],
+  );
+  const activePluginRows = useMemo(() => {
+    const fromPlugins = (plugins || []).filter((p: any) => p?.enabled !== false);
+    const fromModules = (modules || []).filter(
+      (m: any) => m?.enabled !== false && (m?.plugin_id || m?.item_type === "plugin"),
+    );
+    // Prefer the explicit plugins list; fall back to plugin rows co-located in licensed_modules.
+    return fromPlugins.length ? fromPlugins : fromModules;
+  }, [modules, plugins]);
+
+  const derivedLicense = useMemo(() => {
     const lic: any = primaryLicense || {};
-    const rawPlan = Number(lic.plan ?? lic.plan_level ?? lic.edition_level ?? NaN);
-    const plan = (rawPlan === 1 || rawPlan === 2 || rawPlan === 3 ? rawPlan : undefined) as 1 | 2 | 3 | undefined;
-    const family: any = (lic.product_family || lic.license_family || "").toString().toLowerCase().includes("business")
-      ? "Business" : "Professional";
-    const webUsers = Number(lic.web_users ?? lic.additional_web_users ?? 0) || 0;
-    const includeRequests = Boolean(lic.include_requests_module ?? lic.requests_module);
-    return { plan, family: family as "Business" | "Professional", webUsers, includeRequests };
+    const product: string = (lic.product || "").toString().trim();
+    const edition: string = (lic.edition || "").toString().trim();
+    const combined = `${product} ${edition}`.toLowerCase();
+
+    const family: "Business" | "Professional" | null =
+      /business/.test(combined) ? "Business" :
+      /professional/.test(combined) ? "Professional" : null;
+
+    // Variant: "KeepIT" / "UseIT" for Business, "I|II|III|1|2|3" for Professional.
+    let variant: string | null = null;
+    if (family === "Business") {
+      if (/keepit/.test(combined)) variant = "KeepIT";
+      else if (/useit/.test(combined)) variant = "UseIT";
+      else if (/startit/.test(combined)) variant = "StartIT";
+    } else if (family === "Professional") {
+      const m = combined.match(/professional[^0-9iv]*(iii|ii|i|3|2|1)\b/);
+      if (m) {
+        const t = m[1];
+        variant = t === "iii" || t === "3" ? "III" : t === "ii" || t === "2" ? "II" : "I";
+      }
+    }
+
+    // ProposalPlan 1|2|3 currently only maps meaningfully for Professional.
+    let plan: 1 | 2 | 3 | undefined;
+    if (family === "Professional" && variant) {
+      plan = variant === "III" ? 3 : variant === "II" ? 2 : 1;
+    }
+
+    const label = family
+      ? family === "Business"
+        ? variant ? `Business ${variant}` : (product || "Business")
+        : variant ? `Professional ${variant}` : (product || "Professional")
+      : (product || null);
+
+    return { family, variant, plan, label };
   }, [primaryLicense]);
+
+  const backofficeUsers = Number(
+    (primaryLicense as any)?.backoffice_users ??
+    (primaryLicense as any)?.backoffice_employee_users ?? 0,
+  ) || 0;
+  const webUsers = Number((primaryLicense as any)?.web_accesses ?? 0) || 0;
+  const mobileUsers = Number((primaryLicense as any)?.mobile_users ?? 0) || 0;
+  const renewalDate =
+    (primaryContract as any)?.contract_end_date ||
+    (primaryLicense as any)?.license_end_date ||
+    null;
+
   const projectBase = client?.commercial_name ?? clientName;
 
   const buildContext = (mode: CommercialProposalMode): CommercialContext => {
     const lic: any = primaryLicense || {};
-    const backofficeUsers = Number(lic.backoffice_users ?? lic.back_office_users ?? lic.bo_users ?? 0) || 0;
-    const renewalDate =
-      primaryContract?.contract_end_date ||
-      primaryLicense?.license_end_date ||
-      null;
 
     const snapshot = {
       clientId: client?.id ?? null,
@@ -144,21 +196,46 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       partnerName: client?.partner_name ?? client?.partner?.company_name ?? null,
       license: primaryLicense ?? null,
       contract: primaryContract ?? null,
-      modules: modules || [],
-      plugins: plugins || [],
+      modules: activeModuleRows,
+      plugins: activePluginRows,
       backofficeUsers,
-      webUsers: presets.webUsers,
+      webUsers,
+      mobileUsers,
       renewalDate,
+      licenseFamily: derivedLicense.family,
+      licenseVariant: derivedLicense.variant,
+      licenseLabel: derivedLicense.label,
+      deployment: lic.deployment_type || lic.database_type || client?.cloud_onpremise || null,
+      billingFrequency: (primaryContract as any)?.billing_frequency || lic.billing_frequency || lic.periodicity || null,
+      currency: lic.currency || (primaryContract as any)?.currency || null,
+      satActive: Boolean(lic.sat_active) || null,
+      apiAccess: Boolean(lic.api_access) || null,
+      arr: Number(lic.recurring_contract_value ?? 0) || null,
+      year1: Number(lic.initial_contract_value ?? 0) || null,
     };
+
+    if (import.meta.env?.DEV) {
+      // eslint-disable-next-line no-console
+      console.log("[CommercialWorkspace/buildContext]", {
+        mode,
+        clientId: snapshot.clientId,
+        licenseLabel: snapshot.licenseLabel,
+        backofficeUsers,
+        webUsers,
+        modules: activeModuleRows.length,
+        plugins: activePluginRows.length,
+        renewalDate,
+        satActive: snapshot.satActive,
+      });
+    }
 
     const base: CommercialContext = {
       source: "commercial_workspace",
       mode,
       label: PROPOSAL_MODES.find((m) => m.mode === mode)?.label || "Commercial Proposal",
-      presetPlan: presets.plan,
-      presetWebUsers: presets.webUsers,
-      presetIncludeRequests: presets.includeRequests,
-      presetProductFamily: presets.family,
+      presetPlan: derivedLicense.plan,
+      presetWebUsers: webUsers,
+      presetProductFamily: derivedLicense.family ?? "Professional",
       existingCustomer: snapshot,
     };
     switch (mode) {
@@ -176,6 +253,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         return { ...base, initialStep: 0, projectNameHint: `Commercial proposal — ${projectBase}` };
     }
   };
+
 
   const openProposal = (mode: CommercialProposalMode) => {
     setCommercialCtx(buildContext(mode));

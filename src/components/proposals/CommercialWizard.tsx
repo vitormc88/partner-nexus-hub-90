@@ -58,15 +58,25 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
   const currentWebUsers = snap.webUsers ?? ctx.presetWebUsers ?? 0;
   const currentBoUsers = snap.backofficeUsers ?? 0;
   const currentRenewal = snap.renewalDate ?? null;
+  const currentLicenseLabel =
+    (snap as any).licenseLabel
+    || (currentPlan ? PLAN_LABEL[currentPlan] : null)
+    || (snap.license as any)?.product
+    || "—";
 
   const currentModuleNames = useMemo(
-    () => (snap.modules || []).map((m: any) => (m?.module_name || m?.name || "").toString()).filter(Boolean),
+    () => (snap.modules || [])
+      .map((m: any) => (m?.module_name || m?.name || m?.code || "").toString())
+      .filter(Boolean),
     [snap.modules],
   );
   const currentPluginNames = useMemo(
-    () => (snap.plugins || []).map((p: any) => (p?.plugin_name || p?.name || "").toString()).filter(Boolean),
+    () => (snap.plugins || [])
+      .map((p: any) => (p?.plugin_name || p?.module_name || p?.name || p?.code || "").toString())
+      .filter(Boolean),
     [snap.plugins],
   );
+
 
   const availableModules = useMemo(
     () => ALL_MODULES.filter((m) => !currentModuleNames.some((cm) => cm.toLowerCase() === m.toLowerCase())),
@@ -147,7 +157,8 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
           <div className="rounded-lg border border-border/60 p-4">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Current License</p>
             <p className="text-lg font-semibold text-foreground mt-1">
-              {currentPlan ? PLAN_LABEL[currentPlan] : "—"}
+              {currentLicenseLabel}
+
             </p>
           </div>
           <div>
@@ -282,7 +293,7 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
         <div className="grid gap-3 md:grid-cols-2">
           <SectionCard title="Current license">
             <p className="text-sm font-semibold text-foreground">
-              {currentPlan ? PLAN_LABEL[currentPlan] : "—"}
+              {currentLicenseLabel}
             </p>
           </SectionCard>
           <SectionCard title="Renewal date">

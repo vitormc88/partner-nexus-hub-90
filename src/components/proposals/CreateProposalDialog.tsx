@@ -87,7 +87,19 @@ export interface ExistingCustomerSnapshot {
   plugins?: any[];
   backofficeUsers?: number | null;
   webUsers?: number | null;
+  mobileUsers?: number | null;
   renewalDate?: string | null;
+  /** Normalized license fields (single source of truth for Existing Customer Mode UI). */
+  licenseFamily?: "Business" | "Professional" | null;
+  licenseVariant?: string | null;
+  licenseLabel?: string | null;
+  deployment?: string | null;
+  billingFrequency?: string | null;
+  currency?: string | null;
+  satActive?: boolean | null;
+  apiAccess?: boolean | null;
+  arr?: number | null;
+  year1?: number | null;
 }
 
 export interface CommercialContext {
@@ -185,11 +197,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         commercialContext.source === "commercial_workspace" &&
         commercialContext.mode !== "other";
       setWizardDone(!showWizard);
+
+      // Development-only diagnostic logging (Sprint I.6).
+      if (import.meta.env?.DEV) {
+        const snap = commercialContext.existingCustomer || {};
+        // eslint-disable-next-line no-console
+        console.log("[ProposalBuilder/ExistingCustomer]", {
+          clientId: snap.clientId,
+          mode: commercialContext.mode,
+          licenseLabel: snap.licenseLabel,
+          licenseFamily: snap.licenseFamily,
+          licenseVariant: snap.licenseVariant,
+          backofficeUsers: snap.backofficeUsers,
+          webUsers: snap.webUsers,
+          activeModules: (snap.modules || []).length,
+          activePlugins: (snap.plugins || []).length,
+          renewalDate: snap.renewalDate,
+          satActive: snap.satActive,
+        });
+      }
     } else {
       setStep(0);
       setWizardDone(true);
     }
   }, [open, defaultClientName, defaultCountry, editingProposal, commercialContext]);
+
 
 
   useEffect(() => {
@@ -720,6 +752,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             )}
           </DialogTitle>
         </DialogHeader>
+
+        {commercialContext && !editingProposal && !commercialContext.existingCustomer?.license && (
+          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+            Current license could not be loaded from this client. Please check the Licensing tab before creating this proposal.
+          </div>
+        )}
 
         {showWizard ? (
           <div className="mt-4">

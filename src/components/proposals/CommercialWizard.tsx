@@ -3,10 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw } from "lucide-react";
+import { ArrowRight, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, Server } from "lucide-react";
 import type { CommercialContext, CommercialProposalMode } from "./CreateProposalDialog";
 import type { ProposalPlan } from "@/types/proposal";
+import {
+  LICENSE_ORDER,
+  resolveLicenseId,
+  validUpgradeTargets,
+  type LicenseId,
+} from "@/lib/license-evolution";
+
 
 /**
  * Contextual wizard shown as the first screen of the Proposal Builder when

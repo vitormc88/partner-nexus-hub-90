@@ -85,7 +85,7 @@ interface Props {
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: rules = [] } = usePricingRules();

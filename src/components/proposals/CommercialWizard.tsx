@@ -93,19 +93,40 @@ export function CommercialWizard({ ctx, onContinue, onCancel }: Props) {
     () => ALL_MODULES.filter((m) => !currentModuleNames.some((cm) => cm.toLowerCase() === m.toLowerCase())),
     [currentModuleNames],
   );
+  // API plugin is filtered when API access is already enabled on the license.
+  const apiAlreadyOn =
+    Boolean((snap as any).apiAccess)
+    || currentPluginNames.some((p) => /\bapi\b/i.test(p));
   const availablePlugins = useMemo(
-    () => ALL_PLUGINS.filter((p) => !currentPluginNames.some((cp) => cp.toLowerCase() === p.toLowerCase())),
-    [currentPluginNames],
+    () => ALL_PLUGINS.filter((p) => {
+      if (currentPluginNames.some((cp) => cp.toLowerCase() === p.toLowerCase())) return false;
+      if (apiAlreadyOn && /api/i.test(p)) return false;
+      return true;
+    }),
+    [currentPluginNames, apiAlreadyOn],
   );
 
+  // ── License evolution (Sprint I.7) ──
+  const currentLicenseId = useMemo(
+    () => resolveLicenseId((snap as any).licenseFamily ?? null, (snap as any).licenseVariant ?? null),
+    [snap],
+  );
+  const upgradeTargets = useMemo(() => validUpgradeTargets(currentLicenseId), [currentLicenseId]);
+
   // Local state per mode
-  const [newPlan, setNewPlan] = useState<ProposalPlan>(
-    currentPlan && currentPlan < 3 ? ((currentPlan + 1) as ProposalPlan) : 3,
+  const [targetLicenseId, setTargetLicenseId] = useState<LicenseId | undefined>(
+    upgradeTargets[0]?.id,
   );
   const [addBoUsers, setAddBoUsers] = useState(0);
   const [addWebUsers, setAddWebUsers] = useState(0);
   const [pickedModules, setPickedModules] = useState<string[]>([]);
   const [pickedPlugins, setPickedPlugins] = useState<string[]>([]);
+  const currentHosting: "SaaS" | "OnPremise" = /on.?prem/i.test(String((snap as any).deployment || ""))
+    ? "OnPremise" : "SaaS";
+  const [newHosting, setNewHosting] = useState<"SaaS" | "OnPremise">(
+    currentHosting === "SaaS" ? "OnPremise" : "SaaS",
+  );
+
 
   const toggle = (arr: string[], v: string) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];

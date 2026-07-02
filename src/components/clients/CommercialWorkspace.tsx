@@ -24,6 +24,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ArrowUpCircle, Puzzle, Plug, Users2, RefreshCcw, MoreHorizontal } from "lucide-react";
 
+const PROPOSAL_MODES: {
+  mode: CommercialProposalMode;
+  label: string;
+  hint: string;
+  icon: any;
+}[] = [
+  { mode: "upgrade_license", label: "Upgrade License", hint: "Move to a higher plan", icon: ArrowUpCircle },
+  { mode: "add_modules", label: "Add Modules", hint: "Extend current license with modules", icon: Puzzle },
+  { mode: "add_plugins", label: "Add Plugins", hint: "Enable additional plugins", icon: Plug },
+  { mode: "add_users", label: "Add Users", hint: "Increase licensed users", icon: Users2 },
+  { mode: "renew_agreement", label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal", icon: RefreshCcw },
+  { mode: "other", label: "Other Commercial Proposal", hint: "Custom commercial change", icon: MoreHorizontal },
+];
+
 interface Props {
   client: any;
   primaryLicense: any | null;

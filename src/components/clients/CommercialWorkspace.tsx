@@ -418,6 +418,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           leadId={client.id}
           defaultClientName={clientName}
           defaultCountry={client.country || null}
+          commercialContext={commercialCtx}
         />
       )}
 

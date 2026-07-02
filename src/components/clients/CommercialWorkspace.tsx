@@ -38,7 +38,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   const createTask = useCreateManualTask();
 
   const [showProposal, setShowProposal] = useState(false);
-  const [proposalMode, setProposalMode] = useState<"new" | "renewal">("new");
+  const [commercialCtx, setCommercialCtx] = useState<CommercialContext | null>(null);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showNote, setShowNote] = useState(false);
 
